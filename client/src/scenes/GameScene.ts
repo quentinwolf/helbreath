@@ -639,6 +639,21 @@ export class GameScene extends Phaser.Scene {
     this.soundTracker = new SoundTracker(this.soundManager);
     this.weatherManager = new WeatherManager(this, this.soundManager);
 
+    // This scene restarts on every teleport (the server re-sends EnterGameResponse).
+    // Phaser's sound system outlives the scene, so stop our music and loops on
+    // shutdown or they keep playing unreachable, and carry the volumes over.
+    const savedMusicVol = this.registry.get('musicVolume');
+    if (typeof savedMusicVol === 'number') this.musicManager.setVolume(savedMusicVol);
+    const savedSfxVol = this.registry.get('sfxVolume');
+    if (typeof savedSfxVol === 'number') this.soundManager.setVolume(savedSfxVol);
+    this.events.once('shutdown', () => {
+      this.registry.set('musicVolume', this.musicManager.getVolume());
+      this.registry.set('sfxVolume', this.soundManager.getVolume());
+      this.musicManager.destroy();
+      this.weatherManager.destroy();
+      this.soundManager.destroy();
+    });
+
     // Play map music on enter
     const mapAsset = getAssetByKey(this.currentMapName.toLowerCase().replace(/\.amd$/i, ''));
     if (mapAsset?.music) {
