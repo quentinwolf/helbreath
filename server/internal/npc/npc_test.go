@@ -1,6 +1,7 @@
 package npc
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -217,5 +218,17 @@ func TestNPCToEntityInfo(t *testing.T) {
 	}
 	if info.Name != "Skeleton" {
 		t.Errorf("Expected name=Skeleton, got %s", info.Name)
+	}
+}
+
+func TestNPCNamesHaveNoTownOrAbbreviation(t *testing.T) {
+	// Town variants share a plain name; the Side field tells them apart
+	if a, e := NpcTypes[1013], NpcTypes[1014]; a.Name != "Guard" || e.Name != "Guard" || a.Side == e.Side {
+		t.Errorf("guards should both be called Guard, with different sides: %q/%d, %q/%d", a.Name, a.Side, e.Name, e.Side)
+	}
+	for _, nt := range NpcTypes {
+		if strings.HasSuffix(nt.Name, "-Elvine") || strings.HasSuffix(nt.Name, "-Aresden") {
+			t.Errorf("NPC type %d still shows its town: %s", nt.ID, nt.Name)
+		}
 	}
 }

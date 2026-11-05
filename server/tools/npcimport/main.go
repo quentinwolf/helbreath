@@ -456,7 +456,11 @@ func generate(npcs []rawNpc) {
 		absM := n.AbsM
 
 		p("\tNpcTypes[%d] = &NpcType{\n", e.Key)
-		p("\t\tID: %d, Name: %q, SpriteType: %d,\n", e.Key, e.Name, e.Sprite)
+		if shown := shownName(e.Name); shown != e.Name {
+			p("\t\tID: %d, Name: %q, SpriteType: %d, // NPC.cfg: %s\n", e.Key, shown, e.Sprite, e.Name)
+		} else {
+			p("\t\tID: %d, Name: %q, SpriteType: %d,\n", e.Key, e.Name, e.Sprite)
+		}
 		p("\t\tHP: %d, MinDamage: %d, MaxDamage: %d,\n", hp, minDmg, maxDmg)
 		p("\t\tDefense: %d, DEX: %d, XP: %d,\n", n.DR, n.HR, xp)
 		p("\t\tAggroRange: %d, MoveSpeed: %d, AttackSpeed: %d, WanderRange: %d,\n",
@@ -492,6 +496,34 @@ func generate(npcs []rawNpc) {
 	}
 
 	p("}\n")
+}
+
+// plainNames spell out NPC.cfg's abbreviations. The original client never
+// showed cfg names; it named NPCs by sprite type (GetNpcName), so every guard is
+// just "Guard". Its exact strings (lan_eng.h) aren't in our reference copies;
+// these are the standard English names.
+var plainNames = map[string]string{
+	"XB": "Soldier", "XW": "Soldier", "XY": "Soldier", "YB": "Soldier", "YW": "Soldier", "YY": "Soldier",
+	"War": "Soldier",
+	"AGT": "Arrow Guard Tower", "CGT": "Cannon Guard Tower", "MS": "Mana Collector",
+	"DT": "Detector", "ESG": "Energy Shield Generator", "GMG": "Grand Magic Generator",
+	"LWB": "Light War Beetle", "CP": "Catapult", "ES": "Energy Sphere",
+	"GHK": "God's Hand Knight", "TK": "Temple Knight", "BG": "Battle Golem",
+	"Sor": "Sorceress", "ATK": "Ancient Temple Knight", "Elf": "Master Elf",
+	"DSK": "Dark Shadow Knight", "HBT": "Heavy Battle Tank", "CT": "Crossbow Turret",
+	"Bar": "Barbarian", "AGC": "Ancient Giant Cannon",
+	"Evil-Sorceress": "Sorceress", "Evil-Elf": "Master Elf", "Evil-Barbarian": "Barbarian",
+	"City-Dark-Elf": "Dark-Elf",
+}
+
+// shownName is the name an NPC gets in the game: no town suffix (its Side field
+// already says whose it is) and no abbreviations. Several types can share one.
+func shownName(cfgName string) string {
+	base := strings.TrimSuffix(strings.TrimSuffix(cfgName, "-Aresden"), "-Elvine")
+	if plain, ok := plainNames[base]; ok {
+		return plain
+	}
+	return base
 }
 
 // isSameAsExisting checks whether this NPC from NPC.cfg matches

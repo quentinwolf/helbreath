@@ -8,75 +8,75 @@ import "time"
 
 func init() {
 	NpcTypes[1] = &NpcType{
-		ID: 1, Name: "XB-Aresden", SpriteType: 1,
+		ID: 1, Name: "Soldier", SpriteType: 1, // NPC.cfg: XB-Aresden
 		HP: 850, MinDamage: 8, MaxDamage: 40,
 		Defense: 150, DEX: 200, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[2] = &NpcType{
-		ID: 2, Name: "XW-Aresden", SpriteType: 2,
+		ID: 2, Name: "Soldier", SpriteType: 2, // NPC.cfg: XW-Aresden
 		HP: 850, MinDamage: 8, MaxDamage: 40,
 		Defense: 150, DEX: 200, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[3] = &NpcType{
-		ID: 3, Name: "XY-Aresden", SpriteType: 3,
+		ID: 3, Name: "Soldier", SpriteType: 3, // NPC.cfg: XY-Aresden
 		HP: 850, MinDamage: 8, MaxDamage: 40,
 		Defense: 150, DEX: 200, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[4] = &NpcType{
-		ID: 4, Name: "YB-Aresden", SpriteType: 4,
+		ID: 4, Name: "Soldier", SpriteType: 4, // NPC.cfg: YB-Aresden
 		HP: 850, MinDamage: 8, MaxDamage: 40,
 		Defense: 150, DEX: 200, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[5] = &NpcType{
-		ID: 5, Name: "YW-Aresden", SpriteType: 5,
+		ID: 5, Name: "Soldier", SpriteType: 5, // NPC.cfg: YW-Aresden
 		HP: 850, MinDamage: 8, MaxDamage: 40,
 		Defense: 150, DEX: 200, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[6] = &NpcType{
-		ID: 6, Name: "YY-Aresden", SpriteType: 6,
+		ID: 6, Name: "Soldier", SpriteType: 6, // NPC.cfg: YY-Aresden
 		HP: 850, MinDamage: 8, MaxDamage: 40,
 		Defense: 150, DEX: 200, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[35] = &NpcType{
@@ -86,77 +86,77 @@ func init() {
 		AggroRange: 7, MoveSpeed: 60000, AttackSpeed: 60000, WanderRange: 8,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeSmall, Side: SideMonster,
-		AttackRange: 1,
-		RespawnDelay: 1 * time.Second,
+		AttackRange:   1,
+		RespawnDelay:  1 * time.Second,
 		MagicHitRatio: 200,
 	}
 
 	NpcTypes[36] = &NpcType{
-		ID: 36, Name: "AGT-Aresden", SpriteType: 36,
+		ID: 36, Name: "Arrow Guard Tower", SpriteType: 36, // NPC.cfg: AGT-Aresden
 		HP: 5000, MinDamage: 5, MaxDamage: 40,
 		Defense: 50, DEX: 500, XP: 4000,
 		AggroRange: 8, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 0,
 		DiceThrow: 5, DiceRange: 8,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
 	}
 
 	NpcTypes[37] = &NpcType{
-		ID: 37, Name: "CGT-Aresden", SpriteType: 37,
+		ID: 37, Name: "Cannon Guard Tower", SpriteType: 37, // NPC.cfg: CGT-Aresden
 		HP: 5000, MinDamage: 10, MaxDamage: 140,
 		Defense: 50, DEX: 500, XP: 4000,
 		AggroRange: 8, MoveSpeed: 1800, AttackSpeed: 1800, WanderRange: 0,
 		DiceThrow: 10, DiceRange: 14,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
 	}
 
 	NpcTypes[38] = &NpcType{
-		ID: 38, Name: "MS-Aresden", SpriteType: 38,
+		ID: 38, Name: "Mana Collector", SpriteType: 38, // NPC.cfg: MS-Aresden
 		HP: 5000, MinDamage: 1, MaxDamage: 0,
 		Defense: 50, DEX: 500, XP: 1000,
 		AggroRange: 8, MoveSpeed: 800, AttackSpeed: 800, WanderRange: 0,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
 	}
 
 	NpcTypes[39] = &NpcType{
-		ID: 39, Name: "DT-Aresden", SpriteType: 39,
+		ID: 39, Name: "Detector", SpriteType: 39, // NPC.cfg: DT-Aresden
 		HP: 5000, MinDamage: 1, MaxDamage: 0,
 		Defense: 50, DEX: 500, XP: 1000,
 		AggroRange: 8, MoveSpeed: 800, AttackSpeed: 800, WanderRange: 0,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
 	}
 
 	NpcTypes[40] = &NpcType{
-		ID: 40, Name: "ESG-Aresden", SpriteType: 40,
+		ID: 40, Name: "Energy Shield Generator", SpriteType: 40, // NPC.cfg: ESG-Aresden
 		HP: 8000, MinDamage: 1, MaxDamage: 0,
 		Defense: 50, DEX: 500, XP: 1000,
 		AggroRange: 8, MoveSpeed: 800, AttackSpeed: 800, WanderRange: 0,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
 	}
 
 	NpcTypes[41] = &NpcType{
-		ID: 41, Name: "GMG-Aresden", SpriteType: 41,
+		ID: 41, Name: "Grand Magic Generator", SpriteType: 41, // NPC.cfg: GMG-Aresden
 		HP: 500000, MinDamage: 1, MaxDamage: 0,
 		Defense: 5000, DEX: 500, XP: 55450,
 		AggroRange: 8, MoveSpeed: 800, AttackSpeed: 800, WanderRange: 0,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
-		BossType: 1,
-		Mana: 80, MaxMana: 80,
+		BossType:     1,
+		Mana:         80, MaxMana: 80,
 	}
 
 	NpcTypes[42] = &NpcType{
@@ -166,34 +166,34 @@ func init() {
 		AggroRange: 8, MoveSpeed: 500, AttackSpeed: 500, WanderRange: 0,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeLarge, Side: SideNeutral,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
-		BossType: 1,
+		BossType:     1,
 	}
 
 	NpcTypes[43] = &NpcType{
-		ID: 43, Name: "LWB-Aresden", SpriteType: 43,
+		ID: 43, Name: "Light War Beetle", SpriteType: 43, // NPC.cfg: LWB-Aresden
 		HP: 2500, MinDamage: 10, MaxDamage: 50,
 		Defense: 450, DEX: 500, XP: 6000,
 		AggroRange: 7, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 5,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 60 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 		INT: 70,
 	}
 
 	NpcTypes[44] = &NpcType{
-		ID: 44, Name: "GHK", SpriteType: 44,
+		ID: 44, Name: "God's Hand Knight", SpriteType: 44, // NPC.cfg: GHK
 		HP: 3500, MinDamage: 10, MaxDamage: 90,
 		Defense: 450, DEX: 500, XP: 8000,
 		AggroRange: 7, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 9,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 4,
+		AttackRange:  4,
 		RespawnDelay: 60 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 		INT: 70,
 	}
 
@@ -204,44 +204,44 @@ func init() {
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 13, DiceRange: 12,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 5,
+		AttackRange:  5,
 		RespawnDelay: 60 * time.Second,
-		INT: 70,
+		INT:          70,
 	}
 
 	NpcTypes[46] = &NpcType{
-		ID: 46, Name: "TK", SpriteType: 46,
+		ID: 46, Name: "Temple Knight", SpriteType: 46, // NPC.cfg: TK
 		HP: 3500, MinDamage: 10, MaxDamage: 90,
 		Defense: 450, DEX: 500, XP: 8000,
 		AggroRange: 7, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 9,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 4,
+		AttackRange:  4,
 		RespawnDelay: 60 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 		INT: 70,
 	}
 
 	NpcTypes[47] = &NpcType{
-		ID: 47, Name: "BG", SpriteType: 47,
+		ID: 47, Name: "Battle Golem", SpriteType: 47, // NPC.cfg: BG
 		HP: 8000, MinDamage: 13, MaxDamage: 156,
 		Defense: 450, DEX: 1000, XP: 20000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 13, DiceRange: 12,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 5,
+		AttackRange:  5,
 		RespawnDelay: 60 * time.Second,
-		INT: 70,
+		INT:          70,
 	}
 
 	NpcTypes[51] = &NpcType{
-		ID: 51, Name: "CP-Aresden", SpriteType: 51,
+		ID: 51, Name: "Catapult", SpriteType: 51, // NPC.cfg: CP-Aresden
 		HP: 5000, MinDamage: 10, MaxDamage: 140,
 		Defense: 50, DEX: 500, XP: 2222,
 		AggroRange: 9, MoveSpeed: 1600, AttackSpeed: 1600, WanderRange: 0,
 		DiceThrow: 10, DiceRange: 14,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 9,
+		AttackRange:  9,
 		RespawnDelay: 10 * time.Second,
 	}
 
@@ -252,103 +252,103 @@ func init() {
 		AggroRange: 7, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 8,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 2,
+		AttackRange:  2,
 		RespawnDelay: 10 * time.Second,
-		INT: 70,
-		Mana: 4000, MaxMana: 4000,
+		INT:          70,
+		Mana:         4000, MaxMana: 4000,
 		MagicHitRatio: 250,
 	}
 
 	NpcTypes[82] = &NpcType{
-		ID: 82, Name: "Sor-Aresden", SpriteType: 82,
+		ID: 82, Name: "Sorceress", SpriteType: 82, // NPC.cfg: Sor-Aresden
 		HP: 2000, MinDamage: 8, MaxDamage: 80,
 		Defense: 300, DEX: 1000, XP: 2222,
 		AggroRange: 7, MoveSpeed: 500, AttackSpeed: 500, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 10,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 6,
+		AttackRange:  6,
 		RespawnDelay: 60 * time.Second,
-		INT: 70,
-		Mana: 19000, MaxMana: 19000,
+		INT:          70,
+		Mana:         19000, MaxMana: 19000,
 		MagicHitRatio: 9,
 	}
 
 	NpcTypes[83] = &NpcType{
-		ID: 83, Name: "ATK-Aresden", SpriteType: 83,
+		ID: 83, Name: "Ancient Temple Knight", SpriteType: 83, // NPC.cfg: ATK-Aresden
 		HP: 4000, MinDamage: 10, MaxDamage: 100,
 		Defense: 400, DEX: 400, XP: 2222,
 		AggroRange: 7, MoveSpeed: 800, AttackSpeed: 800, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 10,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 60 * time.Second,
 	}
 
 	NpcTypes[84] = &NpcType{
-		ID: 84, Name: "Elf-Aresden", SpriteType: 84,
+		ID: 84, Name: "Master Elf", SpriteType: 84, // NPC.cfg: Elf-Aresden
 		HP: 2000, MinDamage: 6, MaxDamage: 60,
 		Defense: 300, DEX: 500, XP: 2222,
 		AggroRange: 7, MoveSpeed: 500, AttackSpeed: 500, WanderRange: 8,
 		DiceThrow: 6, DiceRange: 10,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 60 * time.Second,
 	}
 
 	NpcTypes[85] = &NpcType{
-		ID: 85, Name: "DSK-Aresden", SpriteType: 85,
+		ID: 85, Name: "Dark Shadow Knight", SpriteType: 85, // NPC.cfg: DSK-Aresden
 		HP: 3000, MinDamage: 9, MaxDamage: 90,
 		Defense: 500, DEX: 500, XP: 2222,
 		AggroRange: 9, MoveSpeed: 500, AttackSpeed: 500, WanderRange: 8,
 		DiceThrow: 9, DiceRange: 10,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 4,
+		AttackRange:  4,
 		RespawnDelay: 60 * time.Second,
 	}
 
 	NpcTypes[86] = &NpcType{
-		ID: 86, Name: "HBT-Aresden", SpriteType: 86,
+		ID: 86, Name: "Heavy Battle Tank", SpriteType: 86, // NPC.cfg: HBT-Aresden
 		HP: 3000, MinDamage: 15, MaxDamage: 150,
 		Defense: 100, DEX: 400, XP: 2222,
 		AggroRange: 9, MoveSpeed: 1200, AttackSpeed: 1200, WanderRange: 8,
 		DiceThrow: 15, DiceRange: 10,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 9,
+		AttackRange:  9,
 		RespawnDelay: 60 * time.Second,
 	}
 
 	NpcTypes[87] = &NpcType{
-		ID: 87, Name: "CT-Aresden", SpriteType: 87,
+		ID: 87, Name: "Crossbow Turret", SpriteType: 87, // NPC.cfg: CT-Aresden
 		HP: 8000, MinDamage: 8, MaxDamage: 80,
 		Defense: 200, DEX: 500, XP: 2222,
 		AggroRange: 8, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 0,
 		DiceThrow: 8, DiceRange: 10,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 9,
+		AttackRange:  9,
 		RespawnDelay: 3 * time.Second,
 	}
 
 	NpcTypes[88] = &NpcType{
-		ID: 88, Name: "Bar-Aresden", SpriteType: 88,
+		ID: 88, Name: "Barbarian", SpriteType: 88, // NPC.cfg: Bar-Aresden
 		HP: 5000, MinDamage: 12, MaxDamage: 120,
 		Defense: 300, DEX: 400, XP: 2222,
 		AggroRange: 7, MoveSpeed: 1200, AttackSpeed: 1200, WanderRange: 8,
 		DiceThrow: 12, DiceRange: 10,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 2,
+		AttackRange:  2,
 		RespawnDelay: 60 * time.Second,
 	}
 
 	NpcTypes[89] = &NpcType{
-		ID: 89, Name: "AGC-Aresden", SpriteType: 89,
+		ID: 89, Name: "Ancient Giant Cannon", SpriteType: 89, // NPC.cfg: AGC-Aresden
 		HP: 10000, MinDamage: 15, MaxDamage: 150,
 		Defense: 200, DEX: 500, XP: 2222,
 		AggroRange: 8, MoveSpeed: 1600, AttackSpeed: 1600, WanderRange: 0,
 		DiceThrow: 15, DiceRange: 10,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 9,
+		AttackRange:  9,
 		RespawnDelay: 3 * time.Second,
-		BossType: 1,
+		BossType:     1,
 	}
 
 	NpcTypes[91] = &NpcType{
@@ -358,9 +358,9 @@ func init() {
 		AggroRange: 1, MoveSpeed: 1600, AttackSpeed: 1600, WanderRange: 0,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 3 * time.Second,
-		BossType: 1,
+		BossType:     1,
 	}
 
 	NpcTypes[95] = &NpcType{
@@ -370,10 +370,10 @@ func init() {
 		AggroRange: 5, MoveSpeed: 200, AttackSpeed: 200, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 10,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 5,
+		AttackRange:  5,
 		RespawnDelay: 2 * time.Second,
-		INT: 90,
-		Mana: 25000, MaxMana: 25000,
+		INT:          90,
+		Mana:         25000, MaxMana: 25000,
 		MagicHitRatio: 250,
 	}
 
@@ -384,10 +384,10 @@ func init() {
 		AggroRange: 5, MoveSpeed: 200, AttackSpeed: 200, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 10,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 1 * time.Second,
-		INT: 90,
-		Mana: 5000, MaxMana: 5000,
+		INT:          90,
+		Mana:         5000, MaxMana: 5000,
 		MagicHitRatio: 250,
 	}
 
@@ -398,10 +398,10 @@ func init() {
 		AggroRange: 5, MoveSpeed: 400, AttackSpeed: 400, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 10,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 1 * time.Second,
-		INT: 70,
-		Mana: 5000, MaxMana: 5000,
+		INT:          70,
+		Mana:         5000, MaxMana: 5000,
 		MagicHitRatio: 250,
 	}
 
@@ -412,10 +412,10 @@ func init() {
 		AggroRange: 5, MoveSpeed: 300, AttackSpeed: 300, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 10,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 1 * time.Second,
-		INT: 120,
-		Mana: 5000, MaxMana: 5000,
+		INT:          120,
+		Mana:         5000, MaxMana: 5000,
 		MagicHitRatio: 250,
 	}
 
@@ -426,7 +426,7 @@ func init() {
 		AggroRange: 7, MoveSpeed: 2100, AttackSpeed: 2100, WanderRange: 8,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeSmall, Side: SideMonster,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 3 * time.Second,
 	}
 
@@ -437,10 +437,10 @@ func init() {
 		AggroRange: 6, MoveSpeed: 1500, AttackSpeed: 1500, WanderRange: 8,
 		DiceThrow: 4, DiceRange: 3,
 		Size: SizeMedium, Side: SideMonster,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 5 * time.Second,
-		CanFlee: true, FleeHPPct: 20,
-		INT: 50,
+		CanFlee:      true, FleeHPPct: 20,
+		INT:  50,
 		Mana: 150, MaxMana: 150,
 		MagicHitRatio: 10,
 	}
@@ -452,10 +452,10 @@ func init() {
 		AggroRange: 5, MoveSpeed: 300, AttackSpeed: 300, WanderRange: 8,
 		DiceThrow: 15, DiceRange: 10,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 4,
+		AttackRange:  4,
 		RespawnDelay: 5 * time.Second,
-		BossType: 1,
-		INT: 70,
+		BossType:     1,
+		INT:          70,
 	}
 
 	NpcTypes[1003] = &NpcType{
@@ -465,10 +465,10 @@ func init() {
 		AggroRange: 7, MoveSpeed: 500, AttackSpeed: 500, WanderRange: 8,
 		DiceThrow: 15, DiceRange: 14,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 5,
+		AttackRange:  5,
 		RespawnDelay: 60 * time.Second,
-		BossType: 1,
-		INT: 70,
+		BossType:     1,
+		INT:          70,
 	}
 
 	NpcTypes[1004] = &NpcType{
@@ -478,11 +478,11 @@ func init() {
 		AggroRange: 7, MoveSpeed: 500, AttackSpeed: 500, WanderRange: 8,
 		DiceThrow: 18, DiceRange: 17,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 6,
+		AttackRange:  6,
 		RespawnDelay: 60 * time.Second,
-		BossType: 1,
-		INT: 90,
-		Mana: 16000, MaxMana: 16000,
+		BossType:     1,
+		INT:          90,
+		Mana:         16000, MaxMana: 16000,
 		MagicHitRatio: 300,
 	}
 
@@ -493,11 +493,11 @@ func init() {
 		AggroRange: 8, MoveSpeed: 500, AttackSpeed: 500, WanderRange: 8,
 		DiceThrow: 20, DiceRange: 18,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 7,
+		AttackRange:  7,
 		RespawnDelay: 60 * time.Second,
-		BossType: 1,
-		INT: 120,
-		Mana: 16000, MaxMana: 16000,
+		BossType:     1,
+		INT:          120,
+		Mana:         16000, MaxMana: 16000,
 		MagicHitRatio: 250,
 	}
 
@@ -508,11 +508,11 @@ func init() {
 		AggroRange: 8, MoveSpeed: 500, AttackSpeed: 500, WanderRange: 8,
 		DiceThrow: 20, DiceRange: 18,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 7,
+		AttackRange:  7,
 		RespawnDelay: 60 * time.Second,
-		BossType: 1,
-		INT: 70,
-		Mana: 16000, MaxMana: 16000,
+		BossType:     1,
+		INT:          70,
+		Mana:         16000, MaxMana: 16000,
 		MagicHitRatio: 250,
 	}
 
@@ -523,10 +523,10 @@ func init() {
 		AggroRange: 7, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 15, DiceRange: 14,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 5,
+		AttackRange:  5,
 		RespawnDelay: 60 * time.Second,
-		BossType: 1,
-		INT: 70,
+		BossType:     1,
+		INT:          70,
 	}
 
 	NpcTypes[1008] = &NpcType{
@@ -536,11 +536,11 @@ func init() {
 		AggroRange: 7, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 18, DiceRange: 17,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 6,
+		AttackRange:  6,
 		RespawnDelay: 60 * time.Second,
-		BossType: 1,
-		INT: 90,
-		Mana: 16000, MaxMana: 16000,
+		BossType:     1,
+		INT:          90,
+		Mana:         16000, MaxMana: 16000,
 		MagicHitRatio: 250,
 	}
 
@@ -551,11 +551,11 @@ func init() {
 		AggroRange: 8, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 20, DiceRange: 18,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 7,
+		AttackRange:  7,
 		RespawnDelay: 60 * time.Second,
-		BossType: 1,
-		INT: 120,
-		Mana: 16000, MaxMana: 16000,
+		BossType:     1,
+		INT:          120,
+		Mana:         16000, MaxMana: 16000,
 		MagicHitRatio: 250,
 	}
 
@@ -566,11 +566,11 @@ func init() {
 		AggroRange: 8, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 20, DiceRange: 18,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 7,
+		AttackRange:  7,
 		RespawnDelay: 60 * time.Second,
-		BossType: 1,
-		INT: 70,
-		Mana: 16000, MaxMana: 16000,
+		BossType:     1,
+		INT:          70,
+		Mana:         16000, MaxMana: 16000,
 		MagicHitRatio: 250,
 	}
 
@@ -581,322 +581,322 @@ func init() {
 		AggroRange: 8, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 20, DiceRange: 20,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 7,
+		AttackRange:  7,
 		RespawnDelay: 60 * time.Second,
-		BossType: 1,
-		INT: 130,
-		Mana: 20000, MaxMana: 20000,
+		BossType:     1,
+		INT:          130,
+		Mana:         20000, MaxMana: 20000,
 		MagicHitRatio: 300,
 	}
 
 	NpcTypes[1012] = &NpcType{
-		ID: 1012, Name: "ES", SpriteType: 35,
+		ID: 1012, Name: "Energy Sphere", SpriteType: 35, // NPC.cfg: ES
 		HP: 100, MinDamage: 1, MaxDamage: 0,
 		Defense: 10, DEX: 10, XP: 3749,
 		AggroRange: 7, MoveSpeed: 60000, AttackSpeed: 60000, WanderRange: 8,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeSmall, Side: SideMonster,
-		AttackRange: 1,
-		RespawnDelay: 1 * time.Second,
+		AttackRange:   1,
+		RespawnDelay:  1 * time.Second,
 		MagicHitRatio: 200,
 	}
 
 	NpcTypes[1013] = &NpcType{
-		ID: 1013, Name: "Guard-Aresden", SpriteType: 21,
+		ID: 1013, Name: "Guard", SpriteType: 21, // NPC.cfg: Guard-Aresden
 		HP: 1550, MinDamage: 3, MaxDamage: 24,
 		Defense: 150, DEX: 330, XP: 1,
 		AggroRange: 8, MoveSpeed: 1000, AttackSpeed: 1000, WanderRange: 8,
 		DiceThrow: 3, DiceRange: 8,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 5,
+		AttackRange:  5,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 20,
+		CanFlee:      true, FleeHPPct: 20,
 		Mana: 1000, MaxMana: 1000,
 		MagicHitRatio: 130,
 	}
 
 	NpcTypes[1014] = &NpcType{
-		ID: 1014, Name: "Guard-Elvine", SpriteType: 21,
+		ID: 1014, Name: "Guard", SpriteType: 21, // NPC.cfg: Guard-Elvine
 		HP: 1550, MinDamage: 3, MaxDamage: 24,
 		Defense: 150, DEX: 330, XP: 1,
 		AggroRange: 8, MoveSpeed: 1000, AttackSpeed: 1000, WanderRange: 8,
 		DiceThrow: 3, DiceRange: 8,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 5,
+		AttackRange:  5,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 20,
+		CanFlee:      true, FleeHPPct: 20,
 		Mana: 1000, MaxMana: 1000,
 		MagicHitRatio: 130,
 	}
 
 	NpcTypes[1015] = &NpcType{
-		ID: 1015, Name: "Guard-Neutral", SpriteType: 21,
+		ID: 1015, Name: "Guard", SpriteType: 21, // NPC.cfg: Guard-Neutral
 		HP: 1150, MinDamage: 3, MaxDamage: 24,
 		Defense: 150, DEX: 330, XP: 1,
 		AggroRange: 8, MoveSpeed: 1000, AttackSpeed: 1000, WanderRange: 8,
 		DiceThrow: 3, DiceRange: 8,
 		Size: SizeLarge, Side: SideNeutral,
-		AttackRange: 5,
+		AttackRange:  5,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 20,
+		CanFlee:      true, FleeHPPct: 20,
 		Mana: 1000, MaxMana: 1000,
 		MagicHitRatio: 130,
 	}
 
 	NpcTypes[1016] = &NpcType{
-		ID: 1016, Name: "AGT-Elvine", SpriteType: 36,
+		ID: 1016, Name: "Arrow Guard Tower", SpriteType: 36, // NPC.cfg: AGT-Elvine
 		HP: 5000, MinDamage: 5, MaxDamage: 40,
 		Defense: 50, DEX: 500, XP: 4000,
 		AggroRange: 8, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 0,
 		DiceThrow: 5, DiceRange: 8,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
 	}
 
 	NpcTypes[1017] = &NpcType{
-		ID: 1017, Name: "CGT-Elvine", SpriteType: 37,
+		ID: 1017, Name: "Cannon Guard Tower", SpriteType: 37, // NPC.cfg: CGT-Elvine
 		HP: 5000, MinDamage: 10, MaxDamage: 140,
 		Defense: 50, DEX: 500, XP: 4000,
 		AggroRange: 8, MoveSpeed: 1800, AttackSpeed: 1800, WanderRange: 0,
 		DiceThrow: 10, DiceRange: 14,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
 	}
 
 	NpcTypes[1018] = &NpcType{
-		ID: 1018, Name: "MS-Elvine", SpriteType: 38,
+		ID: 1018, Name: "Mana Collector", SpriteType: 38, // NPC.cfg: MS-Elvine
 		HP: 5000, MinDamage: 1, MaxDamage: 0,
 		Defense: 50, DEX: 500, XP: 1000,
 		AggroRange: 8, MoveSpeed: 800, AttackSpeed: 800, WanderRange: 0,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
 	}
 
 	NpcTypes[1019] = &NpcType{
-		ID: 1019, Name: "DT-Elvine", SpriteType: 39,
+		ID: 1019, Name: "Detector", SpriteType: 39, // NPC.cfg: DT-Elvine
 		HP: 5000, MinDamage: 1, MaxDamage: 0,
 		Defense: 50, DEX: 500, XP: 1000,
 		AggroRange: 8, MoveSpeed: 800, AttackSpeed: 800, WanderRange: 0,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
 	}
 
 	NpcTypes[1020] = &NpcType{
-		ID: 1020, Name: "ESG-Elvine", SpriteType: 40,
+		ID: 1020, Name: "Energy Shield Generator", SpriteType: 40, // NPC.cfg: ESG-Elvine
 		HP: 8000, MinDamage: 1, MaxDamage: 0,
 		Defense: 50, DEX: 500, XP: 1000,
 		AggroRange: 8, MoveSpeed: 800, AttackSpeed: 800, WanderRange: 0,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
 	}
 
 	NpcTypes[1021] = &NpcType{
-		ID: 1021, Name: "GMG-Elvine", SpriteType: 41,
+		ID: 1021, Name: "Grand Magic Generator", SpriteType: 41, // NPC.cfg: GMG-Elvine
 		HP: 500000, MinDamage: 1, MaxDamage: 0,
 		Defense: 5000, DEX: 500, XP: 55450,
 		AggroRange: 8, MoveSpeed: 800, AttackSpeed: 800, WanderRange: 0,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
-		BossType: 1,
-		Mana: 80, MaxMana: 80,
+		BossType:     1,
+		Mana:         80, MaxMana: 80,
 	}
 
 	NpcTypes[1022] = &NpcType{
-		ID: 1022, Name: "LWB-Elvine", SpriteType: 43,
+		ID: 1022, Name: "Light War Beetle", SpriteType: 43, // NPC.cfg: LWB-Elvine
 		HP: 2500, MinDamage: 10, MaxDamage: 50,
 		Defense: 450, DEX: 500, XP: 6000,
 		AggroRange: 7, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 5,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 60 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 		INT: 70,
 	}
 
 	NpcTypes[1023] = &NpcType{
-		ID: 1023, Name: "CP-Elvine", SpriteType: 51,
+		ID: 1023, Name: "Catapult", SpriteType: 51, // NPC.cfg: CP-Elvine
 		HP: 5000, MinDamage: 10, MaxDamage: 140,
 		Defense: 50, DEX: 500, XP: 2222,
 		AggroRange: 9, MoveSpeed: 1600, AttackSpeed: 1600, WanderRange: 0,
 		DiceThrow: 10, DiceRange: 14,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 9,
+		AttackRange:  9,
 		RespawnDelay: 10 * time.Second,
 	}
 
 	NpcTypes[1024] = &NpcType{
-		ID: 1024, Name: "XB-Elvine", SpriteType: 1,
+		ID: 1024, Name: "Soldier", SpriteType: 1, // NPC.cfg: XB-Elvine
 		HP: 850, MinDamage: 8, MaxDamage: 40,
 		Defense: 150, DEX: 200, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1025] = &NpcType{
-		ID: 1025, Name: "XW-Elvine", SpriteType: 2,
+		ID: 1025, Name: "Soldier", SpriteType: 2, // NPC.cfg: XW-Elvine
 		HP: 850, MinDamage: 8, MaxDamage: 40,
 		Defense: 150, DEX: 200, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1026] = &NpcType{
-		ID: 1026, Name: "XY-Elvine", SpriteType: 3,
+		ID: 1026, Name: "Soldier", SpriteType: 3, // NPC.cfg: XY-Elvine
 		HP: 850, MinDamage: 8, MaxDamage: 40,
 		Defense: 150, DEX: 200, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1027] = &NpcType{
-		ID: 1027, Name: "YB-Elvine", SpriteType: 4,
+		ID: 1027, Name: "Soldier", SpriteType: 4, // NPC.cfg: YB-Elvine
 		HP: 850, MinDamage: 8, MaxDamage: 40,
 		Defense: 150, DEX: 200, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1028] = &NpcType{
-		ID: 1028, Name: "YW-Elvine", SpriteType: 5,
+		ID: 1028, Name: "Soldier", SpriteType: 5, // NPC.cfg: YW-Elvine
 		HP: 850, MinDamage: 8, MaxDamage: 40,
 		Defense: 150, DEX: 200, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1029] = &NpcType{
-		ID: 1029, Name: "YY-Elvine", SpriteType: 6,
+		ID: 1029, Name: "Soldier", SpriteType: 6, // NPC.cfg: YY-Elvine
 		HP: 850, MinDamage: 8, MaxDamage: 40,
 		Defense: 150, DEX: 200, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1030] = &NpcType{
-		ID: 1030, Name: "Sor-Elvine", SpriteType: 82,
+		ID: 1030, Name: "Sorceress", SpriteType: 82, // NPC.cfg: Sor-Elvine
 		HP: 2000, MinDamage: 8, MaxDamage: 80,
 		Defense: 300, DEX: 1000, XP: 2222,
 		AggroRange: 7, MoveSpeed: 500, AttackSpeed: 500, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 10,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 6,
+		AttackRange:  6,
 		RespawnDelay: 60 * time.Second,
-		INT: 70,
-		Mana: 19000, MaxMana: 19000,
+		INT:          70,
+		Mana:         19000, MaxMana: 19000,
 		MagicHitRatio: 9,
 	}
 
 	NpcTypes[1031] = &NpcType{
-		ID: 1031, Name: "Elf-Elvine", SpriteType: 84,
+		ID: 1031, Name: "Master Elf", SpriteType: 84, // NPC.cfg: Elf-Elvine
 		HP: 2000, MinDamage: 6, MaxDamage: 60,
 		Defense: 300, DEX: 500, XP: 2222,
 		AggroRange: 7, MoveSpeed: 500, AttackSpeed: 500, WanderRange: 8,
 		DiceThrow: 6, DiceRange: 10,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 60 * time.Second,
 	}
 
 	NpcTypes[1032] = &NpcType{
-		ID: 1032, Name: "DSK-Elvine", SpriteType: 85,
+		ID: 1032, Name: "Dark Shadow Knight", SpriteType: 85, // NPC.cfg: DSK-Elvine
 		HP: 3000, MinDamage: 9, MaxDamage: 90,
 		Defense: 500, DEX: 500, XP: 2222,
 		AggroRange: 9, MoveSpeed: 500, AttackSpeed: 500, WanderRange: 8,
 		DiceThrow: 9, DiceRange: 10,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 4,
+		AttackRange:  4,
 		RespawnDelay: 60 * time.Second,
 	}
 
 	NpcTypes[1033] = &NpcType{
-		ID: 1033, Name: "ATK-Elvine", SpriteType: 83,
+		ID: 1033, Name: "Ancient Temple Knight", SpriteType: 83, // NPC.cfg: ATK-Elvine
 		HP: 4000, MinDamage: 10, MaxDamage: 100,
 		Defense: 400, DEX: 400, XP: 2222,
 		AggroRange: 7, MoveSpeed: 800, AttackSpeed: 800, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 10,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 60 * time.Second,
 	}
 
 	NpcTypes[1034] = &NpcType{
-		ID: 1034, Name: "Bar-Elvine", SpriteType: 88,
+		ID: 1034, Name: "Barbarian", SpriteType: 88, // NPC.cfg: Bar-Elvine
 		HP: 5000, MinDamage: 12, MaxDamage: 120,
 		Defense: 300, DEX: 400, XP: 2222,
 		AggroRange: 7, MoveSpeed: 1200, AttackSpeed: 1200, WanderRange: 8,
 		DiceThrow: 12, DiceRange: 10,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 2,
+		AttackRange:  2,
 		RespawnDelay: 60 * time.Second,
 	}
 
 	NpcTypes[1035] = &NpcType{
-		ID: 1035, Name: "HBT-Elvine", SpriteType: 86,
+		ID: 1035, Name: "Heavy Battle Tank", SpriteType: 86, // NPC.cfg: HBT-Elvine
 		HP: 3000, MinDamage: 15, MaxDamage: 150,
 		Defense: 100, DEX: 400, XP: 2222,
 		AggroRange: 9, MoveSpeed: 1200, AttackSpeed: 1200, WanderRange: 8,
 		DiceThrow: 15, DiceRange: 10,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 9,
+		AttackRange:  9,
 		RespawnDelay: 60 * time.Second,
 	}
 
 	NpcTypes[1036] = &NpcType{
-		ID: 1036, Name: "CT-Elvine", SpriteType: 87,
+		ID: 1036, Name: "Crossbow Turret", SpriteType: 87, // NPC.cfg: CT-Elvine
 		HP: 8000, MinDamage: 8, MaxDamage: 80,
 		Defense: 200, DEX: 500, XP: 2222,
 		AggroRange: 8, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 0,
 		DiceThrow: 8, DiceRange: 10,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 9,
+		AttackRange:  9,
 		RespawnDelay: 3 * time.Second,
 	}
 
 	NpcTypes[1037] = &NpcType{
-		ID: 1037, Name: "AGC-Elvine", SpriteType: 89,
+		ID: 1037, Name: "Ancient Giant Cannon", SpriteType: 89, // NPC.cfg: AGC-Elvine
 		HP: 10000, MinDamage: 15, MaxDamage: 150,
 		Defense: 200, DEX: 500, XP: 2222,
 		AggroRange: 8, MoveSpeed: 1600, AttackSpeed: 1600, WanderRange: 0,
 		DiceThrow: 15, DiceRange: 10,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 9,
+		AttackRange:  9,
 		RespawnDelay: 3 * time.Second,
-		BossType: 1,
+		BossType:     1,
 	}
 
 	NpcTypes[1038] = &NpcType{
@@ -906,9 +906,9 @@ func init() {
 		AggroRange: 1, MoveSpeed: 1600, AttackSpeed: 1600, WanderRange: 0,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 3 * time.Second,
-		BossType: 1,
+		BossType:     1,
 	}
 
 	NpcTypes[1039] = &NpcType{
@@ -918,7 +918,7 @@ func init() {
 		AggroRange: 8, MoveSpeed: 800, AttackSpeed: 800, WanderRange: 0,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
 	}
 
@@ -929,7 +929,7 @@ func init() {
 		AggroRange: 8, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 0,
 		DiceThrow: 5, DiceRange: 8,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
 	}
 
@@ -940,7 +940,7 @@ func init() {
 		AggroRange: 8, MoveSpeed: 1800, AttackSpeed: 1800, WanderRange: 0,
 		DiceThrow: 10, DiceRange: 14,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
 	}
 
@@ -951,9 +951,9 @@ func init() {
 		AggroRange: 7, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 9,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 4,
+		AttackRange:  4,
 		RespawnDelay: 60 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 		INT: 70,
 	}
 
@@ -964,9 +964,9 @@ func init() {
 		AggroRange: 7, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 9,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 4,
+		AttackRange:  4,
 		RespawnDelay: 60 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 		INT: 70,
 	}
 
@@ -977,9 +977,9 @@ func init() {
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 13, DiceRange: 12,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 5,
+		AttackRange:  5,
 		RespawnDelay: 60 * time.Second,
-		INT: 70,
+		INT:          70,
 	}
 
 	NpcTypes[1045] = &NpcType{
@@ -989,9 +989,9 @@ func init() {
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 13, DiceRange: 12,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 5,
+		AttackRange:  5,
 		RespawnDelay: 60 * time.Second,
-		INT: 70,
+		INT:          70,
 	}
 
 	NpcTypes[1046] = &NpcType{
@@ -1001,23 +1001,23 @@ func init() {
 		AggroRange: 7, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 5,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 60 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 		INT: 70,
 	}
 
 	NpcTypes[1047] = &NpcType{
-		ID: 1047, Name: "Evil-Sorceress", SpriteType: 82,
+		ID: 1047, Name: "Sorceress", SpriteType: 82, // NPC.cfg: Evil-Sorceress
 		HP: 3000, MinDamage: 11, MaxDamage: 110,
 		Defense: 450, DEX: 1000, XP: 13500,
 		AggroRange: 7, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 11, DiceRange: 10,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 6,
+		AttackRange:  6,
 		RespawnDelay: 60 * time.Second,
-		INT: 70,
-		Mana: 19000, MaxMana: 19000,
+		INT:          70,
+		Mana:         19000, MaxMana: 19000,
 		MagicHitRatio: 9,
 	}
 
@@ -1028,18 +1028,18 @@ func init() {
 		AggroRange: 7, MoveSpeed: 1000, AttackSpeed: 1000, WanderRange: 8,
 		DiceThrow: 13, DiceRange: 12,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 60 * time.Second,
 	}
 
 	NpcTypes[1049] = &NpcType{
-		ID: 1049, Name: "Evil-Elf", SpriteType: 84,
+		ID: 1049, Name: "Master Elf", SpriteType: 84, // NPC.cfg: Evil-Elf
 		HP: 2500, MinDamage: 10, MaxDamage: 60,
 		Defense: 450, DEX: 500, XP: 11250,
 		AggroRange: 8, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 6,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 60 * time.Second,
 	}
 
@@ -1050,18 +1050,18 @@ func init() {
 		AggroRange: 6, MoveSpeed: 500, AttackSpeed: 500, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 9,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 4,
+		AttackRange:  4,
 		RespawnDelay: 60 * time.Second,
 	}
 
 	NpcTypes[1051] = &NpcType{
-		ID: 1051, Name: "Evil-Barbarian", SpriteType: 88,
+		ID: 1051, Name: "Barbarian", SpriteType: 88, // NPC.cfg: Evil-Barbarian
 		HP: 3500, MinDamage: 15, MaxDamage: 180,
 		Defense: 500, DEX: 1000, XP: 11250,
 		AggroRange: 7, MoveSpeed: 1400, AttackSpeed: 1400, WanderRange: 8,
 		DiceThrow: 15, DiceRange: 12,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 2,
+		AttackRange:  2,
 		RespawnDelay: 60 * time.Second,
 	}
 
@@ -1072,9 +1072,9 @@ func init() {
 		AggroRange: 8, MoveSpeed: 500, AttackSpeed: 500, WanderRange: 0,
 		DiceThrow: 0, DiceRange: 0,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 8,
+		AttackRange:  8,
 		RespawnDelay: 3 * time.Second,
-		BossType: 1,
+		BossType:     1,
 	}
 
 	NpcTypes[1053] = &NpcType{
@@ -1084,10 +1084,10 @@ func init() {
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 10,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 4,
+		AttackRange:  4,
 		RespawnDelay: 60 * time.Second,
-		INT: 70,
-		Mana: 2000, MaxMana: 2000,
+		INT:          70,
+		Mana:         2000, MaxMana: 2000,
 		MagicHitRatio: 250,
 	}
 
@@ -1098,10 +1098,10 @@ func init() {
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 15, DiceRange: 10,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 5,
+		AttackRange:  5,
 		RespawnDelay: 60 * time.Second,
-		INT: 70,
-		Mana: 2000, MaxMana: 2000,
+		INT:          70,
+		Mana:         2000, MaxMana: 2000,
 		MagicHitRatio: 250,
 	}
 
@@ -1112,9 +1112,9 @@ func init() {
 		AggroRange: 8, MoveSpeed: 1000, AttackSpeed: 1000, WanderRange: 8,
 		DiceThrow: 3, DiceRange: 8,
 		Size: SizeLarge, Side: SideSpecial,
-		AttackRange: 5,
+		AttackRange:  5,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 20,
+		CanFlee:      true, FleeHPPct: 20,
 		Mana: 1000, MaxMana: 1000,
 		MagicHitRatio: 130,
 	}
@@ -1126,10 +1126,10 @@ func init() {
 		AggroRange: 6, MoveSpeed: 1500, AttackSpeed: 1500, WanderRange: 8,
 		DiceThrow: 6, DiceRange: 4,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 20 * time.Second,
-		INT: 70,
-		Mana: 800, MaxMana: 800,
+		INT:          70,
+		Mana:         800, MaxMana: 800,
 		MagicHitRatio: 100,
 	}
 
@@ -1140,10 +1140,10 @@ func init() {
 		AggroRange: 7, MoveSpeed: 1000, AttackSpeed: 1000, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 6,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 20 * time.Second,
-		INT: 50,
-		Mana: 900, MaxMana: 900,
+		INT:          50,
+		Mana:         900, MaxMana: 900,
 		MagicHitRatio: 50,
 	}
 
@@ -1154,45 +1154,45 @@ func init() {
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 10, DiceRange: 7,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 20 * time.Second,
-		INT: 70,
+		INT:          70,
 	}
 
 	NpcTypes[1059] = &NpcType{
-		ID: 1059, Name: "City-Dark-Elf", SpriteType: 54,
+		ID: 1059, Name: "Dark-Elf", SpriteType: 54, // NPC.cfg: City-Dark-Elf
 		HP: 1500, MinDamage: 8, MaxDamage: 32,
 		Defense: 240, DEX: 450, XP: 1575,
 		AggroRange: 8, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 4,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 6,
+		AttackRange:  6,
 		RespawnDelay: 20 * time.Second,
-		INT: 70,
+		INT:          70,
 	}
 
 	NpcTypes[1060] = &NpcType{
-		ID: 1060, Name: "War-Elvine", SpriteType: 2,
+		ID: 1060, Name: "Soldier", SpriteType: 2, // NPC.cfg: War-Elvine
 		HP: 1200, MinDamage: 8, MaxDamage: 40,
 		Defense: 200, DEX: 250, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideElvine,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 30 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1061] = &NpcType{
-		ID: 1061, Name: "War-Aresden", SpriteType: 2,
+		ID: 1061, Name: "Soldier", SpriteType: 2, // NPC.cfg: War-Aresden
 		HP: 1200, MinDamage: 8, MaxDamage: 40,
 		Defense: 200, DEX: 250, XP: 2000,
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideAresden,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 30 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1062] = &NpcType{
@@ -1202,7 +1202,7 @@ func init() {
 		AggroRange: 5, MoveSpeed: 1200, AttackSpeed: 1200, WanderRange: 8,
 		DiceThrow: 7, DiceRange: 4,
 		Size: SizeMedium, Side: SideMonster,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 10 * time.Second,
 	}
 
@@ -1213,9 +1213,9 @@ func init() {
 		AggroRange: 5, MoveSpeed: 1000, AttackSpeed: 1000, WanderRange: 8,
 		DiceThrow: 5, DiceRange: 6,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1064] = &NpcType{
@@ -1225,9 +1225,9 @@ func init() {
 		AggroRange: 5, MoveSpeed: 1000, AttackSpeed: 1000, WanderRange: 8,
 		DiceThrow: 5, DiceRange: 5,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1065] = &NpcType{
@@ -1237,9 +1237,9 @@ func init() {
 		AggroRange: 6, MoveSpeed: 800, AttackSpeed: 800, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 6,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 2,
+		AttackRange:  2,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1066] = &NpcType{
@@ -1249,9 +1249,9 @@ func init() {
 		AggroRange: 6, MoveSpeed: 800, AttackSpeed: 800, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 2,
+		AttackRange:  2,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1067] = &NpcType{
@@ -1261,9 +1261,9 @@ func init() {
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 11, DiceRange: 6,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1068] = &NpcType{
@@ -1273,9 +1273,9 @@ func init() {
 		AggroRange: 7, MoveSpeed: 600, AttackSpeed: 600, WanderRange: 8,
 		DiceThrow: 11, DiceRange: 5,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		CanFlee: true, FleeHPPct: 10,
+		CanFlee:      true, FleeHPPct: 10,
 	}
 
 	NpcTypes[1069] = &NpcType{
@@ -1285,10 +1285,10 @@ func init() {
 		AggroRange: 7, MoveSpeed: 1200, AttackSpeed: 1200, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 6,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 3,
+		AttackRange:  3,
 		RespawnDelay: 10 * time.Second,
-		INT: 50,
-		Mana: 450, MaxMana: 450,
+		INT:          50,
+		Mana:         450, MaxMana: 450,
 		MagicHitRatio: 50,
 	}
 
@@ -1299,7 +1299,7 @@ func init() {
 		AggroRange: 7, MoveSpeed: 700, AttackSpeed: 700, WanderRange: 8,
 		DiceThrow: 8, DiceRange: 5,
 		Size: SizeLarge, Side: SideMonster,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 10 * time.Second,
 	}
 
@@ -1310,10 +1310,10 @@ func init() {
 		AggroRange: 6, MoveSpeed: 1500, AttackSpeed: 1500, WanderRange: 8,
 		DiceThrow: 4, DiceRange: 3,
 		Size: SizeMedium, Side: SideMonster,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 5 * time.Second,
-		CanFlee: true, FleeHPPct: 20,
-		INT: 50,
+		CanFlee:      true, FleeHPPct: 20,
+		INT:  50,
 		Mana: 150, MaxMana: 150,
 		MagicHitRatio: 10,
 	}
@@ -1325,7 +1325,7 @@ func init() {
 		AggroRange: 5, MoveSpeed: 1200, AttackSpeed: 1200, WanderRange: 8,
 		DiceThrow: 7, DiceRange: 4,
 		Size: SizeMedium, Side: SideMonster,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 10 * time.Second,
 	}
 
@@ -1336,7 +1336,7 @@ func init() {
 		AggroRange: 5, MoveSpeed: 1200, AttackSpeed: 1200, WanderRange: 8,
 		DiceThrow: 7, DiceRange: 4,
 		Size: SizeMedium, Side: SideMonster,
-		AttackRange: 1,
+		AttackRange:  1,
 		RespawnDelay: 10 * time.Second,
 	}
 
