@@ -4436,6 +4436,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private renderSpellBarUI(): void {
+    // The panel is rebuilt on every update (learn, select, catalog refresh), so
+    // keep the list's scroll position when we stay on the same tab.
+    const oldScroll = this.spellBarDiv?.querySelector('.spell-scroll') as HTMLElement | null;
+    const keepScroll = oldScroll && oldScroll.dataset.tab === this.spellBookTab ? oldScroll.scrollTop : 0;
     this.spellBarDiv?.remove();
 
     const div = document.createElement('div');
@@ -4462,7 +4466,7 @@ export class GameScene extends Phaser.Scene {
       if (this.learnedSpells.length === 0) {
         html += '<div style="color:#888; padding:10px; text-align:center;">No spells learned yet. Open the "Learn Spells" tab to get started.</div>';
       } else {
-        html += '<div style="display:flex; flex-wrap:wrap; gap:6px; overflow-y:auto;">';
+        html += '<div class="spell-scroll" data-tab="known" style="display:flex; flex-wrap:wrap; gap:6px; overflow-y:auto;">';
         for (const spell of this.learnedSpells) {
           const color = typeColors[spell.spellType] || '#fff';
           const typeName = typeNames[spell.spellType] || '???';
@@ -4487,7 +4491,7 @@ export class GameScene extends Phaser.Scene {
       if (available.length === 0) {
         html += '<div style="color:#888; padding:10px; text-align:center;">You have learned all available spells!</div>';
       } else {
-        html += '<div style="overflow-y:auto; max-height:220px;">';
+        html += '<div class="spell-scroll" data-tab="learn" style="overflow-y:auto; max-height:220px;">';
         for (const spell of available) {
           const color = typeColors[spell.spellType] || '#fff';
           const typeName = typeNames[spell.spellType] || '???';
@@ -4518,6 +4522,8 @@ export class GameScene extends Phaser.Scene {
 
     div.innerHTML = html;
     document.body.appendChild(div);
+    const newScroll = div.querySelector('.spell-scroll') as HTMLElement | null;
+    if (newScroll && keepScroll) newScroll.scrollTop = keepScroll;
 
     div.querySelector('#spell-close')?.addEventListener('click', () => this.toggleSpellBar());
     div.querySelector('#tab-known')?.addEventListener('click', () => { this.spellBookTab = 'known'; this.renderSpellBarUI(); });
@@ -4541,7 +4547,7 @@ export class GameScene extends Phaser.Scene {
       });
     });
 
-    this.events.on('shutdown', () => div.remove());
+    this.events.once('shutdown', () => div.remove());
   }
 
   /** Handle left-click when a spell is selected — cast at clicked tile or NPC. */
