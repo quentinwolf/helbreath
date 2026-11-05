@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Spell Preview</title>
+  <style>
+    body { margin: 0; background: #111; color: #ddd; font: 13px sans-serif; display: flex; gap: 12px; padding: 12px; }
+    #game { flex: none; }
+    #spells { display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; max-width: 420px; }
+    #spells button { background: #223; color: #ddd; border: 1px solid #446; padding: 4px 8px; cursor: pointer; }
+    #spells button:hover { background: #335; }
+    p { width: 100%; margin: 4px 0 8px; color: #999; }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+  <div id="spells"><p>Dev tool: click a spell to cast it from the marked caster tile (left) at the target tile (right).
+    Click the grid to move the target. <code>?spell=ID</code> casts on load.</p></div>
+  <script type="module" src="/src/dev/SpellPreview.ts"></script>
+</body>
+</html>

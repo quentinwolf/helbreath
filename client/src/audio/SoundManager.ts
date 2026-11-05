@@ -21,6 +21,23 @@ export class SoundManager {
     private scene: Scene;
     private volume: number = 80; // 0-100
     private sounds: Map<number, Phaser.Sound.BaseSound> = new Map();
+    /** Key prefix -> max copies of one sound playing at once (see setStackLimit). */
+    private stackLimits: [string, number][] = [];
+    private playingByKey: Map<string, number> = new Map();
+
+    /**
+     * Caps how many copies of the same sound (any key starting with `prefix`) can play
+     * at once; extra one-shots are skipped. Spells that spawn many pieces at once
+     * (Ice Strike shards, Blizzard, Energy Strike) would otherwise stack into a roar.
+     */
+    setStackLimit(prefix: string, max: number): void {
+        this.stackLimits = this.stackLimits.filter(([p]) => p !== prefix);
+        this.stackLimits.push([prefix, max]);
+    }
+
+    private stackLimitFor(key: string): number | undefined {
+        return this.stackLimits.find(([p]) => key.startsWith(p))?.[1];
+    }
 
     constructor(scene: Scene) {
         this.scene = scene;
@@ -86,6 +103,11 @@ export class SoundManager {
             onComplete?.();
             return -1;
         }
+        const limit = this.stackLimitFor(key);
+        if (limit !== undefined && (this.playingByKey.get(key) ?? 0) >= limit) {
+            onComplete?.();
+            return -1;
+        }
 
         try {
             const sound = this.scene.sound.add(key, {
@@ -104,6 +126,17 @@ export class SoundManager {
                 }
             }
 
+            if (limit !== undefined) {
+                this.playingByKey.set(key, (this.playingByKey.get(key) ?? 0) + 1);
+                let released = false;
+                const release = () => {
+                    if (released) return;
+                    released = true;
+                    this.playingByKey.set(key, Math.max(0, (this.playingByKey.get(key) ?? 1) - 1));
+                };
+                sound.once('complete', release);
+                sound.once('stop', release);
+            }
             sound.once('complete', () => {
                 this.sounds.delete(id);
                 onComplete?.();
@@ -171,6 +204,7 @@ export class SoundManager {
      * Destroys the manager and cleans up all sounds.
      */
     destroy(): void {
+        this.playingByKey.clear();
         this.stopAll();
     }
 

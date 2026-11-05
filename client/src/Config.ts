@@ -1,6 +1,9 @@
 export const TILE_SIZE = 32;
 export const DEPTH_MULTIPLIER = 100;
 export const HIGH_DEPTH = 5000000;
+/** Spell effects draw above every map object and character (the original client's
+ * DrawEffects runs after DrawObjects), keeping their own top-to-bottom order. */
+export const EFFECT_LAYER_DEPTH = 4000000;
 
 // ---------------------------------------------------------------------------
 // Movement

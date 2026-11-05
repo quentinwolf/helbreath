@@ -55,6 +55,11 @@ import { SoundTracker } from '../audio/SoundTracker';
 import { PLAYER_WALKING, PLAYER_RUNNING, PLAYER_MELEE_ATTACK, PLAYER_CAST, TAKE_DAMAGE_BLADE } from '../audio/SoundFileNames';
 import { showDamageNumber } from '../game/effects/FloatingText';
 import { WeatherManager } from '../game/effects/WeatherManager';
+import { Effect } from '../game/effects/Effect';
+import { playSpellEffect, spellEffectSprites } from '../game/spells/SpellEffects';
+import { clearSpellUpdates } from '../game/spells/SceneUpdate';
+import { CameraShake } from '../utils/CameraShake';
+import { EFFECT_SOUND_FILES } from '../constants/EffectSounds';
 import { getAssetByKey } from '../constants/Assets';
 import { getItemGroundFrame } from '../constants/ItemGroundSprites';
 import { ItemSpriteExtractor } from '../utils/ItemSpriteExtractor';
@@ -458,6 +463,9 @@ export class GameScene extends Phaser.Scene {
   private spellCatalog: SpellCatalogEntry[] = [];
   private spellBookTab: 'known' | 'learn' = 'known';
   private lastSpellCastAt = new Map<number, number>(); // caster object ID -> scene time of their last spell
+  private cameraShake!: CameraShake;
+  /** Callbacks waiting for a deferred sprite to finish loading (reset each create()). */
+  private spriteWaiters = new Map<string, Array<() => void>>();
   private spellCircleFilter = 0; // 0 = all circles, 1-10 = Circle I-X
   private spellTypesHidden: Set<number> = new Set(); // spell types toggled off
 
@@ -515,6 +523,10 @@ export class GameScene extends Phaser.Scene {
     // marked as loading was cancelled. Forget it so it can be requested again.
     this.loadingDeferredSprites.clear();
     this.loadingMonsterSounds.clear();
+    this.spriteWaiters.clear();
+    this.cameraShake = new CameraShake(this);
+    // Spell projectiles hook scene 'update', which survives the restart: drop them.
+    this.events.once('shutdown', () => clearSpellUpdates(this));
 
     this.msgHandler = this.registry.get('msgHandler') as MessageHandler;
     // Clear GameScene-specific handlers to prevent duplicates on scene restart
@@ -681,6 +693,8 @@ export class GameScene extends Phaser.Scene {
 
     // Initialize sound system
     this.soundManager = new SoundManager(this);
+    // Spell effect sounds (fx-*): at most 2 copies of one sound at a time.
+    this.soundManager.setStackLimit('fx-', 2);
     this.musicManager = new MusicManager(this);
     this.soundTracker = new SoundTracker(this.soundManager);
     this.weatherManager = new WeatherManager(this, this.soundManager);
@@ -700,6 +714,15 @@ export class GameScene extends Phaser.Scene {
       this.soundManager.destroy();
       this.npcCorpses.clear(); // their sprites go down with the scene
     });
+
+    // Spell effect sounds (small; loaded once, kept in Phaser's global audio cache)
+    let effectSoundsQueued = false;
+    for (const [key, file] of Object.entries(EFFECT_SOUND_FILES)) {
+      if (this.cache.audio.exists(key)) continue;
+      this.load.audio(key, `${ASSET_BASE}/assets/sounds/${file}`);
+      effectSoundsQueued = true;
+    }
+    if (effectSoundsQueued) this.load.start();
 
     // Play map music on enter
     const mapAsset = getAssetByKey(this.currentMapName.toLowerCase().replace(/\.amd$/i, ''));
@@ -836,6 +859,7 @@ export class GameScene extends Phaser.Scene {
     // Update camera to follow interpolated position
     this.cameras.main.scrollX = this.visualX - this.cameras.main.width / 2 + TILE_SIZE / 2;
     this.cameras.main.scrollY = this.visualY - this.cameras.main.height / 2 + TILE_SIZE / 2;
+    this.cameraShake.apply();
 
     // Update entity positions
     this.updateLocalPlayerPosition();
@@ -1542,9 +1566,33 @@ export class GameScene extends Phaser.Scene {
         }
       }
       this.loadingDeferredSprites.delete(spriteName);
+      const waiters = this.spriteWaiters.get(spriteName);
+      this.spriteWaiters.delete(spriteName);
+      waiters?.forEach((fn) => fn());
     });
     this.load.start();
     return false;
+  }
+
+  /**
+   * Runs `fn` once all the given deferred sprites are loaded: right away if they
+   * already are, otherwise after their loads finish (it's dropped if one fails).
+   */
+  private whenSpritesLoaded(spriteNames: string[], fn: () => void): void {
+    const missing = spriteNames.filter((name) => !this.ensureSpriteLoaded(name));
+    if (missing.length === 0) {
+      fn();
+      return;
+    }
+    if (!missing.every((name) => this.loadingDeferredSprites.has(name))) return; // unknown sprite
+    let pending = missing.length;
+    for (const name of missing) {
+      const list = this.spriteWaiters.get(name) ?? [];
+      list.push(() => {
+        if (--pending === 0 && spriteNames.every((n) => this.loadedDeferredSprites.has(n))) fn();
+      });
+      this.spriteWaiters.set(name, list);
+    }
   }
 
   /**
@@ -4409,67 +4457,47 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // Maps server spriteId → { effect spr file key, sprite sheet index within that file }
-  // Derived from original Helbreath Game.cpp MakeEffectSpr layout:
-  //   effect.spr  → EffectSpr[0..9],  effect2.spr → [10..12], effect3.spr → [13..18]
-  //   effect4.spr → [19..23],         effect5.spr → [24..30] (sheets 1-7)
-  //   effect6.spr → [40..44],         effect7.spr → [45..56], effect8.spr → [57..65]
-  //   effect9.spr → [66..86],         effect10.spr → [87..88]
-  // Render cases in DrawEffect use effectType 100+spriteId, e.g. Blizzard spriteId=85 → case 185.
+  // Simple one-sheet animation at the target for spells without a full animation in
+  // game/spells/SpellEffects.ts (mostly heals and buffs). Keyed by spell ID.
+  // Original client layout (MakeEffectSpr): effect.spr = EffectSpr[0..9], effect2 [10..12],
+  // effect3 [13..18], effect4 [19..23], effect6 [40..44], effect7 [45..56],
+  // effect8 [57..65], effect9 [66..86], effect10 [87..88], effect11 [89..102].
   private static SPELL_EFFECT_MAP: Record<number, { file: string; sheet: number }> = {
-    // Damage — single target
-    0:  { file: 'effect', sheet: 0 },    // Magic Missile (EffectSpr[0] = effect s0)
-    10: { file: 'effect', sheet: 0 },    // Energy Bolt
-    20: { file: 'effect3', sheet: 1 },   // Fire Ball (EffectSpr[14] = effect3 s1, fire explosion)
-    27: { file: 'effect9', sheet: 0 },   // Poison (EffectSpr[66] = effect9 s0)
-    30: { file: 'effect3', sheet: 1 },   // Fire Strike (fire)
+    0:  { file: 'effect', sheet: 0 },    // Magic Missile (EffectSpr[0])
+    27: { file: 'effect9', sheet: 0 },   // Poison (EffectSpr[66])
     37: { file: 'effect', sheet: 0 },    // Lightning Arrow
-    43: { file: 'effect2', sheet: 1 },   // Lightning (EffectSpr[11] = effect2 s1)
-    45: { file: 'effect7', sheet: 2 },   // Chill Wind (ice — EffectSpr[47] = effect7 s2)
-    47: { file: 'effect', sheet: 0 },    // Triple Energy Bolt
-    51: { file: 'effect2', sheet: 1 },   // Lightning Bolt
-    55: { file: 'effect7', sheet: 2 },   // Ice Storm (ice)
-    57: { file: 'effect7', sheet: 2 },   // Ice Strike (EffectSpr[47] = effect7 s2, icicles)
-    60: { file: 'effect', sheet: 0 },    // Energy Strike
-    // Healing
-    1:  { file: 'effect7', sheet: 5 },   // Heal (EffectSpr[50] = effect7 s5)
+    // Healing (EffectSpr[50] = effect7 s5)
+    1:  { file: 'effect7', sheet: 5 },   // Heal
     21: { file: 'effect7', sheet: 5 },   // Great Heal
     36: { file: 'effect7', sheet: 5 },   // Cure
     48: { file: 'effect7', sheet: 5 },   // Critical Heal
     68: { file: 'effect7', sheet: 5 },   // Mass Heal
     // Buffs / debuffs
-    13: { file: 'effect8', sheet: 5 },   // Defense Shield (EffectSpr[62] = effect8 s5)
-    32: { file: 'effect7', sheet: 7 },   // Invisibility (EffectSpr[52] = effect7 s7)
-    44: { file: 'effect8', sheet: 6 },   // Great Defense Shield (EffectSpr[63] = effect8 s6)
-    50: { file: 'effect8', sheet: 1 },   // Berserk (EffectSpr[58] = effect8 s1)
-    65: { file: 'effect7', sheet: 8 },   // Absolute Magic Protection (EffectSpr[53] = effect7 s8)
-    80: { file: 'effect8', sheet: 2 },   // Illusion (EffectSpr[59] = effect8 s2)
-    82: { file: 'effect8', sheet: 1 },   // Warrior Spirit (EffectSpr[58] = effect8 s1... approx)
-    // AOE
-    40: { file: 'effect4', sheet: 0 },   // Fire Wall (EffectSpr[19] = effect4 s0)
-    41: { file: 'effect4', sheet: 0 },   // Fire Field
-    46: { file: 'effect9', sheet: 0 },   // Poison Cloud (EffectSpr[66] = effect9 s0)
+    13: { file: 'effect8', sheet: 5 },   // Defense Shield (EffectSpr[62])
+    32: { file: 'effect7', sheet: 7 },   // Invisibility (EffectSpr[52])
+    44: { file: 'effect8', sheet: 6 },   // Great Defense Shield (EffectSpr[63])
+    50: { file: 'effect8', sheet: 1 },   // Berserk (EffectSpr[58])
     53: { file: 'effect9', sheet: 0 },   // Mass Poison
-    54: { file: 'effect4', sheet: 3 },   // Spike Field (EffectSpr[22] = effect4 s3)
-    // Blizzard — icicle falling sprite: EffectSpr[47] = effect7.spr sheet 2
-    85: { file: 'effect7', sheet: 2 },   // Blizzard (icicles)
-    91: { file: 'effect7', sheet: 2 },   // Mass Blizzard (icicles)
-    // Meteor / fire AOE
-    81: { file: 'effect3', sheet: 0 },   // Meteor Strike (EffectSpr[13] = effect3 s0, ice/blue... actually fire: effect3 s1)
+    65: { file: 'effect7', sheet: 8 },   // Absolute Magic Protection (EffectSpr[53])
+    76: { file: 'effect11', sheet: 1 },  // Cancellation (EffectSpr[90])
+    80: { file: 'effect8', sheet: 2 },   // Illusion (EffectSpr[59])
+    82: { file: 'effect8', sheet: 1 },   // Warrior Spirit (approx)
     97: { file: 'effect3', sheet: 1 },   // Explosion (fire)
-    // Misc
-    66: { file: 'effect7', sheet: 10 },  // Armor Break (EffectSpr[55] = effect7 s10)
-    76: { file: 'effect9', sheet: 11 },  // Cancellation (EffectSpr[90] = effect9... approx)
   };
 
-  /** Preload the effect sprite for a spell so it's ready when cast. */
+  /** Preload the effect sprites for a spell so they're ready when cast. */
   private preloadSpellEffect(spellId: number): void {
     const spell = this.learnedSpells.find(s => s.spellId === spellId);
     if (!spell) return;
-    const mapping = GameScene.SPELL_EFFECT_MAP[spell.spriteId];
-    if (mapping) {
-      this.ensureSpriteLoaded(mapping.file);
-    }
+    for (const name of this.spellSpriteFiles(spell.spriteId)) this.ensureSpriteLoaded(name);
+  }
+
+  /** Effect .spr files needed to draw a spell (full animation, else the simple one). */
+  private spellSpriteFiles(spriteId: number): string[] {
+    const full = spellEffectSprites(spriteId);
+    if (full) return full;
+    const simple = GameScene.SPELL_EFFECT_MAP[spriteId];
+    return simple ? [simple.file] : [];
   }
 
   private onSpellEffect(data: SpellEffectData): void {
@@ -4479,61 +4507,19 @@ export class GameScene extends Phaser.Scene {
 
     const tx = data.targetPosition?.x ?? 0;
     const ty = data.targetPosition?.y ?? 0;
+    const cx = data.casterPosition?.x ?? tx;
+    const cy = data.casterPosition?.y ?? ty;
     const screenX = tx * TILE_SIZE + TILE_SIZE / 2;
     const screenY = ty * TILE_SIZE + TILE_SIZE / 2;
 
-    // Try to play a sprite-based effect animation
-    const mapping = GameScene.SPELL_EFFECT_MAP[data.spriteId];
-    let playedSprite = false;
-
-    if (mapping) {
-      const { file, sheet } = mapping;
-      const animKey = `${file}-${sheet}`;
-
-      if (this.ensureSpriteLoaded(file)) {
-        // Sprite is loaded — check if the specific animation exists
-        if (this.anims.exists(animKey)) {
-          try {
-            // Get the first frame's texture key to create the sprite
-            const anim = this.anims.get(animKey);
-            const firstFrame = anim.frames[0];
-            if (firstFrame) {
-              const sprite = this.add.sprite(screenX, screenY, firstFrame.textureKey, firstFrame.textureFrame);
-              sprite.setDepth(99999);
-              sprite.play({ key: animKey, repeat: 0 });
-              sprite.once('animationcomplete', () => sprite.destroy());
-              // Safety: destroy after 2s in case animation is very long or broken
-              this.time.delayedCall(2000, () => { if (sprite.active) sprite.destroy(); });
-              playedSprite = true;
-            }
-          } catch (err) {
-            console.warn(`[SPELL] Failed to play effect animation ${animKey}:`, err);
-          }
-        }
-      }
-      // If sprite not loaded yet, ensureSpriteLoaded triggered the load — fall through to circle
-    }
-
-    // Fallback: colored expanding ring based on spell type (spriteId ranges)
-    if (!playedSprite) {
-      const sid = data.spriteId;
-      let color = 0xffffff;
-      let radius = 20;
-      if (sid >= 1 && sid <= 5) { color = sid === 5 ? 0x00aaff : sid === 3 ? 0xff4400 : 0xffff00; } // damage
-      else if (sid >= 10 && sid <= 12) { color = sid === 11 ? 0x00aaff : 0xff6600; radius = 30; } // AOE
-      else if (sid >= 20 && sid <= 22) { color = 0x44ff44; } // heal
-      else if (sid >= 30 && sid <= 32 || sid === 54 || sid === 55 || sid === 56 || sid === 58 || sid === 59 || sid === 60 || sid === 61) { color = 0x4488ff; } // buff
-      else if (sid >= 40 && sid <= 53 || sid === 57) { color = 0xaa44ff; } // debuff
-
-      const circle = this.add.circle(screenX, screenY, radius, color, 0.7);
-      circle.setDepth(99999);
-      this.tweens.add({
-        targets: circle,
-        scaleX: 2.5, scaleY: 2.5, alpha: 0,
-        duration: 600,
-        onComplete: () => circle.destroy(),
-      });
-    }
+    // Effect sprites load on first use. A cast that arrives before they're ready
+    // still plays once they are, unless that took too long to make sense.
+    const sprites = this.spellSpriteFiles(data.spriteId);
+    const receivedAt = this.time.now;
+    this.whenSpritesLoaded(sprites, () => {
+      if (this.time.now - receivedAt > 3000) return;
+      this.drawSpellEffect(data.spriteId, cx, cy, tx, ty);
+    });
 
     // Damage/heal floating numbers
     if (data.damage > 0) {
@@ -4552,6 +4538,31 @@ export class GameScene extends Phaser.Scene {
         targets: healText, y: screenY - 50, alpha: 0, duration: 1000,
         onComplete: () => healText.destroy(),
       });
+    }
+  }
+
+  /** Draws a spell's animation; sprites must be loaded. */
+  private drawSpellEffect(spriteId: number, casterX: number, casterY: number, targetX: number, targetY: number): void {
+    const played = playSpellEffect({
+      scene: this,
+      soundManager: this.soundManager,
+      camera: this.cameraShake,
+      listenerX: this.tileX,
+      listenerY: this.tileY,
+    }, spriteId, casterX, casterY, targetX, targetY);
+    if (played) return;
+
+    // No full animation yet: play the spell's single effect sheet on the target.
+    const mapping = GameScene.SPELL_EFFECT_MAP[spriteId];
+    if (!mapping || !this.textures.exists(`${mapping.file}-${mapping.sheet}`)) return;
+    try {
+      new Effect(this, {
+        config: { name: `spell-${spriteId}`, key: `spell-${spriteId}`, sprite: mapping.file, spriteSheetIndex: mapping.sheet, frameRate: 15 },
+        pixelX: targetX * TILE_SIZE,
+        pixelY: targetY * TILE_SIZE,
+      });
+    } catch (err) {
+      console.warn(`[SPELL] Failed to play effect ${mapping.file}-${mapping.sheet}:`, err);
     }
   }
 

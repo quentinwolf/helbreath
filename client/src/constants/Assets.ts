@@ -602,6 +602,9 @@ const EFFECT_SPRITE_ASSETS: AssetData[] = [
     { key: 'effect8', fileName: 'effect8.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Effect },
     { key: 'effect9', fileName: 'effect9.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Effect },
     { key: 'effect10', fileName: 'effect10.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Effect },
+    { key: 'effect11', fileName: 'effect11.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Effect },
+    { key: 'effect12', fileName: 'effect12.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Effect },
+    { key: 'crueffect1', fileName: 'crueffect1.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Effect },
     { key: 'magic-effects', fileName: 'magic-effects.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Effect },
 ];
 
