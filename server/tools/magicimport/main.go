@@ -698,6 +698,19 @@ func generate(spells []rawSpell) {
 		if healAmt > 0 {
 			p("\t\tHealAmount: %d,\n", healAmt)
 		}
+		// Heals as the original rolls them: HPUP_SPOT (2) heals whoever is on the
+		// clicked tile with group 1; SPUP_AREA (7) and Mass Heal (27) add group 2
+		// for everyone in the Range1 x Range2 box around it.
+		switch s.CfgType {
+		case 2, 7, 27:
+			if d := (dice{s.Eff1, s.Eff2, s.Eff3}); !d.zero() {
+				p("\t\tHealDice: %s,\n", d.goLiteral())
+			}
+			if d := (dice{s.Eff4, s.Eff5, s.Eff6}); s.CfgType != 2 && !d.zero() {
+				p("\t\tAreaX: %d, AreaY: %d,\n", s.Range1, s.Range2)
+				p("\t\tAreaHealDice: %s,\n", d.goLiteral())
+			}
+		}
 		if duration > 0 {
 			p("\t\tDuration: %d,\n", duration)
 		}

@@ -762,8 +762,8 @@ func (e *Engine) sendTradeComplete(p *player.Player, success bool, msg string) {
 
 // handlePvPAttack processes a player-vs-player attack.
 func (e *Engine) handlePvPAttack(attacker, target *player.Player) {
-	if attacker.Side == target.Side && attacker.Side != 0 {
-		e.sendNotification(attacker, "Cannot attack a member of your own faction", 2)
+	if sameSide(attacker, target) {
+		e.sendNotification(attacker, sameSideMessage(attacker), 2)
 		return
 	}
 

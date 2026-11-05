@@ -39,7 +39,7 @@ type EffectEvent struct {
 // ActiveEffect represents a status effect currently active on a character.
 type ActiveEffect struct {
 	Type         EffectType
-	Level        int           // intensity (1-3 typically)
+	Level        int // intensity (1-3 typically)
 	ExpiresAt    time.Time
 	SourceID     int32         // who applied it
 	TickDamage   int           // for poison: damage per tick
@@ -194,8 +194,9 @@ func (et *EffectTracker) GetEffectLevelAt(t EffectType, now time.Time) int {
 // Status bits sent to clients in PlayerAppear/EntityInfo/NpcAppear.status, like the
 // original client's iStatus flags.
 const (
-	StatusInvisible = 0x10  // drawn ghosted for yourself and your faction, hidden from others
-	StatusPolymorph = 0x100 // drawn as a Zombie (the original sets the owner type to 18)
+	StatusInvisible = 0x10   // drawn ghosted for yourself and your faction, hidden from others
+	StatusPolymorph = 0x100  // drawn as a Zombie (the original sets the owner type to 18)
+	StatusDead      = 0x1000 // a fallen player waiting to Restart (drawn lying down)
 )
 
 // PolymorphSpriteType is the creature Polymorph turns its target into (original type 18).

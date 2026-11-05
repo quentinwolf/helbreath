@@ -33,6 +33,9 @@ export const MSG_QUEST_ACCEPT_REQUEST = 0x1d;
 export const MSG_QUEST_TURNIN_REQUEST = 0x1e;
 export const MSG_LOGOUT_REQUEST = 0x1f;
 export const MSG_DISMISS_INTRO_REQUEST = 0x20;
+// Both carry an empty DismissIntroRequest body
+export const MSG_RESPAWN_REQUEST = 0x21;
+export const MSG_RESURRECT_ACCEPT = 0x22;
 
 // Server -> Client
 export const MSG_LOGIN_RESPONSE = 0x81;

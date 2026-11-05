@@ -895,7 +895,7 @@ func TestHandleHealSpell(t *testing.T) {
 	}
 
 	origHP := p.HP
-	e.handleHealSpell(p, spell, gm)
+	e.handleHealSpell(p, spell, p.X, p.Y, 0, gm)
 	if p.HP <= origHP {
 		t.Errorf("HP should increase after heal, was %d now %d", origHP, p.HP)
 	}

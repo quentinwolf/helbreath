@@ -21,6 +21,7 @@ func init() {
 		Type: SpellTypeHeal, Element: ElementIce,
 		ManaCost: 15, CastTime: 500, Cooldown: 500, Range: 0,
 		HealAmount: 17,
+		HealDice:   Dice{Count: 2, Sides: 6, Bonus: 10},
 		ReqLevel:   0, ReqMAG: 0, ReqINT: 20,
 		SpriteID: 1, SoundID: 45,
 	}
@@ -133,7 +134,10 @@ func init() {
 		Type: SpellTypeHeal, Element: ElementNone,
 		ManaCost: 20, CastTime: 500, Cooldown: 500, Range: 0,
 		HealAmount: 38,
-		ReqLevel:   0, ReqMAG: 0, ReqINT: 20,
+		HealDice:   Dice{Count: 4, Sides: 8, Bonus: 8},
+		AreaX:      2, AreaY: 2,
+		AreaHealDice: Dice{Count: 2, Sides: 6, Bonus: 5},
+		ReqLevel:     0, ReqMAG: 0, ReqINT: 20,
 		SpriteID: 15, SoundID: 45,
 	}
 
@@ -173,6 +177,7 @@ func init() {
 		Type: SpellTypeHeal, Element: ElementNone,
 		ManaCost: 28, CastTime: 700, Cooldown: 700, Range: 0,
 		HealAmount: 42,
+		HealDice:   Dice{Count: 4, Sides: 10, Bonus: 20},
 		ReqLevel:   0, ReqMAG: 0, ReqINT: 28,
 		SpriteID: 21, SoundID: 45,
 	}
@@ -193,7 +198,10 @@ func init() {
 		Type: SpellTypeHeal, Element: ElementNone,
 		ManaCost: 45, CastTime: 900, Cooldown: 900, Range: 0,
 		HealAmount: 73,
-		ReqLevel:   0, ReqMAG: 0, ReqINT: 30,
+		HealDice:   Dice{Count: 4, Sides: 16, Bonus: 16},
+		AreaX:      3, AreaY: 3,
+		AreaHealDice: Dice{Count: 2, Sides: 12, Bonus: 10},
+		ReqLevel:     0, ReqMAG: 0, ReqINT: 30,
 		SpriteID: 23, SoundID: 45,
 	}
 
@@ -242,7 +250,10 @@ func init() {
 		Type: SpellTypeHeal, Element: ElementNone,
 		ManaCost: 65, CastTime: 1100, Cooldown: 1100, Range: 0,
 		HealAmount: 146,
-		ReqLevel:   0, ReqMAG: 0, ReqINT: 10,
+		HealDice:   Dice{Count: 8, Sides: 16, Bonus: 32},
+		AreaX:      4, AreaY: 4,
+		AreaHealDice: Dice{Count: 4, Sides: 12, Bonus: 20},
+		ReqLevel:     0, ReqMAG: 0, ReqINT: 10,
 		SpriteID: 28, SoundID: 45,
 	}
 
@@ -431,6 +442,7 @@ func init() {
 		Type: SpellTypeHeal, Element: ElementNone,
 		ManaCost: 45, CastTime: 900, Cooldown: 900, Range: 0,
 		HealAmount: 94,
+		HealDice:   Dice{Count: 8, Sides: 10, Bonus: 50},
 		ReqLevel:   0, ReqMAG: 0, ReqINT: 10,
 		SpriteID: 48, SoundID: 45,
 	}
@@ -629,7 +641,10 @@ func init() {
 		Type: SpellTypeHeal, Element: ElementNone,
 		ManaCost: 120, CastTime: 1300, Cooldown: 1300, Range: 0,
 		HealAmount: 136,
-		ReqLevel:   0, ReqMAG: 0, ReqINT: 10,
+		HealDice:   Dice{Count: 4, Sides: 10, Bonus: 20},
+		AreaX:      1, AreaY: 1,
+		AreaHealDice: Dice{Count: 8, Sides: 10, Bonus: 50},
+		ReqLevel:     0, ReqMAG: 0, ReqINT: 10,
 		SpriteID: 68, SoundID: 45,
 	}
 
@@ -805,6 +820,7 @@ func init() {
 		Type: SpellTypeHeal, Element: ElementNone,
 		ManaCost: 220, CastTime: 1500, Cooldown: 1500, Range: 0,
 		HealAmount: 909,
+		HealDice:   Dice{Count: 20, Sides: 80, Bonus: 99},
 		ReqLevel:   0, ReqMAG: 0, ReqINT: 10,
 		SpriteID: 86, SoundID: 45,
 	}

@@ -43,22 +43,24 @@ type Player struct {
 	ApprColor int
 
 	// Stats
-	Level      int
-	Experience int64
-	HP, MaxHP  int
-	MP, MaxMP  int
-	SP, MaxSP  int
+	Level                        int
+	Experience                   int64
+	HP, MaxHP                    int
+	MP, MaxMP                    int
+	SP, MaxSP                    int
 	STR, VIT, DEX, INT, MAG, CHR int
-	LUPool     int
-	Side       int
-	Gold       int64
-	PKCount    int
-	EKCount    int
-	Hunger     int
-	AdminLevel int
-	IntroShown bool      // whether the player has seen the welcome intro modal
-	GodMode    bool      // admin god mode: invulnerable + max damage
-	MutedUntil time.Time // chat mute expiry (zero = not muted)
+	LUPool                       int
+	Side                         int
+	Gold                         int64
+	PKCount                      int
+	EKCount                      int
+	Hunger                       int
+	AdminLevel                   int
+	IntroShown                   bool      // whether the player has seen the welcome intro modal
+	GodMode                      bool      // admin god mode: invulnerable + max damage
+	MutedUntil                   time.Time // chat mute expiry (zero = not muted)
+	// ResurrectBy: who offered to Resurrect this dead player (0 = no offer)
+	ResurrectBy int32
 
 	// Derived combat stats (call RecalcCombatStats to update)
 	HitRatio       int // attack accuracy from DEX + weapon skill + equipment
@@ -94,7 +96,7 @@ type Player struct {
 
 	// Skills & Magic
 	Skills        *skills.PlayerSkills
-	LearnedSpells map[int]bool     // spell IDs the player knows
+	LearnedSpells map[int]bool // spell IDs the player knows
 	Buffs         *magic.BuffTracker
 	Effects       *magic.EffectTracker
 	Cooldowns     map[int]time.Time // spell ID -> when cooldown expires
@@ -116,46 +118,46 @@ type Player struct {
 // FromDB creates a Player from a database character row.
 func FromDB(row *db.CharacterRow, objectID int32, client *network.Client) *Player {
 	p := &Player{
-		ObjectID:       objectID,
-		AccountID:      row.AccountID,
-		CharacterID:    row.ID,
-		Name:           row.Name,
-		MapName:        row.MapName,
-		X:              row.PosX,
-		Y:              row.PosY,
-		Direction:      row.Direction,
-		Gender:         row.Gender,
-		SkinColor:      row.SkinColor,
-		HairStyle:      row.HairStyle,
-		HairColor:      row.HairColor,
-		UnderwearColor: row.UnderwearColor,
-		Level:          row.Level,
-		Experience:     row.Experience,
-		STR:            row.STR,
-		VIT:            row.VIT,
-		DEX:            row.DEX,
-		INT:            row.INT,
-		MAG:            row.MAG,
-		CHR:            row.CHR,
-		LUPool:         row.LUPool,
-		HP:             row.HP,
-		MP:             row.MP,
-		SP:             row.SP,
-		Side:           row.Side,
-		Gold:           row.Gold,
-		PKCount:        row.PKCount,
-		EKCount:        row.EKCount,
-		Hunger:         row.Hunger,
-		AdminLevel:     row.AdminLevel,
-		GodMode:        row.GodMode && row.AdminLevel >= 2, // /god needs admin level 2
-		IntroShown:     row.IntroShown,
-		Inventory:      items.NewInventory(),
-		Skills:         skills.NewPlayerSkills(),
-		LearnedSpells:  make(map[int]bool),
-		Buffs:          magic.NewBuffTracker(),
-		Effects:        magic.NewEffectTracker(),
-		Cooldowns:      make(map[int]time.Time),
-		Quests:         quest.NewQuestTracker(),
+		ObjectID:        objectID,
+		AccountID:       row.AccountID,
+		CharacterID:     row.ID,
+		Name:            row.Name,
+		MapName:         row.MapName,
+		X:               row.PosX,
+		Y:               row.PosY,
+		Direction:       row.Direction,
+		Gender:          row.Gender,
+		SkinColor:       row.SkinColor,
+		HairStyle:       row.HairStyle,
+		HairColor:       row.HairColor,
+		UnderwearColor:  row.UnderwearColor,
+		Level:           row.Level,
+		Experience:      row.Experience,
+		STR:             row.STR,
+		VIT:             row.VIT,
+		DEX:             row.DEX,
+		INT:             row.INT,
+		MAG:             row.MAG,
+		CHR:             row.CHR,
+		LUPool:          row.LUPool,
+		HP:              row.HP,
+		MP:              row.MP,
+		SP:              row.SP,
+		Side:            row.Side,
+		Gold:            row.Gold,
+		PKCount:         row.PKCount,
+		EKCount:         row.EKCount,
+		Hunger:          row.Hunger,
+		AdminLevel:      row.AdminLevel,
+		GodMode:         row.GodMode && row.AdminLevel >= 2, // /god needs admin level 2
+		IntroShown:      row.IntroShown,
+		Inventory:       items.NewInventory(),
+		Skills:          skills.NewPlayerSkills(),
+		LearnedSpells:   make(map[int]bool),
+		Buffs:           magic.NewBuffTracker(),
+		Effects:         magic.NewEffectTracker(),
+		Cooldowns:       make(map[int]time.Time),
+		Quests:          quest.NewQuestTracker(),
 		LastMoveTime:    time.Now(),
 		LastPKDecayTime: time.Now(),
 		Client:          client,
@@ -313,7 +315,7 @@ func (p *Player) ToPlayerAppear() *pb.PlayerAppear {
 		Level:      int32(p.Level),
 		Side:       int32(p.Side),
 		PkCount:    int32(p.PKCount),
-		Status:     p.Effects.StatusBits(time.Now()),
+		Status:     p.StatusBits(),
 	}
 }
 
@@ -537,4 +539,17 @@ func (p *Player) MeetsRequirements(def *items.ItemDef) bool {
 		return false
 	}
 	return true
+}
+
+// StatusBits are the client status flags for this player: their effects
+// (invisible, polymorphed) plus StatusDead while they lie waiting to Restart.
+func (p *Player) StatusBits() int32 {
+	var s int32
+	if p.Effects != nil {
+		s = p.Effects.StatusBits(time.Now())
+	}
+	if p.HP <= 0 {
+		s |= magic.StatusDead
+	}
+	return s
 }

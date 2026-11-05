@@ -82,7 +82,7 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 	case spellDef.DealsDamage():
 		e.castDamageSpell(p, spellDef, tx, ty, gm)
 	case spellDef.Type == magic.SpellTypeHeal:
-		e.handleHealSpell(p, spellDef, gm)
+		e.handleHealSpell(p, spellDef, tx, ty, targetID, gm)
 	case spellDef.Type == magic.SpellTypeBuff:
 		e.handleBuffSpell(p, spellDef, gm)
 	case spellDef.Type == magic.SpellTypeDebuff:
@@ -167,6 +167,9 @@ func (e *Engine) validateSpellTarget(p *player.Player, spell *magic.SpellDef, tx
 	if reason := statusSpellCheck(p, spell, tx, ty); reason != "" {
 		return reason
 	}
+	if spell.Type == magic.SpellTypeHeal {
+		return e.healSpellCheck(p, spell, tx, ty, targetID)
+	}
 	if !spell.NeedsTarget() {
 		return ""
 	}
@@ -177,8 +180,8 @@ func (e *Engine) validateSpellTarget(p *player.Player, spell *magic.SpellDef, tx
 		return "The guards are not your enemy"
 	}
 	if t := e.getPlayerByID(targetID); t != nil && !spellCanHitPlayer(p, t) {
-		if t.Side != 0 && t.Side == p.Side {
-			return "Cannot attack a member of your own faction"
+		if sameSide(p, t) && t != p {
+			return sameSideMessage(p)
 		}
 		return "No target selected"
 	}
@@ -186,12 +189,24 @@ func (e *Engine) validateSpellTarget(p *player.Player, spell *magic.SpellDef, tx
 }
 
 // spellCanHitPlayer is the PvP rule for spells, the same one melee uses: never
-// yourself, never your own faction (Aresden or Elvine).
+// yourself, never your own side. Travellers count as a side of their own, so
+// they can't hurt each other either (Mass spells used to kill nearby travellers).
 func spellCanHitPlayer(caster, target *player.Player) bool {
 	if target == caster || target.HP <= 0 || target.MapName != caster.MapName || target.GodMode {
 		return false
 	}
-	return !(target.Side != 0 && target.Side == caster.Side)
+	return !sameSide(caster, target)
+}
+
+// sameSide: both Aresden, both Elvine, or both travellers.
+func sameSide(a, b *player.Player) bool { return a.Side == b.Side }
+
+// sameSideMessage is why you can't attack someone on your own side.
+func sameSideMessage(p *player.Player) string {
+	if p.Side == 0 {
+		return "Travellers cannot attack each other"
+	}
+	return "Cannot attack a member of your own faction"
 }
 
 // spellTileHit records which of a spell's rolls land on one tile.
@@ -366,18 +381,6 @@ func (e *Engine) castDamageSpell(p *player.Player, spell *magic.SpellDef, tx, ty
 	}
 
 	log.Printf("Spell %s at (%d,%d): hit %d monsters, %d players", spell.Name, tx, ty, len(npcVictims), len(playerVictims))
-}
-
-// handleHealSpell handles self-heal spells.
-func (e *Engine) handleHealSpell(p *player.Player, spell *magic.SpellDef, gm *mapdata.GameMap) {
-	heal := spell.HealAmount + p.EffectiveMAG()/3
-	p.HP += heal
-	if p.HP > p.MaxHP {
-		p.HP = p.MaxHP
-	}
-
-	e.broadcastSpellEffect(p, spell, p.ObjectID, p.X, p.Y, p.X, p.Y, 0, heal, false, gm)
-	log.Printf("Player %s healed for %d HP", p.Name, heal)
 }
 
 // handleBuffSpell handles self-buff spells.

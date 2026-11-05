@@ -522,6 +522,8 @@ const encoderMap: Record<number, { create: (data: any) => any; encode: (msg: any
   [Proto.MSG_QUEST_TURNIN_REQUEST]: hbonline.QuestTurnInRequest,
   [Proto.MSG_LOGOUT_REQUEST]: hbonline.LogoutRequest,
   [Proto.MSG_DISMISS_INTRO_REQUEST]: hbonline.DismissIntroRequest,
+  [Proto.MSG_RESPAWN_REQUEST]: hbonline.DismissIntroRequest,
+  [Proto.MSG_RESURRECT_ACCEPT]: hbonline.DismissIntroRequest,
 };
 
 export class MessageHandler {

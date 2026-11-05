@@ -41,55 +41,57 @@ const (
 	MsgQuestTurnInRequest     byte = 0x1E
 	MsgLogoutRequest          byte = 0x1F
 	MsgDismissIntroRequest    byte = 0x20
+	MsgRespawnRequest         byte = 0x21 // body: DismissIntroRequest (empty)
+	MsgResurrectAccept        byte = 0x22 // body: DismissIntroRequest (empty)
 )
 
 // Message type IDs (server -> client)
 const (
-	MsgLoginResponse      byte = 0x81
-	MsgEnterGameResponse  byte = 0x82
-	MsgMotionEvent        byte = 0x83
-	MsgChatMessage        byte = 0x84
-	MsgPlayerAppear       byte = 0x85
-	MsgPlayerDisappear    byte = 0x86
-	MsgNpcAppear          byte = 0x87
-	MsgNpcDisappear       byte = 0x88
-	MsgNpcMotion          byte = 0x89
-	MsgNotification       byte = 0x8A
-	MsgPlayerContents     byte = 0x8B
-	MsgMapChangeResponse  byte = 0x8C
-	MsgCreateCharResponse byte = 0x8D
-	MsgDeleteCharResponse byte = 0x8E
-	MsgDamageEvent        byte = 0x8F
-	MsgStatUpdate         byte = 0x90
-	MsgDeathEvent         byte = 0x91
-	MsgRespawnEvent       byte = 0x92
-	MsgInventoryUpdate    byte = 0x93
-	MsgGroundItemAppear   byte = 0x94
-	MsgGroundItemDisappear byte = 0x95
-	MsgShopOpen           byte = 0x96
-	MsgShopResponse       byte = 0x97
-	MsgSpellEffect        byte = 0x98
-	MsgBuffUpdate         byte = 0x99
-	MsgSpellList          byte = 0x9A
-	MsgSkillList          byte = 0x9B
-	MsgSkillResult        byte = 0x9C
-	MsgCraftResult        byte = 0x9D
+	MsgLoginResponse         byte = 0x81
+	MsgEnterGameResponse     byte = 0x82
+	MsgMotionEvent           byte = 0x83
+	MsgChatMessage           byte = 0x84
+	MsgPlayerAppear          byte = 0x85
+	MsgPlayerDisappear       byte = 0x86
+	MsgNpcAppear             byte = 0x87
+	MsgNpcDisappear          byte = 0x88
+	MsgNpcMotion             byte = 0x89
+	MsgNotification          byte = 0x8A
+	MsgPlayerContents        byte = 0x8B
+	MsgMapChangeResponse     byte = 0x8C
+	MsgCreateCharResponse    byte = 0x8D
+	MsgDeleteCharResponse    byte = 0x8E
+	MsgDamageEvent           byte = 0x8F
+	MsgStatUpdate            byte = 0x90
+	MsgDeathEvent            byte = 0x91
+	MsgRespawnEvent          byte = 0x92
+	MsgInventoryUpdate       byte = 0x93
+	MsgGroundItemAppear      byte = 0x94
+	MsgGroundItemDisappear   byte = 0x95
+	MsgShopOpen              byte = 0x96
+	MsgShopResponse          byte = 0x97
+	MsgSpellEffect           byte = 0x98
+	MsgBuffUpdate            byte = 0x99
+	MsgSpellList             byte = 0x9A
+	MsgSkillList             byte = 0x9B
+	MsgSkillResult           byte = 0x9C
+	MsgCraftResult           byte = 0x9D
 	MsgFactionSelectResponse byte = 0x9E
-	MsgGuildInfo          byte = 0x9F
-	MsgGuildActionResponse byte = 0xA0
-	MsgPartyUpdate        byte = 0xA1
-	MsgPartyInviteMsg     byte = 0xA2
-	MsgPartyActionResponse byte = 0xA3
-	MsgTradeIncoming      byte = 0xA4
-	MsgTradeUpdate        byte = 0xA5
-	MsgTradeComplete      byte = 0xA6
-	MsgPKStatusUpdate     byte = 0xA7
-	MsgQuestListUpdate    byte = 0xA8
-	MsgQuestProgress      byte = 0xA9
-	MsgQuestReward        byte = 0xAA
-	MsgWorldState         byte = 0xAB
-	MsgLogoutResponse     byte = 0xAC
-	MsgSpellCatalog       byte = 0xAD
+	MsgGuildInfo             byte = 0x9F
+	MsgGuildActionResponse   byte = 0xA0
+	MsgPartyUpdate           byte = 0xA1
+	MsgPartyInviteMsg        byte = 0xA2
+	MsgPartyActionResponse   byte = 0xA3
+	MsgTradeIncoming         byte = 0xA4
+	MsgTradeUpdate           byte = 0xA5
+	MsgTradeComplete         byte = 0xA6
+	MsgPKStatusUpdate        byte = 0xA7
+	MsgQuestListUpdate       byte = 0xA8
+	MsgQuestProgress         byte = 0xA9
+	MsgQuestReward           byte = 0xAA
+	MsgWorldState            byte = 0xAB
+	MsgLogoutResponse        byte = 0xAC
+	MsgSpellCatalog          byte = 0xAD
 )
 
 // Encode wraps a protobuf message with a type byte prefix.
@@ -177,7 +179,7 @@ func Decode(data []byte) (byte, proto.Message, error) {
 		msg = &pb.QuestTurnInRequest{}
 	case MsgLogoutRequest:
 		msg = &pb.LogoutRequest{}
-	case MsgDismissIntroRequest:
+	case MsgDismissIntroRequest, MsgRespawnRequest, MsgResurrectAccept:
 		msg = &pb.DismissIntroRequest{}
 	default:
 		return msgType, nil, fmt.Errorf("unknown message type: 0x%02x", msgType)

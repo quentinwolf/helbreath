@@ -75,6 +75,10 @@ import { CharacterInfoPanel, CharacterData } from '../game/ui/CharacterInfoPanel
 // Status bits from the server (PlayerAppear/EntityInfo.status), as the original's iStatus.
 const STATUS_INVISIBLE = 0x10;
 const STATUS_POLYMORPH = 0x100;
+/** A fallen player lying where they died until they click Restart. */
+const STATUS_DEAD = 0x1000;
+/** Notification type: someone offers to Resurrect us (message = their name). */
+const NOTIFY_RESURRECT_OFFER = 11;
 /** Polymorph turns players into this creature (the original's owner type 18). */
 const POLYMORPH_SPRITE = 'zom';
 
@@ -428,6 +432,8 @@ export class GameScene extends Phaser.Scene {
   private playerExp: number = 0;
   private playerGold: number = 0;
   private isDead = false;
+  /** The "You were killed" panel with its Restart (and Resurrect) buttons. */
+  private deathPanel: HTMLDivElement | null = null;
 
   // Combat
   private lastAttackTime = 0;
@@ -549,7 +555,7 @@ export class GameScene extends Phaser.Scene {
     this.localStatus = 0;
     this.cameraShake = new CameraShake(this);
     // Spell projectiles hook scene 'update', which survives the restart: drop them.
-    this.events.once('shutdown', () => clearSpellUpdates(this));
+    this.events.once('shutdown', () => { clearSpellUpdates(this); this.closeDeathPanel(); });
 
     this.msgHandler = this.registry.get('msgHandler') as MessageHandler;
     // Clear GameScene-specific handlers to prevent duplicates on scene restart
@@ -626,6 +632,7 @@ export class GameScene extends Phaser.Scene {
     this.playerMAG = pd.mag ?? 10;
     this.playerCHR = pd.charisma ?? 10;
     this.isDead = false;
+    this.closeDeathPanel(); // HTML outlives a scene restart
 
     // Parse collision grid
     this.mapWidth = enterData.mapInfo.width;
@@ -1492,7 +1499,9 @@ export class GameScene extends Phaser.Scene {
     });
 
     const spriteDir = Math.max(0, rp.direction - 1);
-    const layers = this.createPlayerLayers(gear, spriteDir, PlayerState.IdlePeace);
+    const status = info.status ?? 0;
+    const layers = this.createPlayerLayers(gear, spriteDir,
+      (status & STATUS_DEAD) !== 0 ? PlayerState.Die : PlayerState.IdlePeace);
     rp.assets = { layers, gear, equipLayerMap: this._lastEquipLayerMap };
     rp.gender = gender;
     rp.skinColor = skinColor;
@@ -2310,7 +2319,7 @@ export class GameScene extends Phaser.Scene {
       cape: info.appearance?.cape ?? 0,
     });
     const dir = Math.max(0, (info.direction ?? 5) - 1);
-    const state = PlayerState.IdlePeace;
+    const state = ((info.status ?? 0) & STATUS_DEAD) !== 0 ? PlayerState.Die : PlayerState.IdlePeace;
 
     let assets: PlayerAssets | null = null;
     try {
@@ -3341,20 +3350,84 @@ export class GameScene extends Phaser.Scene {
     if (data.objectId === this.playerObjectId) {
       this.isDead = true;
       this.isMouseDown = false;
-
-      // Show death message
-      const deathText = this.add.text(
-        this.cameras.main.width / 2, this.cameras.main.height / 2,
-        `You were killed by ${data.killerName}\nRespawning...`,
-        { fontSize: '20px', color: '#ff4444', align: 'center', stroke: '#000', strokeThickness: 3 },
-      ).setOrigin(0.5).setScrollFactor(0).setDepth(50000);
-
-      this.time.delayedCall(3000, () => deathText.destroy());
+      this.isMoving = false;
+      if (this.playerAssets) {
+        this.playerState = PlayerState.Die;
+        this.updatePlayerAnimation(this.playerAssets, PlayerState.Die, Math.max(0, this.playerDirection - 1));
+      }
+      this.showDeathPanel(data.killerName);
+      return;
     }
+
+    // Another player fell: play their death and leave the body lying there
+    const rp = this.remotePlayers.get(data.objectId);
+    if (rp) {
+      rp.status |= STATUS_DEAD;
+      rp.isMoving = false;
+      if (rp.assets) {
+        this.updatePlayerAnimation(rp.assets, PlayerState.Die, Math.max(0, rp.direction - 1));
+      }
+    }
+  }
+
+  /**
+   * The death panel. Like the original you stay where you fell (and can keep
+   * chatting) until you click Restart; a Resurrection offer adds an Accept button.
+   */
+  private showDeathPanel(killerName: string): void {
+    this.closeDeathPanel();
+    // HTML like the game's other UI (canvas buttons don't get clicks through the
+    // page's UI layer). No full-screen overlay, so the chat box stays usable.
+    const panel = document.createElement('div');
+    panel.id = 'death-panel';
+    panel.style.cssText = 'position:fixed; top:38%; left:50%; transform:translate(-50%,-50%); z-index:400;'
+      + ' background:rgba(15,15,25,0.92); border:1px solid #7a2a2a; border-radius:8px; padding:16px 28px;'
+      + ' font-family:"Segoe UI",Arial,sans-serif; text-align:center; display:flex; flex-direction:column; gap:10px;';
+    const title = document.createElement('div');
+    title.textContent = `You were killed by ${killerName}`;
+    title.style.cssText = 'color:#ff5555; font-size:18px; font-weight:bold;';
+    panel.append(title, this.deathButton('Respawn', '#7a2a2a', () => {
+      this.msgHandler.sendMessage(Proto.MSG_RESPAWN_REQUEST, {});
+    }));
+    document.body.appendChild(panel);
+    this.deathPanel = panel;
+  }
+
+  private deathButton(label: string, colour: string, onClick: () => void): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.textContent = label;
+    button.style.cssText = `cursor:pointer; background:${colour}; color:#fff; border:none; border-radius:4px;`
+      + ' padding:8px 24px; font-size:14px; font-weight:bold;';
+    button.addEventListener('mouseenter', () => { button.style.filter = 'brightness(1.3)'; });
+    button.addEventListener('mouseleave', () => { button.style.filter = ''; });
+    button.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      button.disabled = true; // one request is enough; the panel closes when the server answers
+      onClick();
+    });
+    return button;
+  }
+
+  private closeDeathPanel(): void {
+    this.deathPanel?.remove();
+    this.deathPanel = null;
+  }
+
+  /** Someone cast Resurrection on our body: offer to stand up where we fell. */
+  private onResurrectOffer(casterName: string): void {
+    if (!this.isDead) return;
+    if (!this.deathPanel) this.showDeathPanel('?');
+    this.deathPanel!.querySelector('.resurrect')?.remove();
+    const accept = this.deathButton(`Accept resurrection from ${casterName}`, '#2a6a2a', () => {
+      this.msgHandler.sendMessage(Proto.MSG_RESURRECT_ACCEPT, {});
+    });
+    accept.className = 'resurrect';
+    this.deathPanel!.appendChild(accept);
   }
 
   private onRespawnEvent(data: RespawnEventData): void {
     this.isDead = false;
+    this.closeDeathPanel();
     this.tileX = data.position.x;
     this.tileY = data.position.y;
     this.visualX = data.position.x * TILE_SIZE;
@@ -3373,6 +3446,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onNotification(data: any): void {
+    if (data.type === NOTIFY_RESURRECT_OFFER && typeof data.message === 'string') {
+      this.onResurrectOffer(data.message);
+      return;
+    }
+
     // Type 10 = world state update (time and weather from server)
     if (data.type === 10 && typeof data.message === 'string') {
       this.parseWorldState(data.message);
@@ -4968,26 +5046,31 @@ export class GameScene extends Phaser.Scene {
     const clickTileX = Math.floor(worldPoint.x / TILE_SIZE);
     const clickTileY = Math.floor(worldPoint.y / TILE_SIZE);
 
-    // Check if an NPC is at or near the clicked tile (within 1 tile of click), closest first
-    let targetNPC: GameNPC | null = null;
-    for (const npc of this.npcsNearestTo(clickTileX, clickTileY)) {
-      if (Math.abs(clickTileX - npc.tileX) <= 1 && Math.abs(clickTileY - npc.tileY) <= 1) {
-        targetNPC = npc;
-        break;
-      }
+    // Players at or next to the clicked tile, closest first
+    let targetPlayer: RemotePlayer | null = null;
+    let bestDist = 2;
+    for (const rp of this.remotePlayers.values()) {
+      if (this.remoteStatusMode(rp) === 'hidden') continue;
+      const d = Math.max(Math.abs(clickTileX - rp.tileX), Math.abs(clickTileY - rp.tileY));
+      if (d < bestDist) { targetPlayer = rp; bestDist = d; }
     }
 
-    // Also check for remote players at clicked tile
-    let targetPlayer: RemotePlayer | null = null;
-    if (!targetNPC) {
-      for (const rp of this.remotePlayers.values()) {
-        if (this.remoteStatusMode(rp) === 'hidden') continue;
-        if (Math.abs(clickTileX - rp.tileX) <= 1 && Math.abs(clickTileY - rp.tileY) <= 1) {
-          targetPlayer = rp;
+    // Heals and buffs go to a player even with a monster beside them (a heal on
+    // someone being mauled used to land on the monster); attacks prefer monsters
+    const spellType = this.learnedSpells.find(s => s.spellId === this.selectedSpellId)?.spellType;
+    const friendly = spellType === 3 || spellType === 4;
+
+    // An NPC at or near the clicked tile (within 1 tile of click), closest first
+    let targetNPC: GameNPC | null = null;
+    if (!(friendly && targetPlayer)) {
+      for (const npc of this.npcsNearestTo(clickTileX, clickTileY)) {
+        if (Math.abs(clickTileX - npc.tileX) <= 1 && Math.abs(clickTileY - npc.tileY) <= 1) {
+          targetNPC = npc;
           break;
         }
       }
     }
+    if (targetNPC) targetPlayer = null;
 
     // Play cast animation
     if (this.playerAssets) {

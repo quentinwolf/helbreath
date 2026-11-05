@@ -915,12 +915,18 @@ func (e *Engine) handlePlayerDeath(p *player.Player, killerID int32, killerName 
 
 	// Reset derived stats after clearing buffs
 	p.RecalcCombatStats()
+	p.ResurrectBy = 0
 
-	// Respawn after 3 seconds
-	go func() {
-		time.Sleep(3 * time.Second)
+	// The body stays where it fell until the player clicks Restart
+	// (MsgRespawnRequest), so they can still chat; see handleRespawnRequest.
+	e.sendStatUpdate(p)
+}
+
+// handleRespawnRequest brings a dead player back when they click Restart.
+func (e *Engine) handleRespawnRequest(client *network.Client) {
+	if p := e.getPlayerByClient(client); p != nil && p.HP <= 0 {
 		e.respawnPlayer(p)
-	}()
+	}
 }
 
 // deathPenaltyLevel returns the number of items to drop on death.
@@ -947,24 +953,15 @@ func (e *Engine) respawnPlayer(p *player.Player) {
 		return
 	}
 
-	// Clear old position
-	gm.ClearOwner(p.X, p.Y)
-	gm.RemovePlayerFromSector(p.X, p.Y, p.ObjectID)
-
-	// Respawn at map spawn point (near center or saved spawn)
-	spawnX, spawnY := gm.Width/2, gm.Height/2
-	if !gm.IsWalkable(spawnX, spawnY) {
-		spawnX, spawnY = e.findWalkable(gm, spawnX, spawnY)
-	}
-
-	p.X = spawnX
-	p.Y = spawnY
 	p.HP = p.MaxHP / 2
 	p.MP = p.MaxMP / 2
 	p.SP = p.MaxSP
+	p.ResurrectBy = 0
 
-	gm.SetOwner(p.X, p.Y, p.ObjectID)
-	gm.AddPlayerToSector(p.X, p.Y, p.ObjectID)
+	// Respawn at the map's centre. Going through the teleport path tells
+	// everyone by the body that it's gone and gives the player a fresh view
+	// of their new surroundings.
+	e.handleTeleport(p, gm, mapdata.TeleportDest{DestMap: p.MapName, DestX: -1, DestY: -1})
 
 	// Send respawn event to player
 	respawnEvt := &pb.RespawnEvent{
@@ -977,10 +974,6 @@ func (e *Engine) respawnPlayer(p *player.Player) {
 	}
 	data, _ := network.Encode(network.MsgRespawnEvent, respawnEvt)
 	p.Send(data)
-
-	// Broadcast player appear at new location
-	appear := p.ToPlayerAppear()
-	e.broadcastToNearby(gm, p.X, p.Y, p.ObjectID, network.MsgPlayerAppear, appear)
 
 	// Send stat update
 	e.sendStatUpdate(p)
@@ -1198,6 +1191,10 @@ func (e *Engine) OnMessage(client *network.Client, msgType byte, rawData []byte)
 		e.handleLogout(client, msg.(*pb.LogoutRequest))
 	case network.MsgDismissIntroRequest:
 		e.handleDismissIntro(client)
+	case network.MsgRespawnRequest:
+		e.handleRespawnRequest(client)
+	case network.MsgResurrectAccept:
+		e.handleResurrectAccept(client)
 	}
 }
 
@@ -1416,6 +1413,12 @@ func (e *Engine) handleEnterGame(client *network.Client, req *pb.EnterGameReques
 		}
 	}
 
+	// Logged out while dead (before clicking Restart): come back at the respawn point
+	if p.HP <= 0 {
+		p.HP, p.MP, p.SP = max(1, p.MaxHP/2), p.MaxMP/2, p.MaxSP
+		p.X, p.Y = gm.Width/2, gm.Height/2
+	}
+
 	// Find a walkable position near the saved position
 	if !gm.IsWalkable(p.X, p.Y) {
 		p.X, p.Y = e.findWalkable(gm, p.X, p.Y)
@@ -1515,6 +1518,9 @@ func (e *Engine) handleMotion(client *network.Client, req *pb.MotionRequest) {
 		return
 	}
 	p := val.(*player.Player)
+	if p.HP <= 0 {
+		return // dead: waiting for Restart
+	}
 
 	gm, ok := e.maps[p.MapName]
 	if !ok {
@@ -2233,7 +2239,7 @@ func (e *Engine) getNearbyEntityInfos(gm *mapdata.GameMap, x, y int, excludeID i
 				Appearance: p.ToAppearance(),
 				Level:      int32(p.Level),
 				Side:       int32(p.Side),
-				Status:     p.Effects.StatusBits(time.Now()),
+				Status:     p.StatusBits(),
 			})
 		}
 	}

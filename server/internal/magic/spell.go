@@ -85,6 +85,11 @@ type SpellDef struct {
 	AreaDice   Dice // damage for everyone inside the hit box
 	LineDice   Dice // damage for everyone on the line
 
+	// Heals (and stamina restores, CfgType 7): HealDice for whoever is on the
+	// clicked tile, AreaHealDice for everyone in the AreaX/AreaY box around it.
+	HealDice     Dice
+	AreaHealDice Dice
+
 	// Status effect fields (for spells that apply effects)
 	ApplyEffect    EffectType // which status effect to apply (0 = none)
 	EffectLevel    int        // intensity of the effect (1-3)
