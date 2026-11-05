@@ -248,12 +248,23 @@ export class CharacterInfoPanel {
       const cell = document.createElement('div');
       cell.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:2px 4px;background:rgba(0,0,0,0.25);border-radius:2px;font-size:10px;';
       cell.innerHTML = `<span><span style="color:#a08060;">${stat.name}</span> <strong style="color:#fff;">${stat.val}</strong></span>`;
+      // Bigger steps appear once there are enough points to make them useful.
+      // The server clamps to the pool and the stat cap either way.
       if (data.luPool > 0) {
-        const btn = document.createElement('button');
-        btn.style.cssText = btnStyle;
-        btn.textContent = '+1';
-        btn.addEventListener('click', () => this.callbacks.onAllocStat(stat.key, 1));
-        cell.appendChild(btn);
+        const steps = [1];
+        if (data.luPool >= 10) steps.push(5);
+        if (data.luPool >= 50) steps.push(10);
+        const btns = document.createElement('span');
+        btns.style.cssText = 'display:flex;flex-shrink:0;';
+        for (const n of steps) {
+          const btn = document.createElement('button');
+          btn.style.cssText = btnStyle;
+          btn.textContent = `+${n}`;
+          btn.title = `Add ${n} point${n > 1 ? 's' : ''} to ${stat.name.replace('.', '')}`;
+          btn.addEventListener('click', () => this.callbacks.onAllocStat(stat.key, n));
+          btns.appendChild(btn);
+        }
+        cell.appendChild(btns);
       }
       statsGrid.appendChild(cell);
     }
