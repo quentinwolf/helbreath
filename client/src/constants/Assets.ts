@@ -499,6 +499,32 @@ const MONSTER_SPRITE_ASSETS: AssetData[] = [
     // ---- Misc ----
     { key: 'dummy', fileName: 'dummy.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },       // 34 - Dummy
     { key: 'crop', fileName: 'crop.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },         // 64 - Crops
+
+    // ---- Crusade / Heldenian war units, bosses (sprite names from the original client's MakeSprite table) ----
+    { key: 'gt-arrow', fileName: 'gt-arrow.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },           // 36 - Arrow Guard Tower
+    { key: 'gt-cannon', fileName: 'gt-cannon.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },         // 37 - Cannon Guard Tower
+    { key: 'manacollector', fileName: 'manacollector.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster }, // 38 - Mana Collector
+    { key: 'detector', fileName: 'detector.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },           // 39 - Detector
+    { key: 'esg', fileName: 'esg.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },                     // 40 - ESG
+    { key: 'gmg', fileName: 'gmg.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },                     // 41 - GMG
+    { key: 'manastone', fileName: 'manastone.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },         // 42 - Mana Stone
+    { key: 'lwb', fileName: 'lwb.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },                     // 43 - Light War Beetle
+    { key: 'ghk', fileName: 'ghk.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },                     // 44 - God's Hand Knight
+    { key: 'ghkabs', fileName: 'ghkabs.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },               // 45 - GHK on Battle Steed
+    { key: 'tk', fileName: 'tk.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },                       // 46 - Temple Knight
+    { key: 'bg', fileName: 'bg.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },                       // 47 - Battle Golem
+    { key: 'catapult', fileName: 'catapult.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },           // 51 - Catapult
+    { key: 'barlog', fileName: 'barlog.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },               // 70 - Barlog ("Dragon" in NPC.cfg)
+    { key: 'yspro', fileName: 'yspro.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },                 // 81 - Abaddon
+    { key: 'sorceress', fileName: 'sorceress.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },         // 82 - Sorceress
+    { key: 'tpknight', fileName: 'tpknight.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },           // 83 - TP Knight
+    { key: 'elfmaster', fileName: 'elfmaster.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },         // 84 - Elf Master
+    { key: 'darkknight', fileName: 'darkknight.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },       // 85 - Dark Knight
+    { key: 'hbtank', fileName: 'hbtank.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },               // 86 - Heavy Battle Tank
+    { key: 'cbturret', fileName: 'cbturret.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },           // 87 - CB Turret
+    { key: 'babarian', fileName: 'babarian.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },           // 88 - Barbarian
+    { key: 'acannon', fileName: 'acannon.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster },             // 89 - A-Cannon
+    { key: 'fireelemental', fileName: 'fireelemental.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Monster }, // 97 - Fire Elemental
 ];
 
 // ---------------------------------------------------------------------------

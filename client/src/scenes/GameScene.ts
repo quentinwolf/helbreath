@@ -183,6 +183,31 @@ const NPC_SPRITE_MAP: Record<number, string> = {
   68: 'perry',      // Perry
   69: 'devlin',     // Devlin
   90: 'gail',       // Gail
+  // Crusade / Heldenian war units and bosses (original client's MakeSprite table)
+  36: 'gt-arrow',      // Arrow Guard Tower
+  37: 'gt-cannon',     // Cannon Guard Tower
+  38: 'manacollector', // Mana Collector
+  39: 'detector',      // Detector
+  40: 'esg',           // ESG
+  41: 'gmg',           // GMG
+  42: 'manastone',     // Mana Stone
+  43: 'lwb',           // Light War Beetle
+  44: 'ghk',           // God's Hand Knight
+  45: 'ghkabs',        // God's Hand Knight on Armored Battle Steed
+  46: 'tk',            // Temple Knight
+  47: 'bg',            // Battle Golem
+  51: 'catapult',      // Catapult
+  70: 'barlog',        // Barlog ("Dragon" in NPC.cfg uses this sprite)
+  81: 'yspro',         // Abaddon
+  82: 'sorceress',     // Sorceress
+  83: 'tpknight',      // TP Knight
+  84: 'elfmaster',     // Elf Master
+  85: 'darkknight',    // Dark Knight
+  86: 'hbtank',        // Heavy Battle Tank
+  87: 'cbturret',      // CB Turret
+  88: 'babarian',      // Barbarian
+  89: 'acannon',       // A-Cannon
+  97: 'fireelemental', // Fire Elemental (FireEl)
 };
 
 // Fallback colors if sprite fails to load
