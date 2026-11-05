@@ -367,6 +367,9 @@ export class GameScene extends Phaser.Scene {
 
   // NPCs
   private npcs: Map<number, GameNPC> = new Map();
+  // Dead NPCs still playing their death animation. Kept apart from `npcs` so
+  // NpcDisappear and a respawn reusing the same object ID behave as before.
+  private npcCorpses: Set<GameNPC> = new Set();
 
   // Player stats (live)
   private playerHP = 0;
@@ -652,6 +655,7 @@ export class GameScene extends Phaser.Scene {
       this.musicManager.destroy();
       this.weatherManager.destroy();
       this.soundManager.destroy();
+      this.npcCorpses.clear(); // their sprites go down with the scene
     });
 
     // Play map music on enter
@@ -970,6 +974,7 @@ export class GameScene extends Phaser.Scene {
     for (const [id] of this.npcs) {
       this.removeNPC(id);
     }
+    this.clearNPCCorpses();
 
     // Clear ground items
     for (const [, gi] of this.groundItems) {
@@ -2628,12 +2633,62 @@ export class GameScene extends Phaser.Scene {
   private removeNPC(objectId: number): void {
     const npcEntity = this.npcs.get(objectId);
     if (npcEntity) {
+      this.destroyNPCVisuals(npcEntity);
+      this.npcs.delete(objectId);
+    }
+  }
+
+  private destroyNPCVisuals(npcEntity: GameNPC): void {
+    try {
       if (npcEntity.asset) npcEntity.asset.destroy();
       if (npcEntity.fallbackSprite) npcEntity.fallbackSprite.destroy();
       npcEntity.nameText.destroy();
       npcEntity.hpBar.destroy();
-      this.npcs.delete(objectId);
-    }
+    } catch { /* already destroyed with the scene */ }
+  }
+
+  /**
+   * Plays the NPC's dying sheet (32-39, one per direction) once, holds the
+   * last frame, then fades out. Returns false if the sprite has no death sheet.
+   */
+  private playNPCDeath(npcEntity: GameNPC): boolean {
+    const spriteName = NPC_SPRITE_MAP[npcEntity.npcType];
+    const asset = npcEntity.asset;
+    if (!asset || !spriteName || npcEntity.direction < 1 || npcEntity.direction > 8) return false;
+    const animKey = `${spriteName}-${32 + npcEntity.direction - 1}`;
+    if (!this.anims.exists(animKey)) return false;
+
+    // Take it out of the live list so it can't be clicked, moved or duplicated
+    this.npcs.delete(npcEntity.objectId);
+    this.npcCorpses.add(npcEntity);
+    npcEntity.nameText.setVisible(false);
+    npcEntity.hpBar.setVisible(false);
+    asset.playAnimationWithDirection(animKey, 0, 8, undefined, 0, undefined, AnimationType.FullFrame);
+
+    const CORPSE_HOLD_MS = 3000;
+    const FADE_MS = 600;
+    this.time.delayedCall(CORPSE_HOLD_MS, () => {
+      if (!this.npcCorpses.has(npcEntity)) return;
+      const start = this.time.now;
+      const fade = this.time.addEvent({
+        delay: 50, loop: true, callback: () => {
+          if (!this.npcCorpses.has(npcEntity)) { fade.remove(); return; }
+          const t = Math.min((this.time.now - start) / FADE_MS, 1);
+          asset.setAlpha(1 - t);
+          if (t >= 1) {
+            fade.remove();
+            this.npcCorpses.delete(npcEntity);
+            this.destroyNPCVisuals(npcEntity);
+          }
+        },
+      });
+    });
+    return true;
+  }
+
+  private clearNPCCorpses(): void {
+    for (const corpse of this.npcCorpses) this.destroyNPCVisuals(corpse);
+    this.npcCorpses.clear();
   }
 
   private updateNPCMovement(npcEntity: GameNPC, time: number): void {
@@ -3026,8 +3081,9 @@ export class GameScene extends Phaser.Scene {
 
   private onDeathEvent(data: DeathEventData): void {
     if (data.objectType === 2) {
-      // NPC died - flash and remove
+      // NPC died - play its death animation, or flash and remove if it has none
       const npcEntity = this.npcs.get(data.objectId);
+      if (npcEntity && this.playNPCDeath(npcEntity)) return;
       if (npcEntity) {
         if (npcEntity.asset) {
           npcEntity.asset.setAlpha(0.3);
