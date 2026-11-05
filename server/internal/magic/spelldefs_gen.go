@@ -293,7 +293,6 @@ func init() {
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 30,
 		SpriteID: 34, SoundID: 1,
-		ApplyEffect: EffectInvisibility, EffectLevel: 2,
 	}
 
 	SpellDB[35] = &SpellDef{

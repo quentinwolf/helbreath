@@ -773,6 +773,7 @@ func (e *Engine) handlePvPAttack(attacker, target *player.Player) {
 	}
 
 	// Calculate PvP damage (similar to NPC but with player defense)
+	e.breakInvisibility(attacker) // attacking reveals you (being hit doesn't)
 	result := PlayerAttackPlayer(attacker, target)
 
 	// Apply day/night weapon bonus for PvP

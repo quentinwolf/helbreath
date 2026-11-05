@@ -25,7 +25,7 @@ func (e *Engine) npcStopMoving(n *npc.NPC, gm *mapdata.GameMap) {
 		Position:  &pb.Vec2{X: int32(n.X), Y: int32(n.Y)},
 		Speed:     int32(n.Type.MoveSpeed),
 		Name:      n.Type.Name,
-		NpcType:   int32(n.Type.SpriteType),
+		NpcType:   int32(n.ShownSpriteType()),
 	})
 }
 
@@ -177,7 +177,7 @@ func isGuardType(t *npc.NpcType) bool {
 // can't be hurt by you either, so splash damage and misclicks don't start a
 // fight with the town watch.
 func (e *Engine) playerCanHurtNPC(p *player.Player, n *npc.NPC) bool {
-	if npc.IsShopNPC(n.Type.ID) {
+	if npc.IsShopNPC(n.Type.ID) || n.MasterID == p.ObjectID {
 		return false
 	}
 	if isGuardType(n.Type) && !e.npcCanTarget(n, p) {
@@ -191,8 +191,13 @@ func npcHostileToNPC(a, b *npc.NPC) bool {
 	if a == b {
 		return false
 	}
-	aMonster, bMonster := a.Type.Side == npc.SideMonster, b.Type.Side == npc.SideMonster
-	return (aMonster && isGuardType(b.Type)) || (isGuardType(a.Type) && bMonster)
+	// A summoned creature fights for its master: it and wild monsters are enemies.
+	wildA := a.Type.Side == npc.SideMonster && a.MasterID == 0
+	wildB := b.Type.Side == npc.SideMonster && b.MasterID == 0
+	if (a.MasterID != 0 && wildB) || (wildA && b.MasterID != 0) {
+		return true
+	}
+	return (wildA && isGuardType(b.Type)) || (isGuardType(a.Type) && wildB)
 }
 
 // findNearestEnemyNPC returns the closest living NPC that n would attack.
@@ -228,7 +233,8 @@ func (e *Engine) npcTargetPosition(n *npc.NPC) (x, y int, ok bool) {
 		}
 		return 0, 0, false
 	}
-	if p := e.getPlayerByID(n.TargetID); p != nil && p.HP > 0 && p.MapName == n.MapName {
+	if p := e.getPlayerByID(n.TargetID); p != nil && p.HP > 0 && p.MapName == n.MapName &&
+		(p.Effects == nil || !p.Effects.HasEffect(magic.EffectInvisibility)) {
 		return p.X, p.Y, true
 	}
 	return 0, 0, false

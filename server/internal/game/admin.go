@@ -331,6 +331,7 @@ func (e *Engine) adminSetInvi(p *player.Player, args []string) {
 			})
 			e.sendNotification(p, fmt.Sprintf("Invisibility ON for %s", target.Name), 1)
 		}
+		e.refreshPlayerAppearance(target)
 	}
 }
 

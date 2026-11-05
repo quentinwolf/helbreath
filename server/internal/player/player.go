@@ -313,6 +313,7 @@ func (p *Player) ToPlayerAppear() *pb.PlayerAppear {
 		Level:      int32(p.Level),
 		Side:       int32(p.Side),
 		PkCount:    int32(p.PKCount),
+		Status:     p.Effects.StatusBits(time.Now()),
 	}
 }
 

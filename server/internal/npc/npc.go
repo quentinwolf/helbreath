@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"time"
 
+	"github.com/juanrossi/hbonline/server/internal/magic"
 	pb "github.com/juanrossi/hbonline/server/pkg/proto"
 )
 
@@ -336,6 +337,12 @@ type NPC struct {
 	Summoned       bool // spawned by /summon: removed on death instead of respawning
 	Mana           int  // spent on spells by casters (Type.MaxMana > 0)
 
+	// Summon Creature: the player this NPC follows and fights for, and when it vanishes.
+	MasterID      int32
+	SummonExpires time.Time
+	// Polymorph: drawn as a Zombie until then.
+	PolymorphUntil time.Time
+
 	// Flee tracking
 	FleeStartX int // X position when flee began (to measure flee distance)
 	FleeStartY int // Y position when flee began
@@ -424,12 +431,25 @@ func (n *NPC) ReadyToRespawn() bool {
 	return n.State == StateDead && time.Since(n.DeathTime) >= n.RespawnDelay
 }
 
+// IsPolymorphed reports whether a Polymorph spell is still holding this NPC.
+func (n *NPC) IsPolymorphed(now time.Time) bool {
+	return now.Before(n.PolymorphUntil)
+}
+
+// ShownSpriteType is the sprite clients draw: a Zombie while polymorphed.
+func (n *NPC) ShownSpriteType() int {
+	if n.IsPolymorphed(time.Now()) {
+		return magic.PolymorphSpriteType
+	}
+	return n.Type.SpriteType
+}
+
 // ToNpcAppear creates the protobuf message for client rendering.
 func (n *NPC) ToNpcAppear() *pb.NpcAppear {
 	return &pb.NpcAppear{
 		ObjectId:  n.ObjectID,
 		Name:      n.Type.Name,
-		NpcType:   int32(n.Type.SpriteType),
+		NpcType:   int32(n.ShownSpriteType()),
 		Position:  &pb.Vec2{X: int32(n.X), Y: int32(n.Y)},
 		Direction: int32(n.Direction),
 		Action:    int32(n.Action),
@@ -445,7 +465,7 @@ func (n *NPC) ToEntityInfo() *pb.EntityInfo {
 		Position:   &pb.Vec2{X: int32(n.X), Y: int32(n.Y)},
 		Direction:  int32(n.Direction),
 		Action:     int32(n.Action),
-		NpcType:    int32(n.Type.SpriteType),
+		NpcType:    int32(n.ShownSpriteType()),
 		Level:      int32(n.MaxHP / 10), // approximate level indicator
 	}
 }

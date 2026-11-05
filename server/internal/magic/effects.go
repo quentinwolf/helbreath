@@ -190,3 +190,28 @@ func (et *EffectTracker) GetEffectLevelAt(t EffectType, now time.Time) int {
 	}
 	return eff.Level
 }
+
+// Status bits sent to clients in PlayerAppear/EntityInfo/NpcAppear.status, like the
+// original client's iStatus flags.
+const (
+	StatusInvisible = 0x10  // drawn ghosted for yourself and your faction, hidden from others
+	StatusPolymorph = 0x100 // drawn as a Zombie (the original sets the owner type to 18)
+)
+
+// PolymorphSpriteType is the creature Polymorph turns its target into (original type 18).
+const PolymorphSpriteType = 18
+
+// StatusBits returns the client status flags for a set of active effects.
+func (et *EffectTracker) StatusBits(now time.Time) int32 {
+	if et == nil {
+		return 0
+	}
+	var s int32
+	if et.HasEffectAt(EffectInvisibility, now) {
+		s |= StatusInvisible
+	}
+	if et.HasEffectAt(EffectPolymorph, now) {
+		s |= StatusPolymorph
+	}
+	return s
+}

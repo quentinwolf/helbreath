@@ -83,10 +83,6 @@ func PlayerAttackNPC(p *player.Player, n *npc.NPC) CombatResult {
 
 	killed := n.TakeDamage(damage)
 
-	// Break invisibility on attack
-	if p.Effects != nil && p.Effects.HasEffect(magic.EffectInvisibility) {
-		p.Effects.RemoveEffect(magic.EffectInvisibility)
-	}
 
 	// Train weapon skill (20% chance per attack)
 	trainWeaponSkill(p)
@@ -178,11 +174,6 @@ func NPCAttackPlayer(n *npc.NPC, p *player.Player) CombatResult {
 	if p.HP <= 0 {
 		p.HP = 0
 		killed = true
-	}
-
-	// Break invisibility when taking damage
-	if p.Effects != nil && p.Effects.HasEffect(magic.EffectInvisibility) {
-		p.Effects.RemoveEffect(magic.EffectInvisibility)
 	}
 
 	// Degrade a random armor piece
@@ -294,13 +285,6 @@ func PlayerAttackPlayer(attacker, target *player.Player) CombatResult {
 		killed = true
 	}
 
-	// Break invisibility on attack or when taking damage
-	if attacker.Effects != nil && attacker.Effects.HasEffect(magic.EffectInvisibility) {
-		attacker.Effects.RemoveEffect(magic.EffectInvisibility)
-	}
-	if target.Effects != nil && target.Effects.HasEffect(magic.EffectInvisibility) {
-		target.Effects.RemoveEffect(magic.EffectInvisibility)
-	}
 
 	// Train weapon skill for attacker, defense for target
 	trainWeaponSkill(attacker)

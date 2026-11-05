@@ -19,6 +19,7 @@ import { IceStorm } from './IceStorm';
 import { castIceStrike, castMassIceStrike } from './IceStrike';
 import { LightningBolt, type LightningBoltConfig } from './LightningBolt';
 import { LightningStrike } from './LightningStrike';
+import { castLightningArrow, castMagicFlash, castMagicMissile, castMassLightningArrow, castTransportFlash } from './MagicMissile';
 import { MassChillWind } from './MassChillWind';
 import { MassFireStrike } from './MassFireStrike';
 import { MeteorStrike } from './MeteorStrike';
@@ -88,6 +89,17 @@ const BLIZZARD: BlizzardConfig = {
 };
 
 const SPELLS: Record<number, SpellEntry> = {
+    // Magic Missile / Lightning Arrow / Mass Lightning Arrow (ported from the original client)
+    0: { sprites: ['effect', 'effect2'], play: (c) => castMagicMissile(c.ctx.scene, c.ox, c.oy, c.tx, c.ty, c.common) },
+    37: { sprites: ['effect', 'effect2'], play: (c) => castLightningArrow(c.ctx.scene, c.ox, c.oy, c.tx, c.ty, c.common) },
+    56: { sprites: ['effect', 'effect2'], play: (c) => castMassLightningArrow(c.ctx.scene, c.ox, c.oy, c.tx, c.ty, c.common) },
+    // Recall, Summon Creature, Invisibility: the original's effect 112 on the target
+    ...Object.fromEntries([12, 31, 32].map((id) => [id, { sprites: ['effect7'], play: (c: Cast) => castTransportFlash(c.ctx.scene, c.tx, c.ty, c.common) }])),
+    // Create Food, Protection From Arrow, Hold Person, Possession, Poison, Protection From
+    // Magic, Detect Invisibility, Paralyze, Cure, Confuse Language, Polymorph, Mass Poison,
+    // Confusion, Mass Confusion: effect 102 on the target
+    ...Object.fromEntries([2, 24, 25, 26, 27, 33, 34, 35, 36, 42, 52, 53, 62, 71].map((id) =>
+        [id, { sprites: ['effect'], play: (c: Cast) => castMagicFlash(c.ctx.scene, c.tx, c.ty, c.common) }])),
     // Energy Bolt / Triple Energy Bolt
     10: { sprites: ['effect'], play: (c) => new EnergyBolt(c.ctx.scene, c.ox, c.oy, c.tileX, c.tileY, { projectileSpeed: 1500, ...c.common }) },
     47: { sprites: ['effect'], play: (c) => new TripleEnergyBolt(c.ctx.scene, c.ox, c.oy, c.tileX, c.tileY, { projectileSpeed: 1500, ...c.common }) },

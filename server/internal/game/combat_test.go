@@ -336,56 +336,6 @@ func TestDefenseShieldReducesDamage(t *testing.T) {
 	}
 }
 
-func TestInvisibilityBreaksOnAttack(t *testing.T) {
-	p := makeTestPlayer()
-	p.DEX = 50
-	p.RecalcCombatStats()
-	n := makeTestNPC(10)
-
-	// Apply invisibility
-	p.Effects.AddEffect(&magic.ActiveEffect{
-		Type:      magic.EffectInvisibility,
-		Level:     1,
-		ExpiresAt: time.Now().Add(60 * time.Second),
-	})
-
-	if !p.Effects.HasEffect(magic.EffectInvisibility) {
-		t.Fatal("Should have invisibility before attack")
-	}
-
-	// Attack NPC
-	PlayerAttackNPC(p, n)
-
-	if p.Effects.HasEffect(magic.EffectInvisibility) {
-		t.Error("Invisibility should break on attack")
-	}
-}
-
-func TestInvisibilityBreaksOnDamage(t *testing.T) {
-	p := makeTestPlayer()
-	n := makeTestNPC(11) // Skeleton
-
-	// Apply invisibility
-	p.Effects.AddEffect(&magic.ActiveEffect{
-		Type:      magic.EffectInvisibility,
-		Level:     1,
-		ExpiresAt: time.Now().Add(60 * time.Second),
-	})
-
-	// Get hit by NPC (retry until we get a non-miss)
-	for i := 0; i < 100; i++ {
-		p.HP = p.MaxHP
-		result := NPCAttackPlayer(n, p)
-		if !result.Miss {
-			break
-		}
-	}
-
-	if p.Effects.HasEffect(magic.EffectInvisibility) {
-		t.Error("Invisibility should break when taking damage")
-	}
-}
-
 func TestIceEffectIncreasesDamage(t *testing.T) {
 	p := makeTestPlayer()
 	n := makeTestNPC(11) // Skeleton
@@ -463,32 +413,3 @@ func TestBerserkReducesDefense(t *testing.T) {
 	}
 }
 
-func TestPvPInvisibilityBreaksOnBothSides(t *testing.T) {
-	attacker := makeTestPlayerWithID(1, "Attacker")
-	attacker.DEX = 50
-	attacker.RecalcCombatStats()
-
-	target := makeTestPlayerWithID(2, "Target")
-
-	// Both invisible
-	attacker.Effects.AddEffect(&magic.ActiveEffect{
-		Type:      magic.EffectInvisibility,
-		Level:     1,
-		ExpiresAt: time.Now().Add(60 * time.Second),
-	})
-	target.Effects.AddEffect(&magic.ActiveEffect{
-		Type:      magic.EffectInvisibility,
-		Level:     1,
-		ExpiresAt: time.Now().Add(60 * time.Second),
-	})
-
-	// Attack
-	PlayerAttackPlayer(attacker, target)
-
-	if attacker.Effects.HasEffect(magic.EffectInvisibility) {
-		t.Error("Attacker invisibility should break on PvP attack")
-	}
-	if target.Effects.HasEffect(magic.EffectInvisibility) {
-		t.Error("Target invisibility should break on PvP damage")
-	}
-}

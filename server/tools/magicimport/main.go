@@ -376,9 +376,9 @@ func mapApplyEffect(s rawSpell) (effectName string, level int) {
 			level = 1
 		}
 		return "EffectIce", level // Hold = frozen in place
-	case 13: // Invisibility
-		if s.Eff1 > 0 && s.Eff2 == 0 { // regular invis (not detect)
-			return "EffectInvisibility", s.Eff1
+	case 13: // Eff1 (the original's sValue4): 1 = Invisibility, 2 = Detect Invisibility
+		if s.Eff1 == 1 {
+			return "EffectInvisibility", 1
 		}
 		return "", 0
 	case 16: // Confusion/Illusion

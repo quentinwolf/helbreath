@@ -473,6 +473,14 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 	n.NextThinkTime = now.Add(200 * time.Millisecond)
 	npcRegenMana(n)
 
+	if !n.PolymorphUntil.IsZero() && !n.IsPolymorphed(now) {
+		n.PolymorphUntil = time.Time{}
+		e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgNpcAppear, n.ToNpcAppear())
+	}
+	if n.MasterID != 0 && e.processSummonTick(n, now, gm) {
+		return
+	}
+
 	// Find nearest player in aggro range
 	nearestPlayer, nearestDist := e.findNearestPlayer(n, gm)
 
@@ -738,7 +746,7 @@ func (e *Engine) moveNPC(n *npc.NPC, gm *mapdata.GameMap, newX, newY, dir int) {
 		Position:  &pb.Vec2{X: int32(n.X), Y: int32(n.Y)},
 		Speed:     int32(n.Type.MoveSpeed),
 		Name:      n.Type.Name,
-		NpcType:   int32(n.Type.SpriteType),
+		NpcType:   int32(n.ShownSpriteType()),
 	}
 	e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgNpcMotion, motionEvent)
 }
@@ -763,8 +771,9 @@ func (e *Engine) findNearestPlayer(n *npc.NPC, gm *mapdata.GameMap) (*player.Pla
 			continue
 		}
 
-		// Invisibility: skip invisible players
-		if p.Effects != nil && p.Effects.HasEffect(magic.EffectInvisibility) {
+		// Invisible players can't be seen; polymorphed ones pass for a monster, so
+		// monsters leave them alone until they're hit (retaliation sets the target)
+		if p.Effects != nil && (p.Effects.HasEffect(magic.EffectInvisibility) || p.Effects.HasEffect(magic.EffectPolymorph)) {
 			continue
 		}
 
@@ -1762,6 +1771,10 @@ func (e *Engine) handleTeleport(p *player.Player, srcMap *mapdata.GameMap, dest 
 	// Broadcast appear to players on new map
 	appear := p.ToPlayerAppear()
 	e.broadcastToNearby(destMap, p.X, p.Y, p.ObjectID, network.MsgPlayerAppear, appear)
+	if appear.Status != 0 {
+		selfData, _ := network.Encode(network.MsgPlayerAppear, appear)
+		p.Send(selfData)
+	}
 
 	log.Printf("Player %s teleported from %s to %s (%d,%d)", p.Name, oldMap, dest.DestMap, p.X, p.Y)
 }
@@ -1931,6 +1944,7 @@ func (e *Engine) handleAttack(client *network.Client, req *pb.MotionRequest) {
 		e.broadcastToNearby(gm, p.X, p.Y, -1, network.MsgMotionEvent, attackMotion)
 
 		// Calculate damage
+		e.breakInvisibility(p) // attacking reveals you (being hit doesn't)
 		result := PlayerAttackNPC(p, n)
 
 		// Apply day/night weapon bonus
@@ -1998,6 +2012,10 @@ func (e *Engine) handleNPCDeath(n *npc.NPC, killer *player.Player, gm *mapdata.G
 	// Broadcast NPC disappear
 	disappear := &pb.NpcDisappear{ObjectId: n.ObjectID}
 	e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgNpcDisappear, disappear)
+
+	if n.MasterID != 0 {
+		return // a summoned creature: no reward, as in the original
+	}
 
 	// Update quest progress
 	e.onNPCKillQuestUpdate(killer, n.Type.ID)
@@ -2215,6 +2233,7 @@ func (e *Engine) getNearbyEntityInfos(gm *mapdata.GameMap, x, y int, excludeID i
 				Appearance: p.ToAppearance(),
 				Level:      int32(p.Level),
 				Side:       int32(p.Side),
+				Status:     p.Effects.StatusBits(time.Now()),
 			})
 		}
 	}

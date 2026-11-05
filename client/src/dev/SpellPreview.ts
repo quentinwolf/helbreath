@@ -12,9 +12,11 @@ import { clearSpellUpdates } from '../game/spells/SceneUpdate';
 import { GameAsset } from '../game/objects/GameAsset';
 
 // orc: stand-in characters, anchored at the tile corner like GameScene's NPCs
-const SPRITES = ['orc', 'effect', 'effect3', 'effect4', 'effect5', 'effect6', 'effect7', 'effect11', 'crueffect1'];
+const SPRITES = ['orc', 'effect', 'effect2', 'effect3', 'effect4', 'effect5', 'effect6', 'effect7', 'effect11', 'crueffect1'];
 
 const SPELLS: [number, string][] = [
+    [0, 'Magic Missile'], [37, 'Lightning Arrow'], [56, 'Mass Lightning Arrow'], [12, 'Recall'],
+    [32, 'Invisibility'], [34, 'Detect Invisibility'], [52, 'Polymorph'], [27, 'Poison'],
     [10, 'Energy Bolt'], [20, 'Fire Ball'], [30, 'Fire Strike'], [40, 'Fire Wall'], [41, 'Fire Field'],
     [43, 'Lightning'], [45, 'Chill Wind'], [46, 'Poison Cloud'], [47, 'Triple Energy Bolt'],
     [51, 'Lightning Bolt'], [54, 'Spike Field'], [55, 'Ice Storm'], [57, 'Ice Strike'],

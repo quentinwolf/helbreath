@@ -60,6 +60,8 @@ import { playSpellEffect, spellEffectSprites } from '../game/spells/SpellEffects
 import { clearSpellUpdates } from '../game/spells/SceneUpdate';
 import { CameraShake } from '../utils/CameraShake';
 import { EFFECT_SOUND_FILES } from '../constants/EffectSounds';
+import { EFFECT_FOOTSTEPS_DRY, EFFECT_WET_SPLASH } from '../constants/Effects';
+import { drawEffect } from '../utils/EffectUtils';
 import { getAssetByKey } from '../constants/Assets';
 import { getItemGroundFrame } from '../constants/ItemGroundSprites';
 import { ItemSpriteExtractor } from '../utils/ItemSpriteExtractor';
@@ -69,6 +71,12 @@ import { CharacterInfoPanel, CharacterData } from '../game/ui/CharacterInfoPanel
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
+
+// Status bits from the server (PlayerAppear/EntityInfo.status), as the original's iStatus.
+const STATUS_INVISIBLE = 0x10;
+const STATUS_POLYMORPH = 0x100;
+/** Polymorph turns players into this creature (the original's owner type 18). */
+const POLYMORPH_SPRITE = 'zom';
 
 interface PlayerAssets {
   layers: GameAsset[];
@@ -99,6 +107,10 @@ interface RemotePlayer {
   hairStyle: number;
   hairColor: number;
   underwearColor: number;
+  /** Status bits (STATUS_*), faction and PK count: decide how we see them when invisible. */
+  status: number;
+  side: number;
+  pkCount: number;
 }
 
 interface GameNPC {
@@ -464,6 +476,14 @@ export class GameScene extends Phaser.Scene {
   private spellBookTab: 'known' | 'learn' = 'known';
   private lastSpellCastAt = new Map<number, number>(); // caster object ID -> scene time of their last spell
   private cameraShake!: CameraShake;
+  /** Our own status bits (invisible, polymorphed), from our PlayerAppear. */
+  private localStatus = 0;
+  /** Our faction (0 traveller, 1 Aresden, 2 Elvine): allies still see us when invisible. */
+  private mySide = 0;
+  /** Players whose sprite layers we're hiding (polymorphed or invisible to us). */
+  private suppressedLayers = new Set<number>();
+  /** Zombie sprites standing in for polymorphed players, by object ID. */
+  private morphs = new Map<number, { asset: GameAsset; sheet: number }>();
   /** Callbacks waiting for a deferred sprite to finish loading (reset each create()). */
   private spriteWaiters = new Map<string, Array<() => void>>();
   private spellCircleFilter = 0; // 0 = all circles, 1-10 = Circle I-X
@@ -524,6 +544,9 @@ export class GameScene extends Phaser.Scene {
     this.loadingDeferredSprites.clear();
     this.loadingMonsterSounds.clear();
     this.spriteWaiters.clear();
+    this.morphs.clear(); // their sprites went down with the old scene
+    this.suppressedLayers.clear();
+    this.localStatus = 0;
     this.cameraShake = new CameraShake(this);
     // Spell projectiles hook scene 'update', which survives the restart: drop them.
     this.events.once('shutdown', () => clearSpellUpdates(this));
@@ -572,6 +595,7 @@ export class GameScene extends Phaser.Scene {
     this.isMouseDown = false;
     this.playerDirection = pd.direction;
     this.playerName = pd.name;
+    this.mySide = pd.side ?? 0;
     this.playerGender = pd.appearance?.gender ?? 0;
     this.playerSkinColor = pd.appearance?.skinColor ?? 0;
     this.playerHairStyle = pd.appearance?.hairStyle ?? 0;
@@ -889,6 +913,9 @@ export class GameScene extends Phaser.Scene {
 
     // Show player names only on mouse hover
     this.updateNameHover();
+
+    // Invisibility and polymorph (after names, so hidden players stay nameless)
+    this.updateStatusVisuals();
 
     // Update debug overlay
     if (this.debugMode) this.updateDebugOverlay();
@@ -1419,6 +1446,7 @@ export class GameScene extends Phaser.Scene {
     this.playerLeggings = info.appearance?.leggings ?? 0;
     this.playerBoots = info.appearance?.boots ?? 0;
     this.playerCape = info.appearance?.cape ?? 0;
+    this.localStatus = info.status ?? 0;
 
     // Rebuild player sprite layers with new equipment
     const dir = this.playerDirection;
@@ -1471,6 +1499,9 @@ export class GameScene extends Phaser.Scene {
     rp.hairStyle = hairStyle;
     rp.hairColor = hairColor;
     rp.underwearColor = underwearColor;
+    rp.status = info.status ?? 0;
+    rp.side = info.side ?? rp.side;
+    rp.pkCount = info.pkCount ?? rp.pkCount;
     this.setPlayerAssetsPosition(rp.assets, rp.visualX, rp.visualY, rp.tileY);
   }
 
@@ -1897,6 +1928,9 @@ export class GameScene extends Phaser.Scene {
       speed = speed * WALK_DURATION_MULTIPLIER;
     }
 
+    // Running kicks up dust on the tile you leave
+    if (this.isRunning) this.spawnRunDust(this.tileX, this.tileY);
+
     // Update tile occupancy
     this.freeTileOccupancy(this.tileX, this.tileY, this.playerObjectId);
 
@@ -2315,6 +2349,9 @@ export class GameScene extends Phaser.Scene {
       moveStartY: worldY,
       isMoving: false,
       gender, skinColor, hairStyle, hairColor, underwearColor,
+      status: info.status ?? 0,
+      side: info.side ?? 0,
+      pkCount: info.pkCount ?? 0,
     };
 
     if (assets) {
@@ -2330,6 +2367,7 @@ export class GameScene extends Phaser.Scene {
     if (rp) {
       this.destroyPlayerAssets(rp.assets);
       rp.nameText.destroy();
+      this.clearMorph(objectId);
       this.remotePlayers.delete(objectId);
     }
   }
@@ -2390,6 +2428,9 @@ export class GameScene extends Phaser.Scene {
       rp.action = evt.action;
 
       if (evt.action === 1 || evt.action === 2) {
+        if (evt.action === 2) {
+          this.spawnRunDust(Math.round(rp.visualX / TILE_SIZE), Math.round(rp.visualY / TILE_SIZE));
+        }
         // Walking or running - smooth interpolation
         rp.moveStartX = rp.visualX;
         rp.moveStartY = rp.visualY;
@@ -2648,7 +2689,12 @@ export class GameScene extends Phaser.Scene {
 
   private addNPC(data: EntityInfo | NpcAppearData | any): void {
     if (!data) { console.warn('[addNPC] null data'); return; }
-    if (this.npcs.has(data.objectId)) { console.log(`[addNPC] skip duplicate obj=${data.objectId}`); return; }
+    const existing = this.npcs.get(data.objectId);
+    if (existing) {
+      // Same NPC with another sprite type (Polymorph on or off): rebuild it, else ignore
+      if (data.npcType === undefined || data.npcType === existing.npcType) return;
+      this.removeNPC(data.objectId);
+    }
     console.log(`[addNPC] Creating NPC ${data.name} obj=${data.objectId} type=${data.npcType} at (${data.position?.x}, ${data.position?.y})`);
 
     const px = data.position?.x ?? 0;
@@ -4433,6 +4479,126 @@ export class GameScene extends Phaser.Scene {
   }
 
   // =========================================================================
+  // Invisibility, Polymorph, running dust (original client rules)
+  // =========================================================================
+
+  /**
+   * How we see an invisible remote player. Like the original's _iGetFOE: citizens of
+   * our own town (nobody a criminal) still see them, ghosted; everyone else sees nothing.
+   */
+  private remoteStatusMode(rp: RemotePlayer): 'normal' | 'ghost' | 'hidden' {
+    if ((rp.status & STATUS_INVISIBLE) === 0) return 'normal';
+    const ally = this.mySide !== 0 && rp.side === this.mySide && this.pkCount === 0 && rp.pkCount === 0;
+    return ally ? 'ghost' : 'hidden';
+  }
+
+  private updateStatusVisuals(): void {
+    if (this.playerAssets) {
+      const mode = (this.localStatus & STATUS_INVISIBLE) !== 0 ? 'ghost' : 'normal';
+      const polymorphed = (this.localStatus & STATUS_POLYMORPH) !== 0;
+      this.applyStatusVisuals(this.playerObjectId, this.playerAssets, this.playerNameText, mode,
+        polymorphed, this.polymorphBlock(this.playerState),
+        this.playerDirection, this.visualX, this.visualY, this.tileY);
+      this.trackSuppressed(this.playerObjectId, polymorphed, () => {
+        if (this.playerAssets) {
+          this.updatePlayerAnimation(this.playerAssets, this.playerState, Math.max(0, this.playerDirection - 1));
+        }
+      });
+    }
+    for (const rp of this.remotePlayers.values()) {
+      if (!rp.assets) continue;
+      const polymorphed = (rp.status & STATUS_POLYMORPH) !== 0;
+      const mode = this.remoteStatusMode(rp);
+      this.applyStatusVisuals(rp.objectId, rp.assets, rp.nameText, mode,
+        polymorphed, rp.isMoving ? 8 : 0,
+        rp.direction, rp.visualX, rp.visualY, rp.tileY);
+      // A disguised player's name shows only to their own side (travellers to travellers)
+      if (polymorphed && rp.side !== this.mySide) rp.nameText.setVisible(false);
+      this.trackSuppressed(rp.objectId, polymorphed || mode === 'hidden', () => {
+        if (rp.assets) {
+          this.updatePlayerAnimation(rp.assets, rp.isMoving ? PlayerState.WalkPeace : PlayerState.IdlePeace,
+            Math.max(0, rp.direction - 1));
+        }
+      });
+    }
+  }
+
+  /**
+   * Remembers whose layers we hid for polymorph or invisibility and, when that ends,
+   * replays their animation so every gear layer shows again (otherwise layers stayed
+   * hidden until the next animation change, leaving the player drawn half-dressed).
+   */
+  private trackSuppressed(objectId: number, suppressed: boolean, restore: () => void): void {
+    if (suppressed) {
+      this.suppressedLayers.add(objectId);
+    } else if (this.suppressedLayers.delete(objectId)) {
+      restore();
+    }
+  }
+
+  /** Monster sheet block for a player state: stand 0, walk 8, attack 16, hit 24, die 32. */
+  private polymorphBlock(state: PlayerState): number {
+    switch (state) {
+      case PlayerState.WalkPeace: case PlayerState.WalkCombat: case PlayerState.Run: return 8;
+      case PlayerState.MeleeAttack: case PlayerState.BowAttack: case PlayerState.Cast: return 16;
+      case PlayerState.TakeDamage: case PlayerState.TakeDamageWithKnockback: return 24;
+      case PlayerState.Die: return 32;
+      default: return 0;
+    }
+  }
+
+  /**
+   * Invisible: drawn additively ("ghosted", the original's PutTransSprite) for ourselves
+   * and allies, not drawn at all for others. Polymorphed: the layers are swapped for a
+   * Zombie. Runs every frame because animation changes re-show layers.
+   */
+  private applyStatusVisuals(
+    objectId: number, assets: PlayerAssets, nameText: Phaser.GameObjects.Text | undefined,
+    mode: 'normal' | 'ghost' | 'hidden', polymorphed: boolean, block: number,
+    direction: number, x: number, y: number, tileY: number,
+  ): void {
+    const blend = mode === 'ghost' ? Phaser.BlendModes.ADD : Phaser.BlendModes.NORMAL;
+    for (const layer of assets.layers) {
+      layer.sprite.setBlendMode(blend);
+      if (mode === 'hidden' || polymorphed) layer.setVisible(false);
+    }
+    if (mode === 'hidden') nameText?.setVisible(false);
+
+    if (!polymorphed || mode === 'hidden') {
+      this.clearMorph(objectId);
+      return;
+    }
+    const sheet = block + Math.max(0, Math.min(7, direction - 1));
+    let morph = this.morphs.get(objectId);
+    if (!morph || morph.sheet !== sheet) {
+      if (!this.ensureSpriteLoaded(POLYMORPH_SPRITE) || !this.anims.exists(`${POLYMORPH_SPRITE}-${sheet}`)) return;
+      this.clearMorph(objectId);
+      const asset = new GameAsset(this, { x, y, spriteName: POLYMORPH_SPRITE, spriteSheetIndex: sheet, frameRate: 10 });
+      morph = { asset, sheet };
+      this.morphs.set(objectId, morph);
+    }
+    morph.asset.setPosition(x, y);
+    morph.asset.setDepth(tileY * DEPTH_MULTIPLIER + 1);
+    morph.asset.sprite.setBlendMode(blend);
+  }
+
+  private clearMorph(objectId: number): void {
+    const morph = this.morphs.get(objectId);
+    if (!morph) return;
+    morph.asset.destroy();
+    this.morphs.delete(objectId);
+  }
+
+  /** Running leaves a puff of dust (or a splash in the rain), even for invisible runners. */
+  private spawnRunDust(tileX: number, tileY: number): void {
+    if (!this.ensureSpriteLoaded('effect2')) return;
+    const key = this.weatherManager.getWeather() === 'rain' ? EFFECT_WET_SPLASH : EFFECT_FOOTSTEPS_DRY;
+    try {
+      drawEffect(this, tileX, tileY, key, { onGround: true });
+    } catch { /* sprite not ready */ }
+  }
+
+  // =========================================================================
   // Phase 4: Spells, Skills, Buffs
   // =========================================================================
 
@@ -4463,21 +4629,15 @@ export class GameScene extends Phaser.Scene {
   // effect3 [13..18], effect4 [19..23], effect6 [40..44], effect7 [45..56],
   // effect8 [57..65], effect9 [66..86], effect10 [87..88], effect11 [89..102].
   private static SPELL_EFFECT_MAP: Record<number, { file: string; sheet: number }> = {
-    0:  { file: 'effect', sheet: 0 },    // Magic Missile (EffectSpr[0])
-    27: { file: 'effect9', sheet: 0 },   // Poison (EffectSpr[66])
-    37: { file: 'effect', sheet: 0 },    // Lightning Arrow
     // Healing (EffectSpr[50] = effect7 s5)
     1:  { file: 'effect7', sheet: 5 },   // Heal
     21: { file: 'effect7', sheet: 5 },   // Great Heal
-    36: { file: 'effect7', sheet: 5 },   // Cure
     48: { file: 'effect7', sheet: 5 },   // Critical Heal
     68: { file: 'effect7', sheet: 5 },   // Mass Heal
     // Buffs / debuffs
     13: { file: 'effect8', sheet: 5 },   // Defense Shield (EffectSpr[62])
-    32: { file: 'effect7', sheet: 7 },   // Invisibility (EffectSpr[52])
     44: { file: 'effect8', sheet: 6 },   // Great Defense Shield (EffectSpr[63])
     50: { file: 'effect8', sheet: 1 },   // Berserk (EffectSpr[58])
-    53: { file: 'effect9', sheet: 0 },   // Mass Poison
     65: { file: 'effect7', sheet: 8 },   // Absolute Magic Protection (EffectSpr[53])
     76: { file: 'effect11', sheet: 1 },  // Cancellation (EffectSpr[90])
     80: { file: 'effect8', sheet: 2 },   // Illusion (EffectSpr[59])
@@ -4821,6 +4981,7 @@ export class GameScene extends Phaser.Scene {
     let targetPlayer: RemotePlayer | null = null;
     if (!targetNPC) {
       for (const rp of this.remotePlayers.values()) {
+        if (this.remoteStatusMode(rp) === 'hidden') continue;
         if (Math.abs(clickTileX - rp.tileX) <= 1 && Math.abs(clickTileY - rp.tileY) <= 1) {
           targetPlayer = rp;
           break;
@@ -4963,6 +5124,7 @@ export class GameScene extends Phaser.Scene {
 
   private onFactionResponse(data: FactionSelectResponseData): void {
     if (data.success) {
+      this.mySide = data.side;
       this.showSystemMessage(`Joined faction ${data.side === 1 ? 'Aresden' : 'Elvine'}!`);
     } else {
       this.showSystemMessage(data.error);

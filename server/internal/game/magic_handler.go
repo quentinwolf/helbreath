@@ -59,15 +59,11 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 	}
 
 	offensive := spellDef.DealsDamage() || spellDef.Type == magic.SpellTypeDebuff
-	if offensive {
-		if tx != p.X || ty != p.Y {
-			p.Direction = directionTo(p.X, p.Y, tx, ty)
-		}
-		// Casting an offensive spell breaks invisibility
-		if p.Effects != nil && p.Effects.HasEffect(magic.EffectInvisibility) {
-			p.Effects.RemoveEffect(magic.EffectInvisibility)
-		}
+	if offensive && (tx != p.X || ty != p.Y) {
+		p.Direction = directionTo(p.X, p.Y, tx, ty)
 	}
+	// Casting any spell breaks invisibility, as in the original (re-cast it to stay hidden)
+	e.breakInvisibility(p)
 
 	// Broadcast casting animation
 	castMotion := &pb.MotionEvent{
@@ -81,6 +77,8 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 	e.broadcastToNearby(gm, p.X, p.Y, -1, network.MsgMotionEvent, castMotion)
 
 	switch {
+	case e.castStatusSpell(p, spellDef, tx, ty, targetID, gm):
+		// Recall, Summon Creature, Invisibility, Detect Invisibility, Polymorph
 	case spellDef.DealsDamage():
 		e.castDamageSpell(p, spellDef, tx, ty, gm)
 	case spellDef.Type == magic.SpellTypeHeal:
@@ -162,8 +160,12 @@ func (e *Engine) livingObjectAt(mapName string, x, y int, ignore int32) int32 {
 // validateSpellTarget returns "" when the cast can go ahead, or the message to
 // show the player. It runs before mana or cooldown is spent.
 func (e *Engine) validateSpellTarget(p *player.Player, spell *magic.SpellDef, tx, ty int, targetID int32) string {
-	if spell.Range > 0 && max(abs(tx-p.X), abs(ty-p.Y)) > spell.Range {
+	// (Summon Creature's table range is 1; it reaches 8 tiles, checked below.)
+	if spell.Range > 0 && spell.CfgType != cfgTypeSummon && max(abs(tx-p.X), abs(ty-p.Y)) > spell.Range {
 		return "Target out of range"
+	}
+	if reason := statusSpellCheck(p, spell, tx, ty); reason != "" {
+		return reason
 	}
 	if !spell.NeedsTarget() {
 		return ""
@@ -424,11 +426,6 @@ func (e *Engine) handleDebuffSpell(p *player.Player, spell *magic.SpellDef, targ
 	if targetID == 0 {
 		e.sendNotification(p, "No target selected", 2)
 		return
-	}
-
-	// Break invisibility on spell cast
-	if p.Effects != nil && p.Effects.HasEffect(magic.EffectInvisibility) {
-		p.Effects.RemoveEffect(magic.EffectInvisibility)
 	}
 
 	// Check if target is NPC - debuffs don't apply stat modifiers to NPCs,
@@ -835,6 +832,9 @@ func (e *Engine) processEffectTicks(now time.Time) {
 				// Notify player about effect expiring
 				effectName := effectTypeName(evt.EffectType)
 				e.sendNotification(p, effectName+" has worn off", 0)
+				if evt.EffectType == magic.EffectInvisibility || evt.EffectType == magic.EffectPolymorph {
+					e.refreshPlayerAppearance(p)
+				}
 			}
 		}
 		return true
@@ -852,6 +852,8 @@ func effectTypeName(t magic.EffectType) string {
 		return "Berserk"
 	case magic.EffectInvisibility:
 		return "Invisibility"
+	case magic.EffectPolymorph:
+		return "Polymorph"
 	case magic.EffectInhibition:
 		return "Silence"
 	case magic.EffectDefenseShield:

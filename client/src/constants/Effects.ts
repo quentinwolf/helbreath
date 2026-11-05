@@ -636,6 +636,7 @@ export const EFFECTS: EffectConfig[] = [
     }, {
         name: 'Footsteps (dry)',
         key: EFFECT_FOOTSTEPS_DRY,
+        alpha: 0.5,
         sprite: 'effect2',
         spriteSheetIndex: 1,
         animationFrames: [28, 32],
