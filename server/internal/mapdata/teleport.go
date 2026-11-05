@@ -1,5 +1,7 @@
 package mapdata
 
+import "strings"
+
 // TeleportDest defines a destination for a teleport tile.
 type TeleportDest struct {
 	DestMap  string
@@ -555,6 +557,18 @@ func BuildTeleportConfig() TeleportConfig {
 	// Go directly to cities using initial-point coordinates.
 	addRange("default", 80, 82, 75, 76, TeleportDest{DestMap: "aresden", DestX: 170, DestY: 146})
 	addRange("default", 127, 129, 78, 79, TeleportDest{DestMap: "elvine", DestX: 170, DestY: 146})
+
+	// The original map files' doors replace the hand-typed ones above on every map
+	// they cover (those had wrong or missing doors: Elvine's and Aresden's second
+	// warehouses, wrong arrival spots); maps the originals don't cover keep theirs.
+	for key := range tc {
+		if m, _, ok := strings.Cut(key, ":"); ok && originalTeleportMaps[strings.ToLower(m)] {
+			delete(tc, key)
+		}
+	}
+	for _, d := range originalTeleports {
+		tc[TeleportKey(d.Src, d.X, d.Y)] = d.TeleportDest
+	}
 
 	return tc
 }

@@ -30,8 +30,8 @@ func TestBuildTeleportConfig(t *testing.T) {
 	if dest.DestMap != "middleland" {
 		t.Errorf("Expected dest map 'middleland', got %q", dest.DestMap)
 	}
-	if dest.DestX != 152 || dest.DestY != 496 {
-		t.Errorf("Expected dest (152,496), got (%d,%d)", dest.DestX, dest.DestY)
+	if dest.DestX != 152 || dest.DestY != 500 {
+		t.Errorf("Expected dest (152,500) as aresden.txt, got (%d,%d)", dest.DestX, dest.DestY)
 	}
 
 	// Test Middleland -> Aresden teleport
@@ -54,11 +54,11 @@ func TestBuildTeleportConfig(t *testing.T) {
 		t.Errorf("Expected dest map 'middleland', got %q", dest.DestMap)
 	}
 
-	// Test building exit: cityhall_1 -> aresden (actual AMD tile at 58,41)
-	key = TeleportKey("cityhall_1", 58, 41)
+	// Test building exit: cityhall_1 -> aresden (cityhall_1.txt: 58,42)
+	key = TeleportKey("cityhall_1", 58, 42)
 	dest, ok = tc[key]
 	if !ok {
-		t.Fatal("Should find teleport at cityhall_1 (58,41)")
+		t.Fatal("Should find teleport at cityhall_1 (58,42)")
 	}
 	if dest.DestMap != "aresden" {
 		t.Errorf("Expected dest map 'aresden', got %q", dest.DestMap)
@@ -91,64 +91,15 @@ func TestBuildTeleportConfig(t *testing.T) {
 		t.Error("Should not find teleport at aresden (0,0)")
 	}
 
-	// Test bsmith_1 exit -> aresden with corrected coords
-	key = TeleportKey("bsmith_1", 32, 34)
-	dest, ok = tc[key]
-	if !ok {
-		t.Fatal("Should find teleport at bsmith_1 (32,34)")
+	// Every original door is in the table as the original map files have it
+	// (bsmith_1 33,34 -> aresden 168,197 and so on)
+	for _, d := range originalTeleports {
+		if got := tc[TeleportKey(d.Src, d.X, d.Y)]; got != d.TeleportDest {
+			t.Errorf("%s %d,%d: got %+v, want %+v", d.Src, d.X, d.Y, got, d.TeleportDest)
+		}
 	}
-	if dest.DestMap != "aresden" || dest.DestX != 171 || dest.DestY != 197 {
-		t.Errorf("Expected bsmith_1 exit to aresden (171,197), got %s (%d,%d)", dest.DestMap, dest.DestX, dest.DestY)
-	}
-
-	// Test wrhus_1 exit -> aresden
-	key = TeleportKey("wrhus_1", 54, 33)
-	dest, ok = tc[key]
-	if !ok {
-		t.Fatal("Should find teleport at wrhus_1 (54,33)")
-	}
-	if dest.DestMap != "aresden" || dest.DestX != 106 || dest.DestY != 186 {
-		t.Errorf("Expected wrhus_1 exit to aresden (106,186), got %s (%d,%d)", dest.DestMap, dest.DestX, dest.DestY)
-	}
-
-	// Test CmdHall_1 exit -> aresden
-	key = TeleportKey("CmdHall_1", 50, 47)
-	dest, ok = tc[key]
-	if !ok {
-		t.Fatal("Should find teleport at CmdHall_1 (50,47)")
-	}
-	if dest.DestMap != "aresden" || dest.DestX != 97 || dest.DestY != 161 {
-		t.Errorf("Expected CmdHall_1 exit to aresden (97,161), got %s (%d,%d)", dest.DestMap, dest.DestX, dest.DestY)
-	}
-
-	// Test aresdend1 exit -> aresden with corrected coords
-	key = TeleportKey("aresdend1", 38, 33)
-	dest, ok = tc[key]
-	if !ok {
-		t.Fatal("Should find teleport at aresdend1 (38,33)")
-	}
-	if dest.DestMap != "aresden" || dest.DestX != 79 || dest.DestY != 205 {
-		t.Errorf("Expected aresdend1 exit to aresden (79,205), got %s (%d,%d)", dest.DestMap, dest.DestX, dest.DestY)
-	}
-
-	// Test elvined1 exit -> elvine with corrected coords
-	key = TeleportKey("elvined1", 96, 40)
-	dest, ok = tc[key]
-	if !ok {
-		t.Fatal("Should find teleport at elvined1 (96,40)")
-	}
-	if dest.DestMap != "elvine" || dest.DestX != 258 || dest.DestY != 78 {
-		t.Errorf("Expected elvined1 exit to elvine (258,78), got %s (%d,%d)", dest.DestMap, dest.DestX, dest.DestY)
-	}
-
-	// Test gshop_2 exit -> elvine
-	key = TeleportKey("gshop_2", 50, 36)
-	dest, ok = tc[key]
-	if !ok {
-		t.Fatal("Should find teleport at gshop_2 (50,36)")
-	}
-	if dest.DestMap != "elvine" || dest.DestX != 222 || dest.DestY != 155 {
-		t.Errorf("Expected gshop_2 exit to elvine (222,155), got %s (%d,%d)", dest.DestMap, dest.DestX, dest.DestY)
+	if got := tc[TeleportKey("bsmith_1", 33, 34)]; got.DestMap != "aresden" || got.DestX != 168 || got.DestY != 197 {
+		t.Errorf("bsmith_1 exit should lead to aresden 168,197, got %+v", got)
 	}
 }
 

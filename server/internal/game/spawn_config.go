@@ -191,7 +191,6 @@ func handWrittenSpawns() *SpawnConfig {
 			{MapName: "gshop_2f", NpcTypeID: 25, SpawnX: 60, SpawnY: 37},    // William
 			{MapName: "wrhus_2", NpcTypeID: 20, SpawnX: 66, SpawnY: 38},     // Howard
 			{MapName: "elvwrhus", NpcTypeID: 20, SpawnX: 66, SpawnY: 38},    // Howard
-			{MapName: "elvwrhus", NpcTypeID: 25, SpawnX: 66, SpawnY: 38},    // William
 			{MapName: "cmdhall_2", NpcTypeID: 90, SpawnX: 57, SpawnY: 50},   // Gail
 
 			// ================================================================

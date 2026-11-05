@@ -112,3 +112,25 @@ func (e *Engine) mapNamed(name string) (*mapdata.GameMap, bool) {
 	}
 	return nil, false
 }
+
+// teleportAt is the door on a tile the map marks as a teleport. Our maps mark
+// some doorways a tile or two wider than the original's teleport-loc list, so
+// a marked tile without its own entry uses the nearest door within 2 tiles.
+func (e *Engine) teleportAt(mapName string, x, y int) (mapdata.TeleportDest, bool) {
+	if dest, ok := e.teleports[mapdata.TeleportKey(mapName, x, y)]; ok {
+		return dest, true
+	}
+	for r := 1; r <= 2; r++ {
+		for dy := -r; dy <= r; dy++ {
+			for dx := -r; dx <= r; dx++ {
+				if max(abs(dx), abs(dy)) != r {
+					continue
+				}
+				if dest, ok := e.teleports[mapdata.TeleportKey(mapName, x+dx, y+dy)]; ok {
+					return dest, true
+				}
+			}
+		}
+	}
+	return mapdata.TeleportDest{}, false
+}

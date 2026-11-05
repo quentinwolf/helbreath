@@ -358,7 +358,11 @@ func (e *Engine) SpawnNPCsWithConfigPath(configPath string) {
 	} else {
 		log.Printf("Loaded spawn configuration from %s (%d entries)", configPath, len(cfg.Spawns))
 	}
+	e.SpawnNPCsWithConfig(cfg)
+}
 
+// SpawnNPCsWithConfig creates the NPCs a spawn configuration lists.
+func (e *Engine) SpawnNPCsWithConfig(cfg *SpawnConfig) {
 	for i := range cfg.Spawns {
 		entry := &cfg.Spawns[i]
 		count := entry.Count
@@ -407,6 +411,9 @@ func (e *Engine) SpawnNPCsWithConfigPath(configPath string) {
 			}
 
 			e.npcs.Store(objectID, n)
+			// Take the tile, so the next NPC spawned on the same spot (Howard and
+			// William shared one) moves to a free tile instead of standing on it
+			gm.SetOwner(x, y, objectID)
 			log.Printf("Spawned NPC %s (ID: %d) at %s (%d,%d)", npcType.Name, objectID, entry.MapName, x, y)
 		}
 	}
@@ -1567,8 +1574,7 @@ func (e *Engine) handleMotion(client *network.Client, req *pb.MotionRequest) {
 
 		// Check for teleport
 		if gm.IsTeleport(newX, newY) {
-			key := mapdata.TeleportKey(p.MapName, newX, newY)
-			if dest, ok := e.teleports[key]; ok {
+			if dest, ok := e.teleportAt(p.MapName, newX, newY); ok {
 				e.handleTeleport(p, gm, dest)
 				return
 			}

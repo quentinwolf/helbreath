@@ -3,6 +3,9 @@ package game
 import (
 	"strings"
 	"testing"
+
+	"github.com/juanrossi/hbonline/server/internal/mapdata"
+	"github.com/juanrossi/hbonline/server/internal/npc"
 )
 
 func TestOriginalSpawnsReplaceHandWrittenMonsters(t *testing.T) {
@@ -53,5 +56,52 @@ func TestMapNamedIgnoresCase(t *testing.T) {
 	e.maps[gm.Name] = gm
 	if _, ok := e.mapNamed("cmdhall_1"); !ok {
 		t.Error("map lookups should ignore case")
+	}
+}
+
+func TestTownBuildingDoors(t *testing.T) {
+	e := makeTestEngine()
+	e.teleports = mapdata.BuildTeleportConfig()
+	// Both towns' shop, blacksmith and both warehouses, as the original map files
+	for _, c := range []struct {
+		town string
+		x, y int
+		dest string
+	}{
+		{"aresden", 101, 183, "wrhus_1"}, {"aresden", 217, 132, "arewrhus"},
+		{"aresden", 167, 195, "bsmith_1"}, {"aresden", 126, 166, "gshop_1"},
+		{"elvine", 197, 127, "wrhus_2"}, {"elvine", 87, 174, "elvwrhus"},
+		{"elvine", 239, 107, "bsmith_2"}, {"elvine", 225, 151, "gshop_2"},
+	} {
+		dest, ok := e.teleportAt(c.town, c.x, c.y)
+		if !ok || !strings.EqualFold(dest.DestMap, c.dest) {
+			t.Errorf("%s %d,%d should lead into %s, got %+v", c.town, c.x, c.y, c.dest, dest)
+		}
+	}
+	// A doorway tile next to a listed one still works
+	if dest, ok := e.teleportAt("cityhall_1", 58, 41); !ok || dest.DestMap != "aresden" {
+		t.Errorf("cityhall_1 58,41 should use the door next to it, got %+v", dest)
+	}
+}
+
+func TestNPCsSpawnOnTheirOwnTiles(t *testing.T) {
+	e := makeTestEngine()
+	gm := makeTestGameMap(100, 100)
+	gm.Name = "test"
+	e.maps["test"] = gm
+	e.SpawnNPCsWithConfig(&SpawnConfig{Spawns: []SpawnEntry{
+		{MapName: "test", NpcTypeID: 20, SpawnX: 66, SpawnY: 38},
+		{MapName: "test", NpcTypeID: 25, SpawnX: 66, SpawnY: 38},
+	}})
+	tiles := map[[2]int]bool{}
+	count := 0
+	e.npcs.Range(func(_, v any) bool {
+		n := v.(*npc.NPC)
+		tiles[[2]int{n.X, n.Y}] = true
+		count++
+		return true
+	})
+	if count != 2 || len(tiles) != 2 {
+		t.Errorf("two NPCs given the same spot should end up on different tiles, got %d NPCs on %d tiles", count, len(tiles))
 	}
 }
