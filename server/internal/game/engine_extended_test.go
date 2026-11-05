@@ -1924,11 +1924,7 @@ func TestOnMessageStatAlloc(t *testing.T) {
 }
 
 func TestOnMessageFactionSelect(t *testing.T) {
-	e := makeTestEngine()
-	p := makeFullTestPlayer(1, "Player")
-	p.Level = 10
-	p.Side = 0
-	addPlayerToEngine(e, p)
+	e, p := cityHallSetup(t, 10) // next to William in Aresden's City Hall
 	client := makeClientWithObjectID(p.ObjectID)
 
 	req := &pb.FactionSelectRequest{Side: 1}

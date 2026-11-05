@@ -102,7 +102,11 @@ func DefaultSpawnConfig() *SpawnConfig {
 			// ================================================================
 			// ARESDEN BUILDINGS — positions from original MapData .txt files
 			// ================================================================
-			{MapName: "cityhall_1", NpcTypeID: 26, SpawnX: 45, SpawnY: 35},  // Kennedy (Aresden faction leader)
+			// City Hall: William (City Hall Officer, citizenship) on the left, Kennedy
+			// (Guildhall Officer; we have no guild hall map) top right, both out on the
+			// floor. No original cityhall_*.txt survives; placed by Zac from the game.
+			{MapName: "cityhall_1", NpcTypeID: 25, SpawnX: 44, SpawnY: 43}, // William
+			{MapName: "cityhall_1", NpcTypeID: 26, SpawnX: 51, SpawnY: 40}, // Kennedy
 			{MapName: "bsmith_1", NpcTypeID: 24, SpawnX: 49, SpawnY: 33},    // Tom
 			{MapName: "gshop_1", NpcTypeID: 15, SpawnX: 59, SpawnY: 42},     // ShopKeeper-W
 			{MapName: "gshop_1f", NpcTypeID: 15, SpawnX: 65, SpawnY: 41},    // ShopKeeper-W
@@ -123,7 +127,8 @@ func DefaultSpawnConfig() *SpawnConfig {
 			// ================================================================
 			// ELVINE BUILDINGS
 			// ================================================================
-			{MapName: "cityhall_2", NpcTypeID: 25, SpawnX: 45, SpawnY: 35},  // William (Elvine faction leader)
+			{MapName: "cityhall_2", NpcTypeID: 25, SpawnX: 44, SpawnY: 43}, // William (see cityhall_1)
+			{MapName: "cityhall_2", NpcTypeID: 26, SpawnX: 51, SpawnY: 40}, // Kennedy
 			{MapName: "bsmith_2", NpcTypeID: 24, SpawnX: 49, SpawnY: 33},    // Tom
 			{MapName: "gshop_2", NpcTypeID: 15, SpawnX: 59, SpawnY: 42},     // ShopKeeper-W
 			{MapName: "gshop_2f", NpcTypeID: 15, SpawnX: 65, SpawnY: 41},    // ShopKeeper-W

@@ -43,14 +43,21 @@ func (e *Engine) handleFactionSelect(client *network.Client, req *pb.FactionSele
 		e.sendFactionResponse(p, false, "You have already chosen a faction", p.Side)
 		return
 	}
-	if p.Level < 10 {
-		e.sendFactionResponse(p, false, "You must be level 10 to join a faction", 0)
+	// As the original (RequestCivilRightHandler): level 5, and you become a
+	// citizen of the town whose City Hall Officer you're talking to.
+	if p.Level < 5 {
+		e.sendFactionResponse(p, false, "You must be level 5 to become a citizen", 0)
+		return
+	}
+	if townSide(p.MapName) != side || !e.nearNPCType(p, npcCityHallOfficer, 5) {
+		e.sendFactionResponse(p, false, "Speak to William in that town's City Hall to become a citizen", 0)
 		return
 	}
 
 	p.Side = side
 	e.sendFactionResponse(p, true, "", side)
 	e.sendStatUpdate(p)
+	e.refreshPlayerAppearance(p) // others see the new town colours
 	log.Printf("Player %s joined faction %d", p.Name, side)
 }
 

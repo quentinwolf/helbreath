@@ -79,6 +79,16 @@ const STATUS_POLYMORPH = 0x100;
 const STATUS_DEAD = 0x1000;
 /** Notification type: someone offers to Resurrect us (message = their name). */
 const NOTIFY_RESURRECT_OFFER = 11;
+/** Notification type: open a town officer's menu ("cityhall:<side>" or "guildhall"). */
+const NOTIFY_OPEN_MENU = 12;
+/** NPC status bits from the server (npc.NpcStatus*). */
+const NPC_STATUS_HOSTILE = 0x01000000;
+const NPC_STATUS_CITIZEN = 0x02000000;
+const NPC_STATUS_ARESDEN = 0x04000000;
+/** NPC name colours by how the NPC stands towards us. */
+const NAME_FRIENDLY = '#66ff66';
+const NAME_NEUTRAL = '#c8c8c8';
+const NAME_ENEMY = '#ff6666';
 /** Polymorph turns players into this creature (the original's owner type 18). */
 const POLYMORPH_SPRITE = 'zom';
 
@@ -121,6 +131,8 @@ interface GameNPC {
   objectId: number;
   name: string;
   npcType: number;
+  /** Server status bits (NPC_STATUS_*): whose side it's on; undefined until known. */
+  status?: number;
   tileX: number;
   tileY: number;
   visualX: number;
@@ -434,6 +446,8 @@ export class GameScene extends Phaser.Scene {
   private isDead = false;
   /** The "You were killed" panel with its Restart (and Resurrect) buttons. */
   private deathPanel: HTMLDivElement | null = null;
+  /** William's City Hall menu (HTML). */
+  private cityHallMenu: HTMLDivElement | null = null;
 
   // Combat
   private lastAttackTime = 0;
@@ -555,7 +569,7 @@ export class GameScene extends Phaser.Scene {
     this.localStatus = 0;
     this.cameraShake = new CameraShake(this);
     // Spell projectiles hook scene 'update', which survives the restart: drop them.
-    this.events.once('shutdown', () => { clearSpellUpdates(this); this.closeDeathPanel(); });
+    this.events.once('shutdown', () => { clearSpellUpdates(this); this.closeDeathPanel(); this.closeCityHallMenu(); });
 
     this.msgHandler = this.registry.get('msgHandler') as MessageHandler;
     // Clear GameScene-specific handlers to prevent duplicates on scene restart
@@ -633,6 +647,7 @@ export class GameScene extends Phaser.Scene {
     this.playerCHR = pd.charisma ?? 10;
     this.isDead = false;
     this.closeDeathPanel(); // HTML outlives a scene restart
+    this.closeCityHallMenu();
 
     // Parse collision grid
     this.mapWidth = enterData.mapInfo.width;
@@ -2700,8 +2715,15 @@ export class GameScene extends Phaser.Scene {
     if (!data) { console.warn('[addNPC] null data'); return; }
     const existing = this.npcs.get(data.objectId);
     if (existing) {
-      // Same NPC with another sprite type (Polymorph on or off): rebuild it, else ignore
-      if (data.npcType === undefined || data.npcType === existing.npcType) return;
+      // Same NPC with another sprite type (Polymorph on or off): rebuild it, else
+      // just take its status (one created from a motion event doesn't have it)
+      if (data.npcType === undefined || data.npcType === existing.npcType) {
+        if (data.status !== undefined) {
+          existing.status = data.status;
+          existing.nameText.setColor(this.npcNameColour(existing));
+        }
+        return;
+      }
       this.removeNPC(data.objectId);
     }
     console.log(`[addNPC] Creating NPC ${data.name} obj=${data.objectId} type=${data.npcType} at (${data.position?.x}, ${data.position?.y})`);
@@ -2750,7 +2772,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     const nameText = this.add.text(worldX + TILE_SIZE / 2, worldY - 2, data.name || 'NPC', {
-      fontSize: '9px', color: '#ff6666',
+      fontSize: '9px', color: NAME_NEUTRAL,
       stroke: '#000000', strokeThickness: 2,
     }).setOrigin(0.5, 1).setDepth(py * DEPTH_MULTIPLIER + 50);
 
@@ -2760,6 +2782,7 @@ export class GameScene extends Phaser.Scene {
       objectId: data.objectId,
       name: data.name || 'NPC',
       npcType: npcTypeId,
+      status: data.status,
       tileX: px,
       tileY: py,
       visualX: worldX,
@@ -2782,8 +2805,33 @@ export class GameScene extends Phaser.Scene {
     };
 
     this.npcs.set(data.objectId, npcEntity);
+    nameText.setColor(this.npcNameColour(npcEntity));
     const soundSprite = NPC_SPRITE_MAP[npcEntity.npcType];
     if (soundSprite) this.ensureMonsterSounds(soundSprite);
+  }
+
+  /**
+   * Green for our side, grey for neutral, red for enemies: monsters, the other
+   * town's guards and soldiers, and every guard while we're a criminal (they
+   * hunt criminals). Like the original's _iGetFOE.
+   */
+  private npcNameColour(n: GameNPC): string {
+    const status = n.status;
+    if (status === undefined) {
+      // Not told yet (created from a motion event): town NPCs are neutral, the rest monsters
+      return GameScene.SHOP_NPC_TYPES.has(n.npcType) ? NAME_NEUTRAL : NAME_ENEMY;
+    }
+    if ((status & NPC_STATUS_HOSTILE) !== 0) return NAME_ENEMY;
+    if ((status & NPC_STATUS_CITIZEN) === 0) return NAME_NEUTRAL;
+    if (this.pkCount >= 3) return NAME_ENEMY;
+    if (this.mySide === 0) return NAME_NEUTRAL;
+    const npcSide = (status & NPC_STATUS_ARESDEN) !== 0 ? 1 : 2;
+    return npcSide === this.mySide ? NAME_FRIENDLY : NAME_ENEMY;
+  }
+
+  /** Recolour every NPC name (after we join a town or our criminal status changes). */
+  private refreshNpcNameColours(): void {
+    for (const n of this.npcs.values()) n.nameText.setColor(this.npcNameColour(n));
   }
 
   private removeNPC(objectId: number): void {
@@ -3413,6 +3461,61 @@ export class GameScene extends Phaser.Scene {
     this.deathPanel = null;
   }
 
+  /**
+   * William's City Hall menu (the original's dialog box 13). Only citizenship is
+   * ported so far; the original also had reward gold, hero items, quest cancel,
+   * play mode, dungeon teleports and Crusade roles.
+   */
+  private openCityHallMenu(townSide: number): void {
+    this.closeCityHallMenu();
+    const town = townSide === 1 ? 'Aresden' : townSide === 2 ? 'Elvine' : '';
+    const panel = document.createElement('div');
+    panel.style.cssText = 'position:fixed; top:40%; left:50%; transform:translate(-50%,-50%); z-index:400;'
+      + ' width:340px; background:rgba(15,15,25,0.95); color:#ccc; border:1px solid #555; border-radius:8px;'
+      + ' padding:16px 22px; font-family:"Segoe UI",Arial,sans-serif; font-size:13px; text-align:center;';
+    const close = () => this.closeCityHallMenu();
+    const button = (label: string, colour: string, onClick: () => void, enabled = true) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.disabled = !enabled;
+      b.style.cssText = `cursor:${enabled ? 'pointer' : 'default'}; background:${enabled ? colour : '#333'};`
+        + ` color:${enabled ? '#fff' : '#777'}; border:none; border-radius:4px; padding:7px 18px;`
+        + ' font-size:13px; font-weight:bold; margin:4px;';
+      b.addEventListener('click', (ev) => { ev.stopPropagation(); onClick(); });
+      return b;
+    };
+    const showMain = () => {
+      panel.innerHTML = `<div style="color:#FFD700; font-size:16px; font-weight:bold; margin-bottom:4px;">${town} City Hall</div>`
+        + '<div style="color:#999; margin-bottom:12px;">William, City Hall Officer</div>';
+      const citizen = this.mySide !== 0;
+      panel.append(button(citizen ? `You are a citizen of ${this.mySide === 1 ? 'Aresden' : 'Elvine'}` : 'Request citizenship',
+        '#2a5a8a', showConfirm, !citizen && townSide !== 0));
+      panel.append(document.createElement('br'), button('Close', '#555', close));
+    };
+    const showConfirm = () => {
+      panel.innerHTML = `<div style="color:#FFD700; font-size:15px; font-weight:bold; margin-bottom:8px;">Become a citizen of ${town}?</div>`
+        + '<div style="text-align:left; line-height:1.6; margin-bottom:12px;">'
+        + `You will fight for ${town}: you can join its guilds and its army in the Crusade, `
+        + 'and enemy citizens and their town guards will attack you. Citizens can drop items when killed. '
+        + '<b style="color:#ff7777;">This can\'t be undone.</b></div>';
+      panel.append(
+        button('Yes', '#2a6a2a', () => {
+          this.msgHandler.sendMessage(Proto.MSG_FACTION_SELECT_REQUEST, { side: townSide });
+          close();
+        }),
+        button('No', '#7a2a2a', showMain),
+      );
+    };
+    showMain();
+    document.body.appendChild(panel);
+    this.cityHallMenu = panel;
+  }
+
+  private closeCityHallMenu(): void {
+    this.cityHallMenu?.remove();
+    this.cityHallMenu = null;
+  }
+
   /** Someone cast Resurrection on our body: offer to stand up where we fell. */
   private onResurrectOffer(casterName: string): void {
     if (!this.isDead) return;
@@ -3446,6 +3549,15 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onNotification(data: any): void {
+    if (data.type === NOTIFY_OPEN_MENU && typeof data.message === 'string') {
+      if (data.message.startsWith('cityhall:')) {
+        this.openCityHallMenu(Number(data.message.slice('cityhall:'.length)));
+      } else if (data.message === 'guildhall' && !this.guildOpen) {
+        this.toggleGuild();
+      }
+      return;
+    }
+
     if (data.type === NOTIFY_RESURRECT_OFFER && typeof data.message === 'string') {
       this.onResurrectOffer(data.message);
       return;
@@ -5208,6 +5320,7 @@ export class GameScene extends Phaser.Scene {
   private onFactionResponse(data: FactionSelectResponseData): void {
     if (data.success) {
       this.mySide = data.side;
+      this.refreshNpcNameColours();
       this.showSystemMessage(`Joined faction ${data.side === 1 ? 'Aresden' : 'Elvine'}!`);
     } else {
       this.showSystemMessage(data.error);
@@ -5500,6 +5613,7 @@ export class GameScene extends Phaser.Scene {
 
   private onPKStatus(data: PKStatusData): void {
     this.pkCount = data.pkCount;
+    this.refreshNpcNameColours();
     this.ekCount = data.ekCount;
     this.criminal = data.criminal;
     if (data.criminal) {

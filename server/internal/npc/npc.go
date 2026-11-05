@@ -339,6 +339,7 @@ type NPC struct {
 
 	// Summon Creature: the player this NPC follows and fights for, and when it vanishes.
 	MasterID      int32
+	MasterSide    int // the summoner's side: a summon shows as on their side
 	SummonExpires time.Time
 	// Polymorph: drawn as a Zombie until then.
 	PolymorphUntil time.Time
@@ -453,7 +454,34 @@ func (n *NPC) ToNpcAppear() *pb.NpcAppear {
 		Position:  &pb.Vec2{X: int32(n.X), Y: int32(n.Y)},
 		Direction: int32(n.Direction),
 		Action:    int32(n.Action),
+		Status:    n.StatusBits(),
 	}
+}
+
+// NPC status bits: whose side an NPC is on, so each client can colour its name
+// as friendly, neutral or enemy for that viewer (the original packed the same
+// facts into iStatus and worked it out in _iGetFOE).
+const (
+	NpcStatusHostile = 0x01000000 // a monster: hostile to everyone
+	NpcStatusCitizen = 0x02000000 // on a town's side (guards, town soldiers, citizens' summons)
+	NpcStatusAresden = 0x04000000 // ...and that town is Aresden (otherwise Elvine)
+)
+
+// StatusBits are the NPC's status flags for the client.
+func (n *NPC) StatusBits() int32 {
+	side := n.Type.Side
+	if n.MasterID != 0 {
+		side = n.MasterSide
+	}
+	switch side {
+	case SideMonster:
+		return NpcStatusHostile
+	case SideAresden:
+		return NpcStatusCitizen | NpcStatusAresden
+	case SideElvine:
+		return NpcStatusCitizen
+	}
+	return 0
 }
 
 // ToEntityInfo creates an EntityInfo for initial world state.
@@ -467,6 +495,7 @@ func (n *NPC) ToEntityInfo() *pb.EntityInfo {
 		Action:     int32(n.Action),
 		NpcType:    int32(n.ShownSpriteType()),
 		Level:      int32(n.MaxHP / 10), // approximate level indicator
+		Status:     n.StatusBits(),
 	}
 }
 

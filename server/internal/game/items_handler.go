@@ -668,6 +668,9 @@ func (e *Engine) handleNPCInteract(p *player.Player, n *npc.NPC) {
 	if !npc.IsShopNPC(n.Type.ID) {
 		return
 	}
+	if e.openOfficerMenu(p, n) {
+		return
+	}
 
 	shopItemIDs, ok := items.ShopInventories[n.Type.ID]
 	if !ok {

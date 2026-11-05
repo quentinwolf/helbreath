@@ -232,3 +232,21 @@ func TestNPCNamesHaveNoTownOrAbbreviation(t *testing.T) {
 		}
 	}
 }
+
+func TestNPCStatusBitsCarryTheSide(t *testing.T) {
+	status := func(typeID int) int32 { return NewNPC(1, NpcTypes[typeID], "m", 1, 1).StatusBits() }
+	if status(10) != NpcStatusHostile {
+		t.Error("a Slime should be hostile to everyone")
+	}
+	if status(1013) != NpcStatusCitizen|NpcStatusAresden || status(1014) != NpcStatusCitizen {
+		t.Error("guards should carry their town")
+	}
+	if status(25) != 0 {
+		t.Error("William is neutral")
+	}
+	summon := NewNPC(1, NpcTypes[10], "m", 1, 1)
+	summon.MasterID, summon.MasterSide = 7, SideElvine
+	if summon.StatusBits() != NpcStatusCitizen {
+		t.Error("an Elvine citizen's summon should show as Elvine")
+	}
+}

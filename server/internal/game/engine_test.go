@@ -260,60 +260,77 @@ func TestFindWalkable(t *testing.T) {
 
 // === Faction tests ===
 
-func TestHandleFactionSelect(t *testing.T) {
+// cityHallSetup puts a traveller next to William in Aresden's City Hall.
+func cityHallSetup(t *testing.T, level int) (*Engine, *player.Player) {
+	t.Helper()
 	e := makeTestEngine()
 	p := makeFullTestPlayer(1, "Test")
-	p.Side = 0 // neutral
-	p.Level = 10
+	p.Side = 0
+	p.Level = level
+	p.MapName = "cityhall_1"
 	addPlayerToEngine(e, p)
-	client := makeClientWithObjectID(1)
+	william := npc.NewNPC(500, npc.NpcTypes[npcCityHallOfficer], "cityhall_1", p.X+2, p.Y)
+	e.npcs.Store(william.ObjectID, william)
+	return e, p
+}
 
-	// Valid faction select
-	e.handleFactionSelect(client, &pb.FactionSelectRequest{Side: 1})
+func TestHandleFactionSelect(t *testing.T) {
+	e, p := cityHallSetup(t, 5)
+	e.handleFactionSelect(makeClientWithObjectID(1), &pb.FactionSelectRequest{Side: 1})
 	if p.Side != 1 {
 		t.Errorf("Expected side=1, got %d", p.Side)
 	}
 }
 
 func TestHandleFactionSelectAlreadyChosen(t *testing.T) {
-	e := makeTestEngine()
-	p := makeFullTestPlayer(1, "Test")
-	p.Side = 2 // already Elvine
-	p.Level = 10
-	addPlayerToEngine(e, p)
-	client := makeClientWithObjectID(1)
-
-	e.handleFactionSelect(client, &pb.FactionSelectRequest{Side: 1})
+	e, p := cityHallSetup(t, 10)
+	p.Side = 2
+	e.handleFactionSelect(makeClientWithObjectID(1), &pb.FactionSelectRequest{Side: 1})
 	if p.Side != 2 {
 		t.Error("Should not change faction if already set")
 	}
 }
 
 func TestHandleFactionSelectTooLow(t *testing.T) {
-	e := makeTestEngine()
-	p := makeFullTestPlayer(1, "Test")
-	p.Side = 0
-	p.Level = 5 // too low
-	addPlayerToEngine(e, p)
-	client := makeClientWithObjectID(1)
-
-	e.handleFactionSelect(client, &pb.FactionSelectRequest{Side: 1})
+	e, p := cityHallSetup(t, 4)
+	e.handleFactionSelect(makeClientWithObjectID(1), &pb.FactionSelectRequest{Side: 1})
 	if p.Side != 0 {
-		t.Error("Should not change faction at level 5")
+		t.Error("Should not change faction below level 5")
 	}
 }
 
 func TestHandleFactionSelectInvalid(t *testing.T) {
-	e := makeTestEngine()
-	p := makeFullTestPlayer(1, "Test")
-	p.Side = 0
-	p.Level = 10
-	addPlayerToEngine(e, p)
-	client := makeClientWithObjectID(1)
-
-	e.handleFactionSelect(client, &pb.FactionSelectRequest{Side: 3})
+	e, p := cityHallSetup(t, 10)
+	e.handleFactionSelect(makeClientWithObjectID(1), &pb.FactionSelectRequest{Side: 3})
 	if p.Side != 0 {
 		t.Error("Should not accept invalid faction 3")
+	}
+}
+
+func TestHandleFactionSelectNeedsThatTownsCityHall(t *testing.T) {
+	// Aresden's City Hall can't make you Elvine
+	e, p := cityHallSetup(t, 10)
+	e.handleFactionSelect(makeClientWithObjectID(1), &pb.FactionSelectRequest{Side: 2})
+	if p.Side != 0 {
+		t.Error("joining Elvine from Aresden's City Hall should be refused")
+	}
+	// Nor can you join from anywhere without William
+	e2, p2 := cityHallSetup(t, 10)
+	e2.npcs.Delete(int32(500))
+	e2.handleFactionSelect(makeClientWithObjectID(1), &pb.FactionSelectRequest{Side: 1})
+	if p2.Side != 0 {
+		t.Error("joining without the City Hall Officer should be refused")
+	}
+}
+
+func TestTownSide(t *testing.T) {
+	for m, want := range map[string]int{
+		"cityhall_1": 1, "cityhall_2": 2, "gshop_1f": 1, "gshop_2f": 2,
+		"arewrhus": 1, "elvwrhus": 2, "aresden": 1, "elvine": 2, "middleland": 0, "default": 0,
+	} {
+		if got := townSide(m); got != want {
+			t.Errorf("townSide(%q) = %d, want %d", m, got, want)
+		}
 	}
 }
 

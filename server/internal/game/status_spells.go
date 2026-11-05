@@ -276,6 +276,7 @@ func (e *Engine) castSummon(p *player.Player, spell *magic.SpellDef, tx, ty int,
 	n := npc.NewNPC(e.nextObjID.Add(1), nt, p.MapName, x, y)
 	n.Summoned = true
 	n.MasterID = p.ObjectID
+	n.MasterSide = p.Side
 	n.SummonExpires = time.Now().Add(summonLifetime)
 	e.npcs.Store(n.ObjectID, n)
 	gm.SetOwner(x, y, n.ObjectID)
