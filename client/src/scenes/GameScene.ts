@@ -558,9 +558,10 @@ export class GameScene extends Phaser.Scene {
   private xpForLevel(level: number): number {
     if (level <= 1) return 0;
     let total = 0;
+    // The original's iGetLevelExp (matches the server's XPForLevel)
     for (let i = 2; i <= level; i++) {
       const q = Math.floor(i / 17);
-      total += i * (50 + q * q);
+      total += i * (50 + i * q * q);
     }
     return total;
   }

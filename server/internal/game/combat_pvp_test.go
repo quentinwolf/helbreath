@@ -285,8 +285,8 @@ func TestXPForLevelEdgeCases(t *testing.T) {
 	if XPForLevel(1) != 0 {
 		t.Errorf("XPForLevel(1) = %d, expected 0", XPForLevel(1))
 	}
-	if XPForLevel(100) != 322430 {
-		t.Errorf("XPForLevel(100) = %d, expected 322430", XPForLevel(100))
+	if XPForLevel(100) != 5929932 {
+		t.Errorf("XPForLevel(100) = %d, expected 5929932", XPForLevel(100))
 	}
 }
 

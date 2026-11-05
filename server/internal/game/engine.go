@@ -2024,8 +2024,8 @@ func (e *Engine) handleNPCDeath(n *npc.NPC, killer *player.Player, gm *mapdata.G
 	// Update quest progress
 	e.onNPCKillQuestUpdate(killer, n.Type.ID)
 
-	// Award XP to killer (with difficulty multiplier)
-	xpGain := int64(float64(n.Type.XP) * XPMultiplier)
+	// Award XP to killer (the original's GetExp rules, then the difficulty multiplier)
+	xpGain := int64(float64(killXP(killer, n.Type.XP)) * XPMultiplier)
 	killer.Experience += xpGain
 	leveledUp := CheckLevelUp(killer)
 

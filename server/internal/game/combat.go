@@ -2,6 +2,7 @@ package game
 
 import (
 	"math/rand"
+	"strings"
 
 	"github.com/juanrossi/hbonline/server/internal/items"
 	"github.com/juanrossi/hbonline/server/internal/magic"
@@ -339,10 +340,11 @@ func XPForLevel(level int) int64 {
 	if level <= 1 {
 		return 0
 	}
+	// The original's iGetLevelExp: exp(n) = exp(n-1) + n*(50 + n*(n/17)^2)
 	var total int64
 	for i := 2; i <= level; i++ {
 		q := int64(i / 17)
-		total += int64(i) * (50 + q*q)
+		total += int64(i) * (50 + int64(i)*q*q)
 	}
 	return total
 }
@@ -444,4 +446,19 @@ func abs(x int) int {
 		return -x
 	}
 	return x
+}
+
+// killXP is the experience a kill is worth to this player, as the original's
+// GetExp: up to level 80 it's boosted by 2.5% per level under 80 (3x at level
+// 1, about 1x at 80), so a new character's first levels come quickly and then
+// the grind sets in; from 80 up the first dungeons give a tenth.
+func killXP(p *player.Player, base int) int {
+	if p.Level <= 80 {
+		return int(float64(base) * (1.025 + float64(80-p.Level)*0.025))
+	}
+	switch strings.ToLower(p.MapName) {
+	case "aresdend1", "elvined1":
+		return base / 10
+	}
+	return base
 }

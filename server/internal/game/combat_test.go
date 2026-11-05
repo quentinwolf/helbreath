@@ -167,7 +167,7 @@ func avgDamage(damages []int) float64 {
 }
 
 func TestXPForLevel(t *testing.T) {
-	// C++ formula: XP(n) = XP(n-1) + n * (50 + (n/17)^2)
+	// C++ formula: XP(n) = XP(n-1) + n * (50 + n*(n/17)^2)
 	tests := []struct {
 		level    int
 		expected int64
@@ -176,8 +176,9 @@ func TestXPForLevel(t *testing.T) {
 		{2, 100},
 		{5, 700},
 		{10, 2700},
-		{50, 66981},
-		{100, 322430},
+		{17, 7889},
+		{50, 196317},
+		{100, 5929932},
 	}
 
 	for _, tt := range tests {
@@ -413,3 +414,26 @@ func TestBerserkReducesDefense(t *testing.T) {
 	}
 }
 
+
+func TestKillXPLikeTheOriginal(t *testing.T) {
+	p := makeTestPlayer()
+	p.Level = 1
+	if got := killXP(p, 45); got != 135 {
+		t.Errorf("a Slime at level 1 should be worth 135 (3x), got %d", got)
+	}
+	p.Level = 80
+	if got := killXP(p, 45); got != 46 {
+		t.Errorf("at level 80 it should be about 1x, got %d", got)
+	}
+	p.Level, p.MapName = 100, "aresdend1"
+	if got := killXP(p, 1000); got != 100 {
+		t.Errorf("level 80+ in the first dungeon gets a tenth, got %d", got)
+	}
+	// A fresh character needs a few Slimes per level, not one Slime for several
+	p.Level, p.MapName, p.Experience = 1, "aresden", 0
+	p.Experience += int64(float64(killXP(p, 45)) * XPMultiplier)
+	CheckLevelUp(p)
+	if p.Level > 2 {
+		t.Errorf("one Slime took a new character to level %d", p.Level)
+	}
+}

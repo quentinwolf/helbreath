@@ -14,9 +14,9 @@ var (
 	// Medium drop rate: 2x base.
 	DropRateMultiplier = 2.0
 
-	// XPMultiplier scales experience gained from kills.
-	// High XP rate: 5x base for faster leveling to 180 cap.
-	XPMultiplier = 5.0
+	// XPMultiplier scales experience gained from kills, on top of the original's
+	// own low-level boost (killXP). 1 = the original rate (it was 5).
+	XPMultiplier = 1.0
 
 	// NPCDamageReduction reduces damage NPCs deal to players.
 	NPCDamageReduction = 3
