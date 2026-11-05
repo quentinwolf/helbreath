@@ -333,6 +333,9 @@ type NPC struct {
 	// Wandering walks to a picked spot instead of a random step each tile
 	WanderDestX, WanderDestY int
 	HasWanderDest            bool
+	// Spawn rectangle from the original map data (Area.Set false = wander
+	// around the spawn point by WanderRange instead)
+	Area Rect
 	LastAttackTime time.Time // for attack rate limiting
 	NextThinkTime  time.Time // next AI decision time
 	DeathTime      time.Time // when the NPC died (for respawn timer)
@@ -382,7 +385,13 @@ func NewNPC(objectID int32, npcType *NpcType, mapName string, x, y int) *NPC {
 // up. Guards (and anything with a long aggro range) get at least twice their
 // aggro range, so they don't drop a target they can still see.
 func (n *NPC) LeashRange() int {
-	return max(n.Type.WanderRange*2, n.Type.AggroRange*2)
+	leash := max(n.Type.WanderRange*2, n.Type.AggroRange*2)
+	if n.Area.Set {
+		// A big spawn area: chasing across it shouldn't count as straying
+		half := max(n.Area.X2-n.Area.X1, n.Area.Y2-n.Area.Y1)/2 + 1
+		leash = max(leash, half+n.Type.AggroRange*2)
+	}
+	return leash
 }
 
 // ReachRange is how far away an NPC can hit from: melee (1) or its ranged
@@ -618,4 +627,25 @@ func (n *NPC) DirectionTo(tx, ty int) int {
 	default:
 		return n.Direction // no change if on same tile
 	}
+}
+
+// Rect is an NPC's home area: it spawns, respawns and wanders inside it.
+type Rect struct {
+	X1, Y1, X2, Y2 int
+	Set            bool
+}
+
+// Contains reports whether (x, y) is inside the rectangle.
+func (r Rect) Contains(x, y int) bool {
+	return x >= r.X1 && x <= r.X2 && y >= r.Y1 && y <= r.Y2
+}
+
+// InHomeArea reports whether (x, y) is where the NPC may wander: its spawn
+// rectangle, or within WanderRange of its spawn point.
+func (n *NPC) InHomeArea(x, y int) bool {
+	if n.Area.Set {
+		return n.Area.Contains(x, y)
+	}
+	dx, dy := x-n.SpawnX, y-n.SpawnY
+	return max(dx, -dx, dy, -dy) <= n.Type.WanderRange
 }

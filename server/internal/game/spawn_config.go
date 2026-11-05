@@ -3,6 +3,7 @@ package game
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/juanrossi/hbonline/server/internal/npc"
@@ -17,6 +18,18 @@ type SpawnEntry struct {
 	SpawnY       int    `json:"spawn_y"`
 	SpawnRadius  int    `json:"spawn_radius"`  // random offset radius from SpawnX/SpawnY (0 = exact position)
 	RespawnDelay int    `json:"respawn_delay"` // override respawn delay in seconds (0 = use NpcType default)
+
+	// An original spot-mob-generator rectangle (all four 0 = none): NPCs spawn,
+	// respawn and wander anywhere inside it, like DEF_MOVETYPE_RANDOMAREA.
+	AreaX1 int `json:"area_x1,omitempty"`
+	AreaY1 int `json:"area_y1,omitempty"`
+	AreaX2 int `json:"area_x2,omitempty"`
+	AreaY2 int `json:"area_y2,omitempty"`
+}
+
+// HasArea reports whether the entry spawns into a rectangle.
+func (entry *SpawnEntry) HasArea() bool {
+	return entry.AreaX2 > entry.AreaX1 || entry.AreaY2 > entry.AreaY1
 }
 
 // SpawnConfig holds the full spawn configuration for the server.
@@ -72,9 +85,51 @@ func (entry *SpawnEntry) RespawnDelayDuration() time.Duration {
 	return 0
 }
 
-// DefaultSpawnConfig returns the hardcoded default spawn configuration
-// matching the original SpawnNPCs() definitions.
+// DefaultSpawnConfig is the hand-written spawns below with each map's monsters
+// replaced by the original server's spawn rectangles (spawns_gen.go) where we
+// have them. Town NPCs (shops, officers) always come from the list below.
 func DefaultSpawnConfig() *SpawnConfig {
+	cfg := handWrittenSpawns()
+	kept := cfg.Spawns[:0]
+	for _, entry := range cfg.Spawns {
+		m := strings.ToLower(entry.MapName)
+		if originalSpawnMaps[m] && !keepHandSpawns[m] && !npc.IsShopNPC(entry.NpcTypeID) {
+			continue
+		}
+		kept = append(kept, entry)
+	}
+	cfg.Spawns = append(kept, cappedOriginalSpawns()...)
+	return cfg
+}
+
+// cappedOriginalSpawns are the original spawn rectangles with each map held to
+// its maximum-object cap. The original filled the rectangles a mob at a time,
+// at random, until the map was full, so on a map whose rectangles add up to
+// more than the cap (the starter map: 122 against 50) each one gets its share.
+func cappedOriginalSpawns() []SpawnEntry {
+	total := map[string]int{}
+	for _, entry := range originalSpotSpawns {
+		total[strings.ToLower(entry.MapName)] += entry.Count
+	}
+	out := make([]SpawnEntry, len(originalSpotSpawns))
+	copy(out, originalSpotSpawns)
+	for i := range out {
+		m := strings.ToLower(out[i].MapName)
+		if limit := originalMaxObjects[m]; limit > 0 && total[m] > limit {
+			out[i].Count = max(1, out[i].Count*limit/total[m])
+		}
+	}
+	return out
+}
+
+// keepHandSpawns: maps whose original also ran a random-mob-generator (monsters
+// all over the map by level, not ported yet). Their hand-written spawns stand in
+// for it next to the original spots, so the map isn't nearly empty.
+var keepHandSpawns = map[string]bool{"dglv2": true, "dglv4": true, "2ndmiddle": true}
+
+// handWrittenSpawns is the port's own spawn list (positions partly from the
+// Equilibrium 3.82 map files).
+func handWrittenSpawns() *SpawnConfig {
 	return &SpawnConfig{
 		Spawns: []SpawnEntry{
 			// ================================================================

@@ -34,7 +34,7 @@ func (e *Engine) npcStopMoving(n *npc.NPC, gm *mapdata.GameMap) {
 func (e *Engine) npcDropTarget(n *npc.NPC, gm *mapdata.GameMap) {
 	n.TargetID = 0
 	e.npcStopMoving(n, gm)
-	if n.DistanceTo(n.SpawnX, n.SpawnY) > n.Type.WanderRange {
+	if !n.InHomeArea(n.X, n.Y) {
 		n.State = npc.StateWander
 	} else {
 		n.State = npc.StateIdle
@@ -204,6 +204,9 @@ func npcHostileToNPC(a, b *npc.NPC) bool {
 func (e *Engine) findNearestEnemyNPC(n *npc.NPC, maxDist int) (*npc.NPC, int) {
 	if n.Type.Side != npc.SideMonster && !isGuardType(n.Type) {
 		return nil, 999
+	}
+	if e.npcFighterMaps != nil && n.MasterID == 0 && !isGuardType(n.Type) && !e.npcFighterMaps[n.MapName] {
+		return nil, 999 // a wild monster with no guard or summon on its map to fight
 	}
 	var nearest *npc.NPC
 	nearestDist := 999

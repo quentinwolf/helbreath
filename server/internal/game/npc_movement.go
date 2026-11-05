@@ -2,6 +2,7 @@ package game
 
 import (
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/juanrossi/hbonline/server/internal/mapdata"
@@ -35,13 +36,17 @@ func (e *Engine) npcStepToward(n *npc.NPC, gm *mapdata.GameMap, tx, ty int) bool
 // npcPickWanderDest chooses a walkable spot in the NPC's wander area, a few tiles
 // from where it stands.
 func npcPickWanderDest(n *npc.NPC, gm *mapdata.GameMap) bool {
-	r := n.Type.WanderRange
-	if r <= 0 {
-		return false
+	area := n.Area
+	if !area.Set {
+		r := n.Type.WanderRange
+		if r <= 0 {
+			return false
+		}
+		area = npc.Rect{X1: n.SpawnX - r, Y1: n.SpawnY - r, X2: n.SpawnX + r, Y2: n.SpawnY + r, Set: true}
 	}
 	for try := 0; try < 10; try++ {
-		x := n.SpawnX + rand.Intn(2*r+1) - r
-		y := n.SpawnY + rand.Intn(2*r+1) - r
+		x := area.X1 + rand.Intn(area.X2-area.X1+1)
+		y := area.Y1 + rand.Intn(area.Y2-area.Y1+1)
 		if n.DistanceTo(x, y) >= 2 && gm.IsWalkable(x, y) {
 			n.WanderDestX, n.WanderDestY, n.HasWanderDest = x, y, true
 			return true
@@ -53,7 +58,7 @@ func npcPickWanderDest(n *npc.NPC, gm *mapdata.GameMap) bool {
 // npcWanderStep takes one wandering step. It returns false when the NPC is done
 // walking for now (arrived, or stuck) and should stand idle.
 func (e *Engine) npcWanderStep(n *npc.NPC, gm *mapdata.GameMap) bool {
-	if n.DistanceTo(n.SpawnX, n.SpawnY) > n.Type.WanderRange {
+	if !n.InHomeArea(n.X, n.Y) {
 		// Strayed after a chase: head home
 		n.WanderDestX, n.WanderDestY, n.HasWanderDest = n.SpawnX, n.SpawnY, true
 	} else if !n.HasWanderDest && !npcPickWanderDest(n, gm) {
@@ -79,4 +84,31 @@ func (e *Engine) npcWanderStep(n *npc.NPC, gm *mapdata.GameMap) bool {
 // pack of monsters doesn't move in lockstep.
 func npcStepInterval(n *npc.NPC) time.Duration {
 	return time.Duration(n.Type.MoveSpeed+int(n.ObjectID%300)) * time.Millisecond
+}
+
+// pointInArea picks a free walkable tile inside a spawn rectangle (the original
+// placed generator mobs at random inside it), or the nearest one to its centre.
+func (e *Engine) pointInArea(gm *mapdata.GameMap, r npc.Rect) (int, int) {
+	for try := 0; try < 30; try++ {
+		x := r.X1 + rand.Intn(r.X2-r.X1+1)
+		y := r.Y1 + rand.Intn(r.Y2-r.Y1+1)
+		if gm.IsWalkable(x, y) {
+			return x, y
+		}
+	}
+	return e.findWalkable(gm, (r.X1+r.X2)/2, (r.Y1+r.Y2)/2)
+}
+
+// mapNamed finds a loaded map by name, ignoring case (map files keep their
+// capitals: "Cmdhall_1.amd" is "Cmdhall_1").
+func (e *Engine) mapNamed(name string) (*mapdata.GameMap, bool) {
+	if gm, ok := e.maps[name]; ok {
+		return gm, true
+	}
+	for n, gm := range e.maps {
+		if strings.EqualFold(n, name) {
+			return gm, true
+		}
+	}
+	return nil, false
 }

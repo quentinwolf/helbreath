@@ -47,6 +47,9 @@ type Engine struct {
 	nextObjID atomic.Int32
 	mu        sync.RWMutex
 
+	// npcFighterMaps: maps with a guard or summon this tick (nil = not worked out: scan anyway)
+	npcFighterMaps map[string]bool
+
 	// Ground items
 	groundItems   sync.Map // map[int32]*items.GroundItem
 	nextGroundID  atomic.Int32
@@ -238,7 +241,16 @@ func (e *Engine) processTick() {
 	// Process pending logouts
 	e.processLogouts(now)
 
-	// NPC AI tick
+	// NPC AI tick. First note which maps have guards or summons: wild monsters
+	// only ever fight those, so elsewhere they can skip looking for NPC enemies
+	// (thousands of monsters each scanning every NPC adds up).
+	e.npcFighterMaps = map[string]bool{}
+	e.npcs.Range(func(_, value any) bool {
+		if n := value.(*npc.NPC); n.IsAlive() && (n.MasterID != 0 || isGuardType(n.Type)) {
+			e.npcFighterMaps[n.MapName] = true
+		}
+		return true
+	})
 	e.npcs.Range(func(key, value any) bool {
 		n := value.(*npc.NPC)
 		e.processNPCTick(n, now)
@@ -360,15 +372,18 @@ func (e *Engine) SpawnNPCsWithConfigPath(configPath string) {
 			continue
 		}
 
-		gm, ok := e.maps[entry.MapName]
+		gm, ok := e.mapNamed(entry.MapName)
 		if !ok {
 			continue // skip spawns for maps not loaded
 		}
+		area := npc.Rect{X1: entry.AreaX1, Y1: entry.AreaY1, X2: entry.AreaX2, Y2: entry.AreaY2, Set: entry.HasArea()}
 
 		for j := 0; j < count; j++ {
 			// Calculate spawn position with optional radius offset
 			x, y := entry.SpawnX, entry.SpawnY
-			if entry.SpawnRadius > 0 {
+			if area.Set {
+				x, y = e.pointInArea(gm, area)
+			} else if entry.SpawnRadius > 0 {
 				x += rand.Intn(entry.SpawnRadius*2+1) - entry.SpawnRadius
 				y += rand.Intn(entry.SpawnRadius*2+1) - entry.SpawnRadius
 			}
@@ -378,7 +393,12 @@ func (e *Engine) SpawnNPCsWithConfigPath(configPath string) {
 			}
 
 			objectID := e.nextObjID.Add(1)
-			n := npc.NewNPC(objectID, npcType, entry.MapName, x, y)
+			n := npc.NewNPC(objectID, npcType, gm.Name, x, y)
+			if area.Set {
+				// Home is the rectangle; its centre is the spawn point the leash measures from
+				n.Area = area
+				n.SpawnX, n.SpawnY = (area.X1+area.X2)/2, (area.Y1+area.Y2)/2
+			}
 
 			// Apply respawn delay override from spawn config
 			overrideDelay := entry.RespawnDelayDuration()
@@ -455,6 +475,10 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 		}
 		if n.ReadyToRespawn() {
 			n.Respawn()
+			if n.Area.Set {
+				// Generator mobs come back anywhere in their rectangle
+				n.X, n.Y = e.pointInArea(gm, n.Area)
+			}
 			if gm.IsWalkable(n.X, n.Y) {
 				gm.SetOwner(n.X, n.Y, n.ObjectID)
 			}
