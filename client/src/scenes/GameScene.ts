@@ -523,6 +523,10 @@ export class GameScene extends Phaser.Scene {
     this.tileY = pd.position.y;
     this.visualX = pd.position.x * TILE_SIZE;
     this.visualY = pd.position.y * TILE_SIZE;
+    // Fields survive a scene restart (teleport): drop any step still in progress
+    // on the previous map, or it keeps drawing us at the old map's coordinates.
+    this.isMoving = false;
+    this.isMouseDown = false;
     this.playerDirection = pd.direction;
     this.playerName = pd.name;
     this.playerGender = pd.appearance?.gender ?? 0;
@@ -1009,10 +1013,12 @@ export class GameScene extends Phaser.Scene {
       this.playerDirection = dir;
     }
 
-    // Update visual position
-    const TILE_SIZE = 32;
-    this.visualX = this.tileX * TILE_SIZE + TILE_SIZE / 2;
-    this.visualY = this.tileY * TILE_SIZE + TILE_SIZE / 2;
+    // Update visual position. Stop any step still in progress on the old map,
+    // otherwise the next frames keep drawing us at its target in old-map coordinates.
+    this.isMoving = false;
+    this.isMouseDown = false;
+    this.visualX = this.tileX * TILE_SIZE;
+    this.visualY = this.tileY * TILE_SIZE;
     if (this.playerAssets) {
       this.setPlayerAssetsPosition(this.playerAssets, this.visualX, this.visualY, this.tileY);
     }
