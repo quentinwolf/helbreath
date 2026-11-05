@@ -194,6 +194,13 @@ const CHARACTER_SPRITE_ASSETS: AssetData[] = [
     { key: 'yw', fileName: 'yw.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Human },
     { key: 'bw', fileName: 'bw.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Human },
 
+    // Underwear + hair: every character wears them, so load them with the bodies
+    // (the Create Character preview and your own character need them right away)
+    { key: 'mpt', fileName: 'mpt.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.EquipmentPack },
+    { key: 'wpt', fileName: 'wpt.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.EquipmentPack },
+    { key: 'mhr', fileName: 'mhr.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.EquipmentPack },
+    { key: 'whr', fileName: 'whr.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.EquipmentPack },
+
     // UI portraits — sheet 0 has character class portraits (270×376px per frame)
     { key: 'dialogtext', fileName: 'dialogtext.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Interface },
 ];
@@ -203,11 +210,6 @@ const CHARACTER_SPRITE_ASSETS: AssetData[] = [
 // ---------------------------------------------------------------------------
 
 const EQUIPMENT_SPRITE_ASSETS: AssetData[] = [
-    // --- Base character (underwear + hair) ---
-    { key: 'mpt', fileName: 'mpt.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.EquipmentPack },
-    { key: 'wpt', fileName: 'wpt.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.EquipmentPack },
-    { key: 'mhr', fileName: 'mhr.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.EquipmentPack },
-    { key: 'whr', fileName: 'whr.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.EquipmentPack },
 
     // --- Swords (msw = multi-weapon sprite with startSpriteSheetIndex offsets) ---
     { key: 'msw', fileName: 'msw.spr', assetType: AssetType.SPRITE, spriteType: SpriteType.Weapons },

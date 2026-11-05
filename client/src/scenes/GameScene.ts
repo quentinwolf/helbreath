@@ -39,6 +39,7 @@ import {
   ARMAMENT_STATE_INDEX,
   PLAYER_ANIMATION_FRAME_COUNT,
   getHumanSpriteName,
+  applyHairColor,
   isOneShotState,
   isMovementState,
   resolveEquipmentSprite,
@@ -90,6 +91,7 @@ interface RemotePlayer {
   gender: number;
   skinColor: number;
   hairStyle: number;
+  hairColor: number;
   underwearColor: number;
 }
 
@@ -280,6 +282,7 @@ export class GameScene extends Phaser.Scene {
   private playerGender = 0;
   private playerSkinColor = 0;
   private playerHairStyle = 0;
+  private playerHairColor = 0;
   private playerUnderwearColor = 0;
   private playerBodyArmor = 0;
   private playerWeapon = 0;
@@ -533,6 +536,7 @@ export class GameScene extends Phaser.Scene {
     this.playerGender = pd.appearance?.gender ?? 0;
     this.playerSkinColor = pd.appearance?.skinColor ?? 0;
     this.playerHairStyle = pd.appearance?.hairStyle ?? 0;
+    this.playerHairColor = pd.appearance?.hairColor ?? 0;
     this.playerUnderwearColor = pd.appearance?.underwearColor ?? 0;
     this.playerBodyArmor = pd.appearance?.bodyArmor ?? 0;
     this.playerWeapon = pd.appearance?.weapon ?? 0;
@@ -1072,7 +1076,7 @@ export class GameScene extends Phaser.Scene {
   private createLocalPlayer(): void {
     const gear = this.buildGearConfig({
       gender: this.playerGender, skinColor: this.playerSkinColor,
-      hairStyle: this.playerHairStyle, underwearColor: this.playerUnderwearColor,
+      hairStyle: this.playerHairStyle, hairColor: this.playerHairColor, underwearColor: this.playerUnderwearColor,
       bodyArmor: this.playerBodyArmor, weapon: this.playerWeapon,
       shield: this.playerShield, helm: this.playerHelm,
       leggings: this.playerLeggings, boots: this.playerBoots, cape: this.playerCape,
@@ -1127,6 +1131,7 @@ export class GameScene extends Phaser.Scene {
         framesPerDirection,
         animationType: AnimationType.DirectionalSubFrame,
       });
+      applyHairColor(hair.sprite, gear.hairColorIndex ?? 0);
       layers.push(hair);
     }
 
@@ -1214,7 +1219,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private buildGearConfig(appearance: {
-    gender: number; skinColor: number; hairStyle: number; underwearColor: number;
+    gender: number; skinColor: number; hairStyle: number; hairColor?: number; underwearColor: number;
     bodyArmor?: number; weapon?: number; shield?: number;
     helm?: number; leggings?: number; boots?: number; cape?: number;
   }): GearConfig {
@@ -1222,6 +1227,7 @@ export class GameScene extends Phaser.Scene {
     const gear: GearConfig = {
       human: getHumanSpriteName(gender, skinColor),
       hairStyleIndex: hairStyle,
+      hairColorIndex: appearance.hairColor ?? 0,
       underwearColorIndex: underwearColor,
     };
 
@@ -1370,7 +1376,7 @@ export class GameScene extends Phaser.Scene {
 
     const gear = this.buildGearConfig({
       gender: this.playerGender, skinColor: this.playerSkinColor,
-      hairStyle: this.playerHairStyle, underwearColor: this.playerUnderwearColor,
+      hairStyle: this.playerHairStyle, hairColor: this.playerHairColor, underwearColor: this.playerUnderwearColor,
       bodyArmor: this.playerBodyArmor, weapon: this.playerWeapon,
       shield: this.playerShield, helm: this.playerHelm,
       leggings: this.playerLeggings, boots: this.playerBoots, cape: this.playerCape,
@@ -1392,10 +1398,11 @@ export class GameScene extends Phaser.Scene {
     const gender = info.appearance?.gender ?? rp.gender;
     const skinColor = info.appearance?.skinColor ?? rp.skinColor;
     const hairStyle = info.appearance?.hairStyle ?? rp.hairStyle;
+    const hairColor = info.appearance?.hairColor ?? rp.hairColor;
     const underwearColor = info.appearance?.underwearColor ?? rp.underwearColor;
 
     const gear = this.buildGearConfig({
-      gender, skinColor, hairStyle, underwearColor,
+      gender, skinColor, hairStyle, hairColor, underwearColor,
       bodyArmor: info.appearance?.bodyArmor ?? 0,
       weapon: info.appearance?.weapon ?? 0,
       shield: info.appearance?.shield ?? 0,
@@ -1411,6 +1418,7 @@ export class GameScene extends Phaser.Scene {
     rp.gender = gender;
     rp.skinColor = skinColor;
     rp.hairStyle = hairStyle;
+    rp.hairColor = hairColor;
     rp.underwearColor = underwearColor;
     this.setPlayerAssetsPosition(rp.assets, rp.visualX, rp.visualY, rp.tileY);
   }
@@ -2179,10 +2187,11 @@ export class GameScene extends Phaser.Scene {
     const gender = info.appearance?.gender ?? 0;
     const skinColor = info.appearance?.skinColor ?? 0;
     const hairStyle = info.appearance?.hairStyle ?? 0;
+    const hairColor = info.appearance?.hairColor ?? 0;
     const underwearColor = info.appearance?.underwearColor ?? 0;
 
     const gear = this.buildGearConfig({
-      gender, skinColor, hairStyle, underwearColor,
+      gender, skinColor, hairStyle, hairColor, underwearColor,
       bodyArmor: info.appearance?.bodyArmor ?? 0,
       weapon: info.appearance?.weapon ?? 0,
       shield: info.appearance?.shield ?? 0,
@@ -2230,7 +2239,7 @@ export class GameScene extends Phaser.Scene {
       moveStartX: worldX,
       moveStartY: worldY,
       isMoving: false,
-      gender, skinColor, hairStyle, underwearColor,
+      gender, skinColor, hairStyle, hairColor, underwearColor,
     };
 
     if (assets) {

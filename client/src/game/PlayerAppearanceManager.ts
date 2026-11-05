@@ -142,6 +142,42 @@ export function getHumanSpriteName(gender: number, skinColor: number): string {
 }
 
 /**
+ * The 8 hair colours, from the original client's _GetHairColorRGB. The hair
+ * sprites are drawn in one base colour and the original added these offsets to
+ * every pixel, in 5-bit colour steps (one step = 8 on a 0-255 scale).
+ */
+export const HAIR_COLORS: ReadonlyArray<{ name: string; r: number; g: number; b: number }> = [
+    { name: 'Dark Red', r: 14, g: -5, b: -5 },
+    { name: 'Orange', r: 20, g: 0, b: 0 },
+    { name: 'Light Brown', r: 22, g: 13, b: -10 },
+    { name: 'Green', r: 0, g: 10, b: 0 },
+    { name: 'Bright Blue', r: 0, g: 0, b: 22 },
+    { name: 'Dark Blue', r: -5, g: -5, b: 15 },
+    { name: 'Mauve', r: 15, g: -5, b: 16 },
+    { name: 'Black', r: -6, g: -6, b: -6 },
+];
+
+/**
+ * Recolours a hair sprite like the original: adds the colour's RGB offsets to
+ * every pixel. Uses a WebGL colour-matrix effect; with the Canvas renderer
+ * (no preFX) the hair keeps its base colour.
+ */
+export function applyHairColor(sprite: Phaser.GameObjects.Sprite, colorIndex: number): void {
+    const fx = sprite.preFX;
+    if (!fx) return;
+    fx.clear();
+    const c = HAIR_COLORS[colorIndex];
+    if (!c) return;
+    const step = 8; // one 5-bit colour step on a 0-255 scale
+    fx.addColorMatrix().set([
+        1, 0, 0, 0, c.r * step,
+        0, 1, 0, 0, c.g * step,
+        0, 0, 1, 0, c.b * step,
+        0, 0, 0, 1, 0,
+    ]);
+}
+
+/**
  * Returns true if the player state is a one-shot (non-looping) animation.
  */
 export function isOneShotState(state: PlayerState): boolean {
@@ -409,6 +445,8 @@ export type GearConfig = {
     underwearColorIndex?: number;
     /** Hair style index (determines which sprite sheet to use) */
     hairStyleIndex?: number;
+    /** Hair colour index into HAIR_COLORS (applied with applyHairColor) */
+    hairColorIndex?: number;
     /** Armour sprite name and sheet multiplier */
     armor?: { spriteName: string; sheetMultiplier: number };
     /** Hauberk sprite name and sheet multiplier */

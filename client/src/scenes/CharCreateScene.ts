@@ -5,8 +5,10 @@ import { API_BASE } from '../env';
 import { IDLE_ANIMATION_FPS } from '../Config';
 import { GameAsset } from '../game/objects/GameAsset';
 import {
+  applyHairColor,
   buildPlayerAssetConfigs,
   getHumanSpriteName,
+  HAIR_COLORS,
   PlayerState,
   PLAYER_ANIMATION_FRAME_COUNT,
   type GearConfig,
@@ -16,6 +18,8 @@ import {
 const PREVIEW_X = 90;
 const PREVIEW_Y = 230;
 const DIRECTION_NAMES = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+
+type PreviewLook = { gender: number; skin: number; hairStyle: number; hairColor: number; underwear: number };
 
 export class CharCreateScene extends Phaser.Scene {
   private formDiv: HTMLDivElement | null = null;
@@ -49,7 +53,7 @@ export class CharCreateScene extends Phaser.Scene {
           Hair: <select id="hair-style">${Array.from({length:13}, (_,i) => `<option value="${i}">Style ${i+1}</option>`).join('')}</select>
         </div>
         <div style="margin:5px 0;">
-          Hair Color: <select id="hair-color">${Array.from({length:8}, (_,i) => `<option value="${i}">Color ${i+1}</option>`).join('')}</select>
+          Hair Color: <select id="hair-color">${HAIR_COLORS.map((c, i) => `<option value="${i}">${c.name}</option>`).join('')}</select>
           Underwear: <select id="underwear-color">${Array.from({length:8}, (_,i) => `<option value="${i}">Color ${i+1}</option>`).join('')}</select>
         </div>
         <p style="margin:10px 0; font-size:12px;">Allocate 10 bonus points (base 10 each, total 70):</p>
@@ -88,7 +92,7 @@ export class CharCreateScene extends Phaser.Scene {
 
     // Live preview: redraw whenever gender, skin, hair style or underwear changes
     const refreshPreview = () => this.renderPreview(this.readAppearance());
-    div.querySelectorAll('input[name="gender"], #skin-color, #hair-style, #underwear-color')
+    div.querySelectorAll('input[name="gender"], #skin-color, #hair-style, #hair-color, #underwear-color')
       .forEach(el => el.addEventListener('change', refreshPreview));
     this.createPreviewControls(refreshPreview);
     refreshPreview();
@@ -175,12 +179,13 @@ export class CharCreateScene extends Phaser.Scene {
     this.previewLayers = []; // their sprites go down with the scene
   }
 
-  private readAppearance(): { gender: number; skin: number; hairStyle: number; underwear: number } {
+  private readAppearance(): PreviewLook {
     const num = (sel: string) => parseInt((document.querySelector(sel) as HTMLInputElement | null)?.value || '0');
     return {
       gender: num('input[name="gender"]:checked'),
       skin: num('#skin-color'),
       hairStyle: num('#hair-style'),
+      hairColor: num('#hair-color'),
       underwear: num('#underwear-color'),
     };
   }
@@ -203,7 +208,7 @@ export class CharCreateScene extends Phaser.Scene {
    * Draws the character standing, using the same layered sprites as the game
    * (body by gender and skin, then hair and underwear).
    */
-  private renderPreview(look: { gender: number; skin: number; hairStyle: number; underwear: number }): void {
+  private renderPreview(look: PreviewLook): void {
     for (const layer of this.previewLayers) layer.destroy();
     this.previewLayers = [];
 
@@ -223,6 +228,7 @@ export class CharCreateScene extends Phaser.Scene {
         layer.playAnimationWithDirection(animKey, cfg.direction ?? 0, IDLE_ANIMATION_FPS,
           undefined, undefined, cfg.framesPerDirection ?? framesPerDirection, cfg.animationType);
         layer.setDepth(10 + i);
+        if (cfg.spriteName === 'mhr' || cfg.spriteName === 'whr') applyHairColor(layer.sprite, look.hairColor);
         this.previewLayers.push(layer);
       } catch {
         // A missing frame just leaves that layer out of the preview
