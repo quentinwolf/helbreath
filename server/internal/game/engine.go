@@ -413,6 +413,11 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 
 	// Handle respawn
 	if n.State == npc.StateDead {
+		// Summoned NPCs are one-offs. Clients already got NpcDisappear on death.
+		if n.Summoned {
+			e.npcs.Delete(n.ObjectID)
+			return
+		}
 		if n.ReadyToRespawn() {
 			n.Respawn()
 			if gm.IsWalkable(n.X, n.Y) {

@@ -333,6 +333,7 @@ type NPC struct {
 	NextThinkTime  time.Time // next AI decision time
 	DeathTime      time.Time // when the NPC died (for respawn timer)
 	RespawnDelay   time.Duration
+	Summoned       bool // spawned by /summon: removed on death instead of respawning
 
 	// Flee tracking
 	FleeStartX int // X position when flee began (to measure flee distance)

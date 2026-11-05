@@ -538,6 +538,7 @@ func (e *Engine) adminSummon(p *player.Player, args []string) {
 
 		objectID := e.nextObjID.Add(1)
 		n := npc.NewNPC(objectID, npcType, p.MapName, x, y)
+		n.Summoned = true
 		e.npcs.Store(objectID, n)
 
 		// Broadcast NPC appear to nearby players
