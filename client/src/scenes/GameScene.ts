@@ -428,6 +428,7 @@ export class GameScene extends Phaser.Scene {
   private selectedSpellId = 0;
   private spellCatalog: SpellCatalogEntry[] = [];
   private spellBookTab: 'known' | 'learn' = 'known';
+  private lastSpellCastAt = new Map<number, number>(); // caster object ID -> scene time of their last spell
   private spellCircleFilter = 0; // 0 = all circles, 1-10 = Circle I-X
   private spellTypesHidden: Set<number> = new Set(); // spell types toggled off
 
@@ -2953,8 +2954,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onDamageEvent(data: DamageEventData): void {
-    // Play attack animation on the attacker (remote players only)
-    if (data.attackerId && data.attackerId !== this.playerObjectId) {
+    // Play attack animation on the attacker (remote players only), unless the
+    // damage came from a spell they just cast
+    const fromSpell = this.time.now - (this.lastSpellCastAt.get(data.attackerId) ?? -Infinity) < 1000;
+    if (data.attackerId && data.attackerId !== this.playerObjectId && !fromSpell) {
       const rp = this.remotePlayers.get(data.attackerId);
       if (rp && rp.assets) {
         // Calculate direction from attacker to target
@@ -4346,6 +4349,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onSpellEffect(data: SpellEffectData): void {
+    // Damage from this cast arrives as DamageEvents right after; remember the
+    // caster so those don't also play a melee swing on them.
+    if (data.casterId) this.lastSpellCastAt.set(data.casterId, this.time.now);
+
     const tx = data.targetPosition?.x ?? 0;
     const ty = data.targetPosition?.y ?? 0;
     const screenX = tx * TILE_SIZE + TILE_SIZE / 2;
@@ -4574,7 +4581,7 @@ export class GameScene extends Phaser.Scene {
       // Learn spells tab
       const available = this.spellCatalog
         .filter(s => !s.learned)
-        .sort((a, b) => a.reqLevel - b.reqLevel || a.reqMag - b.reqMag);
+        .sort((a, b) => a.reqInt - b.reqInt || a.reqLevel - b.reqLevel || a.reqMag - b.reqMag);
       const visible = available.filter(passes);
 
       if (available.length === 0) {
@@ -4598,8 +4605,8 @@ export class GameScene extends Phaser.Scene {
           html += `<span style="color:${color}; font-weight:bold;">${spell.name}</span>`;
           html += ` <span style="color:#666; font-size:10px;">${typeName} | ${spell.manaCost} MP</span>`;
           html += `<div style="font-size:10px; margin-top:2px;">`;
-          html += `<span style="color:${meetsLevel ? '#2ecc71' : '#e74c3c'};">Lv.${spell.reqLevel}</span>`;
-          if (spell.reqMag > 0) html += ` <span style="color:${meetsMag ? '#2ecc71' : '#e74c3c'};">MAG ${spell.reqMag}</span>`;
+          if (spell.reqLevel > 0) html += `<span style="color:${meetsLevel ? '#2ecc71' : '#e74c3c'};">Lv.${spell.reqLevel}</span> `;
+          if (spell.reqMag > 0) html += `<span style="color:${meetsMag ? '#2ecc71' : '#e74c3c'};">MAG ${spell.reqMag}</span>`;
           if (spell.reqInt > 0) html += ` <span style="color:${meetsInt ? '#2ecc71' : '#e74c3c'};">INT ${spell.reqInt}</span>`;
           html += `</div></div>`;
           if (canLearn) {

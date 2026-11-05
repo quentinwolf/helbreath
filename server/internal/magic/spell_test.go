@@ -2,334 +2,180 @@ package magic
 
 import "testing"
 
-func TestGetSpellDef(t *testing.T) {
-	// Existing spell
-	spell := GetSpellDef(1)
-	if spell == nil {
-		t.Fatal("Expected to find Energy Bolt (ID=1)")
-	}
-	if spell.Name != "Energy Bolt" {
-		t.Errorf("Expected name=Energy Bolt, got %s", spell.Name)
-	}
-	if spell.Type != SpellTypeDamage {
-		t.Errorf("Expected type=Damage, got %d", spell.Type)
-	}
-	if spell.Element != ElementLight {
-		t.Errorf("Expected element=Light, got %d", spell.Element)
-	}
-	if spell.ManaCost != 8 {
-		t.Errorf("Expected mana cost=8, got %d", spell.ManaCost)
-	}
+// These tests pin SpellDB to the original v3.82 Magic.cfg (see
+// tools/magicimport): spells at their original IDs, with the original
+// server's hit pattern for each DEF_MAGICTYPE.
 
-	// Non-existent
+func TestGetSpellDef(t *testing.T) {
+	mm := GetSpellDef(0)
+	if mm == nil || mm.Name != "Magic Missile" {
+		t.Fatalf("expected Magic Missile at ID 0, got %+v", mm)
+	}
+	if mm.ManaCost != 8 || mm.Element != ElementLight {
+		t.Errorf("Magic Missile: mana=%d element=%d", mm.ManaCost, mm.Element)
+	}
 	if GetSpellDef(999) != nil {
 		t.Error("Expected nil for non-existent spell")
 	}
 }
 
-func TestSpellTypes(t *testing.T) {
-	// Check all spell types exist in DB
-	tests := []struct {
-		id       int
-		name     string
-		spType   SpellType
-		element  SpellElement
-	}{
-		{1, "Energy Bolt", SpellTypeDamage, ElementLight},
-		{3, "Fireball", SpellTypeDamage, ElementFire},
-		{5, "Ice Strike", SpellTypeDamage, ElementIce},
-		{10, "Fire Wall", SpellTypeAOE, ElementFire},
-		{11, "Blizzard", SpellTypeAOE, ElementIce},
-		{12, "Meteor Strike", SpellTypeAOE, ElementFire},
-		{20, "Heal", SpellTypeHeal, ElementNone},
-		{21, "Greater Heal", SpellTypeHeal, ElementNone},
-		{22, "Divine Heal", SpellTypeHeal, ElementNone},
-		{30, "Protection", SpellTypeBuff, ElementNone},
-		{31, "Strength", SpellTypeBuff, ElementNone},
-		{32, "Haste", SpellTypeBuff, ElementNone},
-		{40, "Slow", SpellTypeDebuff, ElementIce},
-		{41, "Weaken", SpellTypeDebuff, ElementNone},
+func TestSpellDBHasExactlyTheOriginalSpells(t *testing.T) {
+	// 90 entries in Magic.cfg minus the two unused Test-Spell placeholders and one gap
+	if len(SpellDB) != 87 {
+		t.Errorf("Expected the 87 original spells, got %d", len(SpellDB))
 	}
+	for id, s := range SpellDB {
+		if s.ID != id {
+			t.Errorf("SpellDB[%d] holds spell ID %d", id, s.ID)
+		}
+	}
+}
 
-	for _, tt := range tests {
-		spell := GetSpellDef(tt.id)
-		if spell == nil {
-			t.Errorf("Spell %d (%s) not found", tt.id, tt.name)
+func TestOriginalHelbreathSpells(t *testing.T) {
+	for id, name := range map[int]string{
+		0: "Magic Missile", 1: "Heal", 2: "Create Food", 10: "Energy Bolt",
+		11: "Staminar Drain", 12: "Recall", 13: "Defense Shield", 20: "Fire Ball",
+		21: "Great Heal", 22: "Tremor", 25: "Hold Person", 27: "Poison",
+		30: "Fire Strike", 31: "Summon Creature", 32: "Invisibility", 36: "Cure",
+		37: "Lightning Arrow", 40: "Fire Wall", 41: "Fire Field", 43: "Lightning",
+		45: "Chill Wind", 46: "Poison Cloud", 47: "Triple Energy Bolt", 50: "Berserk",
+		51: "Lightning Bolt", 54: "Spike Field", 55: "Ice Storm", 57: "Ice Strike",
+		60: "Energy Strike", 61: "Mass Fire Strike", 64: "Earthworm Strike",
+		66: "Armor Break", 70: "Bloody Shock Wave", 72: "Mass Ice Strike",
+		74: "Lightning Strike", 81: "Meteor Strike", 83: "Inhibition Casting",
+		85: "Blizzard", 91: "Mass Blizzard", 94: "Resurrection", 96: "Earth Shock Wave",
+		97: "Explosion", 98: "Medusa Kiss",
+	} {
+		s := GetSpellDef(id)
+		if s == nil {
+			t.Errorf("spell %d (%s) missing", id, name)
 			continue
 		}
-		if spell.Name != tt.name {
-			t.Errorf("ID %d: expected name=%s, got %s", tt.id, tt.name, spell.Name)
-		}
-		if spell.Type != tt.spType {
-			t.Errorf("ID %d: expected type=%d, got %d", tt.id, tt.spType, spell.Type)
-		}
-		if spell.Element != tt.element {
-			t.Errorf("ID %d: expected element=%d, got %d", tt.id, tt.element, spell.Element)
+		if s.Name != name {
+			t.Errorf("spell %d: expected %q, got %q", id, name, s.Name)
 		}
 	}
 }
 
-func TestSpellRequirements(t *testing.T) {
-	// Fireball has level and MAG/INT requirements
-	fb := GetSpellDef(3)
-	if fb.ReqLevel != 10 {
-		t.Errorf("Fireball ReqLevel: expected 10, got %d", fb.ReqLevel)
+func TestSpotSpellHitsOnlyTheClickedTile(t *testing.T) {
+	mm := GetSpellDef(0) // DAMAGE_SPOT
+	if mm.Type != SpellTypeDamage || mm.AreaX != 0 || mm.AreaY != 0 || mm.Line {
+		t.Errorf("Magic Missile should be single-tile: %+v", mm)
 	}
-	if fb.ReqMAG != 18 {
-		t.Errorf("Fireball ReqMAG: expected 18, got %d", fb.ReqMAG)
+	if mm.CentreDice != (Dice{Count: 1, Sides: 8}) {
+		t.Errorf("Magic Missile dice: %+v", mm.CentreDice)
 	}
-	if fb.ReqINT != 14 {
-		t.Errorf("Fireball ReqINT: expected 14, got %d", fb.ReqINT)
-	}
-}
-
-func TestSpellAOERadius(t *testing.T) {
-	// Damage spells have no radius
-	eb := GetSpellDef(1)
-	if eb.Radius != 0 {
-		t.Errorf("Energy Bolt should have radius=0, got %d", eb.Radius)
-	}
-
-	// AOE spells have radius
-	fw := GetSpellDef(10)
-	if fw.Radius != 2 {
-		t.Errorf("Fire Wall should have radius=2, got %d", fw.Radius)
-	}
-
-	ms := GetSpellDef(12)
-	if ms.Radius != 3 {
-		t.Errorf("Meteor Strike should have radius=3, got %d", ms.Radius)
+	if !mm.NeedsTarget() {
+		t.Error("single-tile damage spell needs someone on the tile")
 	}
 }
 
-func TestHealSpellAmounts(t *testing.T) {
-	heal := GetSpellDef(20)
-	if heal.HealAmount != 30 {
-		t.Errorf("Heal amount: expected 30, got %d", heal.HealAmount)
+func TestAreaSpellHasCentreAndSplash(t *testing.T) {
+	eb := GetSpellDef(10) // DAMAGE_AREA: "2 2 | 2 4 1 | 2 4 1"
+	if eb.Type != SpellTypeAOE || eb.AreaX != 2 || eb.AreaY != 2 {
+		t.Errorf("Energy Bolt should splash a 2-tile box: %+v", eb)
 	}
-
-	gheal := GetSpellDef(21)
-	if gheal.HealAmount != 80 {
-		t.Errorf("Greater Heal amount: expected 80, got %d", gheal.HealAmount)
+	want := Dice{Count: 2, Sides: 4, Bonus: 1}
+	if eb.CentreDice != want || eb.AreaDice != want {
+		t.Errorf("Energy Bolt dice: centre=%+v area=%+v", eb.CentreDice, eb.AreaDice)
 	}
-
-	dheal := GetSpellDef(22)
-	if dheal.HealAmount != 200 {
-		t.Errorf("Divine Heal amount: expected 200, got %d", dheal.HealAmount)
+	if eb.NeedsTarget() {
+		t.Error("area spells can be cast on empty ground")
 	}
 }
 
-func TestBuffSpellStats(t *testing.T) {
-	prot := GetSpellDef(30)
-	if prot.BuffStat != 2 || prot.BuffAmount != 5 {
-		t.Errorf("Protection: expected stat=2 amount=5, got stat=%d amount=%d", prot.BuffStat, prot.BuffAmount)
-	}
-	if prot.Duration != 60 {
-		t.Errorf("Protection duration: expected 60, got %d", prot.Duration)
-	}
-
-	str := GetSpellDef(31)
-	if str.BuffStat != 1 || str.BuffAmount != 5 {
-		t.Errorf("Strength: expected stat=1 amount=5, got stat=%d amount=%d", str.BuffStat, str.BuffAmount)
-	}
-
-	slow := GetSpellDef(40)
-	if slow.BuffStat != 3 || slow.BuffAmount != -5 {
-		t.Errorf("Slow: expected stat=3 amount=-5, got stat=%d amount=%d", slow.BuffStat, slow.BuffAmount)
+func TestNoSpotAreaSpellHasNoCentreBonus(t *testing.T) {
+	es := GetSpellDef(60) // DAMAGE_AREA_NOSPOT
+	if !es.CentreDice.IsZero() || es.AreaDice.IsZero() {
+		t.Errorf("Energy Strike should only have area dice: %+v", es)
 	}
 }
 
-func TestSpellDBCount(t *testing.T) {
-	// 28 hand-written + generated from Magic.cfg (90 total, minus overlaps)
-	if len(SpellDB) < 80 {
-		t.Errorf("Expected at least 80 spells in SpellDB, got %d", len(SpellDB))
+func TestLineSpellsHitALine(t *testing.T) {
+	for _, id := range []int{51, 70, 85, 96} { // Lightning Bolt, Bloody Shock Wave, Blizzard, Earth Shock Wave
+		s := GetSpellDef(id)
+		if !s.Line || s.LineDice.IsZero() {
+			t.Errorf("%s should hit along a line: %+v", s.Name, s)
+		}
+	}
+}
+
+func TestIceSpellsFreeze(t *testing.T) {
+	is := GetSpellDef(57) // ICE: box damage with g1, freeze for g3 seconds
+	if is.AreaDice.IsZero() || is.ApplyEffect != EffectIce || is.Duration != 4 {
+		t.Errorf("Ice Strike should damage its box and freeze for 4s: %+v", is)
+	}
+}
+
+func TestOffensiveSpellsReachTheWholeScreen(t *testing.T) {
+	for _, id := range []int{0, 10, 25, 81} {
+		if s := GetSpellDef(id); s.Range != MaxCastRange {
+			t.Errorf("%s range: expected %d, got %d", s.Name, MaxCastRange, s.Range)
+		}
+	}
+	if heal := GetSpellDef(1); heal.Range != 0 {
+		t.Errorf("Heal is self-cast, got range %d", heal.Range)
+	}
+}
+
+func TestLearningNeedsOnlyINT(t *testing.T) {
+	for _, s := range SpellDB {
+		if s.ReqLevel != 0 || s.ReqMAG != 0 {
+			t.Errorf("%s: Magic.cfg only requires INT, got level=%d MAG=%d", s.Name, s.ReqLevel, s.ReqMAG)
+		}
+	}
+	if fb := GetSpellDef(20); fb.ReqINT != 26 {
+		t.Errorf("Fire Ball ReqINT: expected 26, got %d", fb.ReqINT)
+	}
+}
+
+func TestCooldownsFollowTheDelayColumn(t *testing.T) {
+	if eb := GetSpellDef(10); eb.Cooldown != eb.CastTime {
+		t.Errorf("Energy Bolt has no Delay: cooldown should equal cast time, got %d vs %d", eb.Cooldown, eb.CastTime)
+	}
+	if res := GetSpellDef(94); res.Cooldown != 600_000 {
+		t.Errorf("Resurrection Delay is 600s, got %dms", res.Cooldown)
 	}
 }
 
 func TestStatusEffectSpells(t *testing.T) {
 	tests := []struct {
-		id          int
-		name        string
-		effectType  EffectType
-		effectLevel int
+		id     int
+		effect EffectType
+		level  int
 	}{
-		{50, "Poison Cloud", EffectPoison, 1},
-		{51, "Toxic Cloud", EffectPoison, 2},
-		{52, "Freeze", EffectIce, 1},
-		{53, "Deep Freeze", EffectIce, 2},
-		{54, "Berserk", EffectBerserk, 1},
-		{55, "Greater Berserk", EffectBerserk, 2},
-		{56, "Invisibility", EffectInvisibility, 1},
-		{57, "Silence", EffectInhibition, 1},
-		{58, "Defense Shield", EffectDefenseShield, 1},
-		{59, "Greater Defense Shield", EffectDefenseShield, 2},
-		{60, "Magic Protection", EffectMagicProtection, 1},
-		{61, "Greater Magic Protection", EffectMagicProtection, 2},
+		{13, EffectDefenseShield, 1},   // Defense Shield
+		{44, EffectDefenseShield, 2},   // Great Defense Shield
+		{33, EffectMagicProtection, 1}, // Protection From Magic
+		{65, EffectMagicProtection, 3}, // Absolute Magic Protection
+		{25, EffectIce, 1},             // Hold Person
+		{27, EffectPoison, 1},          // Poison
+		{32, EffectInvisibility, 1},    // Invisibility
+		{50, EffectBerserk, 1},         // Berserk
+		{83, EffectInhibition, 1},      // Inhibition Casting
 	}
-
 	for _, tt := range tests {
-		spell := GetSpellDef(tt.id)
-		if spell == nil {
-			t.Errorf("Spell %d (%s) not found", tt.id, tt.name)
-			continue
-		}
-		if spell.Name != tt.name {
-			t.Errorf("ID %d: expected name=%s, got %s", tt.id, tt.name, spell.Name)
-		}
-		if spell.ApplyEffect != tt.effectType {
-			t.Errorf("ID %d: expected effect type=%d, got %d", tt.id, tt.effectType, spell.ApplyEffect)
-		}
-		if spell.EffectLevel != tt.effectLevel {
-			t.Errorf("ID %d: expected effect level=%d, got %d", tt.id, tt.effectLevel, spell.EffectLevel)
+		s := GetSpellDef(tt.id)
+		if s.ApplyEffect != tt.effect || s.EffectLevel != tt.level {
+			t.Errorf("%s: expected effect %d level %d, got %d level %d",
+				s.Name, tt.effect, tt.level, s.ApplyEffect, s.EffectLevel)
 		}
 	}
 }
 
 func TestPoisonSpellHasTickDamage(t *testing.T) {
-	pc := GetSpellDef(50) // Poison Cloud
-	if pc.TickDamage != 5 {
-		t.Errorf("Poison Cloud tick damage: expected 5, got %d", pc.TickDamage)
-	}
-	if pc.TickIntervalMs != 3000 {
-		t.Errorf("Poison Cloud tick interval: expected 3000ms, got %d", pc.TickIntervalMs)
-	}
-	if pc.Duration != 15 {
-		t.Errorf("Poison Cloud duration: expected 15s, got %d", pc.Duration)
-	}
-
-	tc := GetSpellDef(51) // Toxic Cloud
-	if tc.TickDamage != 8 {
-		t.Errorf("Toxic Cloud tick damage: expected 8, got %d", tc.TickDamage)
-	}
-	if tc.EffectLevel != 2 {
-		t.Errorf("Toxic Cloud effect level: expected 2, got %d", tc.EffectLevel)
+	p := GetSpellDef(27)
+	if p.TickDamage <= 0 || p.TickIntervalMs != 3000 {
+		t.Errorf("Poison should tick: damage=%d interval=%d", p.TickDamage, p.TickIntervalMs)
 	}
 }
 
-func TestBuffSpellsWithEffects(t *testing.T) {
-	// Berserk should be a buff type with an effect
-	berserk := GetSpellDef(54)
-	if berserk.Type != SpellTypeBuff {
-		t.Errorf("Berserk should be buff type, got %d", berserk.Type)
+func TestDiceRange(t *testing.T) {
+	d := Dice{Count: 2, Sides: 4, Bonus: 1}
+	if d.Min() != 3 || d.Max() != 9 {
+		t.Errorf("2d4+1: expected 3-9, got %d-%d", d.Min(), d.Max())
 	}
-	if berserk.ApplyEffect != EffectBerserk {
-		t.Errorf("Berserk should apply EffectBerserk, got %d", berserk.ApplyEffect)
-	}
-
-	// Defense Shield should be a buff type
-	ds := GetSpellDef(58)
-	if ds.Type != SpellTypeBuff {
-		t.Errorf("Defense Shield should be buff type, got %d", ds.Type)
-	}
-	if ds.ApplyEffect != EffectDefenseShield {
-		t.Errorf("Defense Shield should apply EffectDefenseShield, got %d", ds.ApplyEffect)
-	}
-
-	// Magic Protection should be a buff type
-	mp := GetSpellDef(60)
-	if mp.Type != SpellTypeBuff {
-		t.Errorf("Magic Protection should be buff type, got %d", mp.Type)
-	}
-	if mp.ApplyEffect != EffectMagicProtection {
-		t.Errorf("Magic Protection should apply EffectMagicProtection, got %d", mp.ApplyEffect)
-	}
-}
-
-func TestDebuffSpellsWithEffects(t *testing.T) {
-	// Freeze should be a debuff
-	freeze := GetSpellDef(52)
-	if freeze.Type != SpellTypeDebuff {
-		t.Errorf("Freeze should be debuff type, got %d", freeze.Type)
-	}
-	if freeze.Element != ElementIce {
-		t.Errorf("Freeze should be ice element, got %d", freeze.Element)
-	}
-
-	// Silence should be a debuff
-	silence := GetSpellDef(57)
-	if silence.Type != SpellTypeDebuff {
-		t.Errorf("Silence should be debuff type, got %d", silence.Type)
-	}
-	if silence.ApplyEffect != EffectInhibition {
-		t.Errorf("Silence should apply EffectInhibition, got %d", silence.ApplyEffect)
-	}
-}
-
-func TestOriginalHelbreathSpells(t *testing.T) {
-	// Verify key spells from original Magic.cfg are present at their original IDs.
-	tests := []struct {
-		id   int
-		name string
-	}{
-		{0, "Magic Missile"},
-		{6, "Forge's Breath"},
-		{13, "Defense Shield"},
-		{14, "Celebrating Light"},
-		{15, "Staminar Recovery"},
-		{16, "Peace"},
-		{17, "Wood Mantle"},
-		{23, "Great Staminar Recovery"},
-		{24, "Protection From Arrow"},
-		{25, "Hold Person"},
-		{26, "Possession"},
-		{27, "Poison"},
-		{28, "Mass Staminar Recov"},
-		{33, "Protection From Magic"},
-		{34, "Detect Invisibility"},
-		{35, "Paralyze"},
-		{36, "Cure"},
-		{37, "Lightning Arrow"},
-		{38, "Prayer"},
-		{42, "Confuse Language"},
-		{43, "Lightning"},
-		{44, "Great Defense Shield"},
-		{45, "Chill Wind"},
-		{47, "Triple Energy Bolt"},
-		{48, "Critical Heal"},
-		{62, "Confusion"},
-		{63, "Mass Chill Wind"},
-		{64, "Earthworm Strike"},
-		{65, "Absolute Magic Protect"},
-		{66, "Armor Break"},
-		{67, "Scan"},
-		{68, "Mass Heal"},
-		{70, "Bloody Shock Wave"},
-		{71, "Mass Confusion"},
-		{72, "Mass Ice Strike"},
-		{73, "Cloud Kill"},
-		{74, "Lightning Strike"},
-		{75, "Trance"},
-		{76, "Cancellation"},
-		{77, "Illusion Movement"},
-		{78, "Divine Revenge"},
-		{80, "Illusion"},
-		{81, "Meteor Strike"},
-		{82, "Warrior Spirit"},
-		{83, "Inhibition Casting"},
-		{84, "Magic Drain"},
-		{85, "Blizzard"},
-		{86, "Regenerate"},
-		{87, "Magic Mantle"},
-		{88, "Entangle"},
-		{90, "Mass Illusion"},
-		{91, "Mass Blizzard"},
-		{92, "Mass Armor Break"},
-		{93, "Mass Lightning Strike"},
-		{94, "Resurrection"},
-		{95, "Mass Illusion Movement"},
-		{96, "Earth Shock Wave"},
-		{97, "Explosion"},
-		{98, "Medusa Kiss"},
-	}
-
-	for _, tt := range tests {
-		spell := GetSpellDef(tt.id)
-		if spell == nil {
-			t.Errorf("Original spell %d (%s) not found in SpellDB", tt.id, tt.name)
-			continue
-		}
-		if spell.Name != tt.name {
-			t.Errorf("Spell %d: expected name=%q, got %q", tt.id, tt.name, spell.Name)
-		}
+	if !(Dice{}).IsZero() {
+		t.Error("empty dice should be zero")
 	}
 }

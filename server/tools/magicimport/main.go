@@ -3,11 +3,16 @@
 //
 // Usage:
 //
-//	go run ./server/tools/magicimport/ > server/internal/magic/spelldefs_gen.go
+//	go run ./server/tools/magicimport/ [-cfg path/to/Magic.cfg] > server/internal/magic/spelldefs_gen.go
+//
+// The v3.82 Magic.cfg ships in the Equilibrium server files
+// (github.com/play-helbreath/helbreath-equilibrium, server/Core/Magic.cfg).
+// Spell behaviour follows the original server's DEF_MAGICTYPE_* handling.
 package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -48,16 +53,21 @@ type rawSpell struct {
 }
 
 func main() {
-	repoRoot := os.Getenv("REPO_ROOT")
-	if repoRoot == "" {
-		cwd, _ := os.Getwd()
-		repoRoot = findRepoRoot(cwd)
-		if repoRoot == "" {
-			log.Fatal("Cannot determine repo root. Set REPO_ROOT env variable.")
-		}
-	}
+	cfgPath := flag.String("cfg", "", "path to Magic.cfg (default: <repo>/helbreath-v3.82-master/Server/Core/Magic.cfg)")
+	flag.Parse()
 
-	path := filepath.Join(repoRoot, "helbreath-v3.82-master/Server/Core/Magic.cfg")
+	path := *cfgPath
+	if path == "" {
+		repoRoot := os.Getenv("REPO_ROOT")
+		if repoRoot == "" {
+			cwd, _ := os.Getwd()
+			repoRoot = findRepoRoot(cwd)
+			if repoRoot == "" {
+				log.Fatal("Cannot determine repo root. Set REPO_ROOT env variable or pass -cfg.")
+			}
+		}
+		path = filepath.Join(repoRoot, "helbreath-v3.82-master/Server/Core/Magic.cfg")
+	}
 	spells, err := parseCfgFile(path)
 	if err != nil {
 		log.Fatalf("parsing %s: %v", path, err)
@@ -109,6 +119,9 @@ func parseCfgFile(path string) ([]rawSpell, error) {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "WARN: skipping: %v: %q\n", err, trimmed)
 			continue
+		}
+		if strings.HasPrefix(spell.Name, "Test-Spell") {
+			continue // developer placeholders in the original file, never learnable
 		}
 		spells = append(spells, spell)
 	}
@@ -184,20 +197,90 @@ func atoi(s string) (int, error) {
 // Spell type classification
 // ---------------------------------------------------------------------------
 
+// dice is one Magic.cfg effect group: count, sides, bonus.
+type dice struct{ count, sides, bonus int }
+
+func (d dice) zero() bool { return d.count <= 0 && d.bonus <= 0 }
+
+func (d dice) min() int {
+	if d.sides <= 0 {
+		return d.bonus
+	}
+	return d.count + d.bonus
+}
+
+func (d dice) max() int {
+	if d.sides <= 0 {
+		return d.bonus
+	}
+	return d.count*d.sides + d.bonus
+}
+
+func (d dice) goLiteral() string {
+	return fmt.Sprintf("Dice{Count: %d, Sides: %d, Bonus: %d}", d.count, d.sides, d.bonus)
+}
+
+// hitPattern is where a damage spell lands, following the original server's
+// switch on DEF_MAGICTYPE_* in its magic handler. Range1/Range2 (the cfg's
+// "range23", sValue2/3) are the half-size of the box around the clicked tile;
+// effect groups 1 and 2 are sValue4-6 and sValue7-9.
+type hitPattern struct {
+	areaX, areaY int
+	line         bool
+	centre       dice // extra on the clicked tile
+	area         dice // everyone in the box
+	lineDice     dice // everyone on the line from the caster
+}
+
+func (h hitPattern) damages() bool {
+	return !h.centre.zero() || !h.area.zero() || !h.lineDice.zero()
+}
+
+func spellHitPattern(s rawSpell) hitPattern {
+	g1 := dice{s.Eff1, s.Eff2, s.Eff3}
+	g2 := dice{s.Eff4, s.Eff5, s.Eff6}
+	g3 := dice{s.Eff7, s.Eff8, s.Eff9}
+	box := hitPattern{areaX: s.Range1, areaY: s.Range2}
+
+	switch s.CfgType {
+	case 1, 24: // DAMAGE_SPOT, DAMAGE_SPOT_RANDOM: whoever is on the tile
+		return hitPattern{centre: g1}
+	case 3: // DAMAGE_AREA: tile gets g1, box gets g2
+		box.centre, box.area = g1, g2
+	case 21, 22, 28: // DAMAGE_AREA_NOSPOT, TREMOR, DAMAGE_AREA_ARMOR_BREAK: box only, g2
+		box.area = g2
+	case 23, 25, 52: // ICE (also freezes, g3 count = seconds), DAMAGE_AREA_NOSPOT_SPDOWN, EXPLOSION: box only, g1
+		box.area = g1
+	case 19, 26: // DAMAGE_LINEAR, ICE_LINEAR: line and box get g2, tile gets g1
+		box.line, box.centre, box.area, box.lineDice = true, g1, g2, g2
+	case 30: // DAMAGE_LINEAR_SPDOWN: box gets g1, line gets g2
+		box.line, box.area, box.lineDice = true, g1, g2
+	case 14: // CREATE_DYNAMIC (Fire Wall, Spike Field, clouds): a lasting field in
+		// the original; one hit with its first non-empty effect group for now
+		for _, g := range []dice{g1, g2, g3} {
+			if !g.zero() && g.sides > 0 {
+				box.area = g
+				break
+			}
+		}
+	default:
+		return hitPattern{}
+	}
+	return box
+}
+
 // mapSpellType converts the original Helbreath CfgType to our SpellType string.
 func mapSpellType(s rawSpell) string {
+	if h := spellHitPattern(s); h.damages() {
+		if h.line || h.areaX > 0 || h.areaY > 0 {
+			return "SpellTypeAOE"
+		}
+		return "SpellTypeDamage"
+	}
+
 	switch s.CfgType {
-	// Direct damage spells
-	case 1: // Magic Missile, Lightning Arrow, Mass Lightning Arrow
-		return "SpellTypeDamage"
-	case 3: // Energy Bolt, Fire Ball, Fire Strike, Meteor Strike, etc.
-		return "SpellTypeDamage"
-	case 5: // Staminar Drain
-		return "SpellTypeDamage"
-	case 24: // Lightning (single target)
-		return "SpellTypeDamage"
-	case 37: // Lightning Arrow (alt)
-		return "SpellTypeDamage"
+	case 5: // SPDOWN_AREA (Staminar Drain): drains stamina, no damage
+		return "SpellTypeDebuff"
 
 	// Heal spells
 	case 2: // Heal, Great Heal, Critical Heal, Regenerate
@@ -233,26 +316,6 @@ func mapSpellType(s rawSpell) string {
 		return "SpellTypeDebuff"
 	case 50: // Magic Drain
 		return "SpellTypeDebuff"
-
-	// AoE spells
-	case 14: // Fire Wall, Fire Field, Poison Cloud, Spike Field, Ice Storm, Cloud Kill
-		return "SpellTypeAOE"
-	case 19: // Lightning Bolt (AoE), Bloody Shock Wave
-		return "SpellTypeAOE"
-	case 21: // Energy Strike, Abaddons (AoE area damage)
-		return "SpellTypeAOE"
-	case 22: // Tremor
-		return "SpellTypeAOE"
-	case 23: // Chill Wind, Ice Strike, Mass Chill Wind, Mass Ice Strike
-		return "SpellTypeAOE"
-	case 25: // Earthworm Strike
-		return "SpellTypeAOE"
-	case 26: // Blizzard, Mass Blizzard
-		return "SpellTypeAOE"
-	case 30: // Earth Shock Wave
-		return "SpellTypeAOE"
-	case 52: // Explosion
-		return "SpellTypeAOE"
 
 	// Summon
 	case 9: // Summon Creature
@@ -305,6 +368,8 @@ func mapElement(attr int) string {
 // mapApplyEffect determines which status effect a spell should apply.
 func mapApplyEffect(s rawSpell) (effectName string, level int) {
 	switch s.CfgType {
+	case 23: // ICE: freezes whoever it hits (for Eff7 seconds, see calcDuration)
+		return "EffectIce", 1
 	case 12: // Hold/Paralyze/Entangle/Medusa
 		level = s.Eff1
 		if level <= 0 {
@@ -327,19 +392,18 @@ func mapApplyEffect(s rawSpell) (effectName string, level int) {
 			return "EffectPoison", 1
 		}
 		return "", 0
-	case 11: // Defense shields
-		level = s.Eff1
-		if level <= 0 {
-			level = 1
+	case 11: // PROTECT: Eff1 picks the kind, as in the original server
+		switch s.Eff1 {
+		case 2: // Protection From Magic
+			return "EffectMagicProtection", 1
+		case 3: // Defense Shield
+			return "EffectDefenseShield", 1
+		case 4: // Great Defense Shield
+			return "EffectDefenseShield", 2
+		case 5: // Absolute Magic Protection
+			return "EffectMagicProtection", 3
 		}
-		switch {
-		case level >= 5:
-			return "EffectMagicProtection", 3 // Absolute Magic Protection
-		case level >= 3 || level == 2:
-			return "EffectMagicProtection", level // Protection From Magic
-		default:
-			return "EffectDefenseShield", level
-		}
+		return "", 0 // 1 = Protection From Arrow: no arrow protection effect yet
 	case 18: // Berserk/Trance/Prayer
 		nameUp := strings.ToUpper(s.Name)
 		if strings.Contains(nameUp, "BERSERK") {
@@ -363,39 +427,19 @@ func mapApplyEffect(s rawSpell) (effectName string, level int) {
 	return "", 0
 }
 
-// calcDamage extracts min/max damage from the effect groups.
-// Damage spells use dice notation: Eff1 * d(Eff2) + Eff3.
+// calcDamage is what the main target can take: the centre roll plus the area
+// roll (the clicked tile is inside the box too), or the line roll if there is
+// no box damage.
 func calcDamage(s rawSpell) (minDmg, maxDmg int) {
-	spType := mapSpellType(s)
-	if spType != "SpellTypeDamage" && spType != "SpellTypeAOE" {
+	h := spellHitPattern(s)
+	if !h.damages() {
 		return 0, 0
 	}
-
-	// Sum damage from all three effect groups where the dice values > 0.
-	// Each group: dice_count(Eff_n), dice_range(Eff_n+1), bonus(Eff_n+2)
-	// The "7" prefix in many fields means "use magic-level scaling" (e.g., 7 6 17).
-	// We compute base damage from the dice notation.
-	groups := [][3]int{
-		{s.Eff1, s.Eff2, s.Eff3},
-		{s.Eff4, s.Eff5, s.Eff6},
-		{s.Eff7, s.Eff8, s.Eff9},
+	other := h.area
+	if other.zero() {
+		other = h.lineDice
 	}
-
-	for _, g := range groups {
-		diceCount, diceRange, bonus := g[0], g[1], g[2]
-		if diceCount <= 0 || diceRange <= 0 {
-			// Some spells use bonus-only or are non-damage effect groups
-			if bonus > 0 && diceCount > 0 {
-				minDmg += diceCount + bonus
-				maxDmg += diceCount + bonus
-			}
-			continue
-		}
-		minDmg += diceCount + bonus
-		maxDmg += diceCount*diceRange + bonus
-	}
-
-	return minDmg, maxDmg
+	return h.centre.min() + other.min(), h.centre.max() + other.max()
 }
 
 // calcHealAmount extracts healing value from the spell.
@@ -428,83 +472,40 @@ func calcHealAmount(s rawSpell) int {
 	return avg
 }
 
-// calcRadius determines AoE radius from range values and effect groups.
+// calcRadius is the larger half-size of the damage box (0 = single tile).
 func calcRadius(s rawSpell) int {
-	spType := mapSpellType(s)
-	if spType != "SpellTypeAOE" {
+	h := spellHitPattern(s)
+	if !h.damages() {
 		return 0
 	}
-
-	// For AoE spells, the range determines how far the caster can cast,
-	// and some effect groups contain area info.
-	// Use Range1 as the radius for AoE spells, capped reasonably.
-	r := s.Range1
-	if r > 5 {
-		r = 5
-	}
-	if r < 1 {
-		r = 1
-	}
-	return r
+	return max(h.areaX, h.areaY)
 }
 
-// calcRange determines the casting range in tiles.
-func calcRange(s rawSpell) int {
-	// Range values in cfg: typically Range1 and Range2 are the same.
-	// For self-targeted spells (buffs on self), range is 0.
-	spType := mapSpellType(s)
+// screenRange marks spells cast anywhere on screen (magic.MaxCastRange).
+const screenRange = -1
 
-	switch spType {
-	case "SpellTypeHeal":
-		// Most heals are self-targeted in original HB
-		if s.Range1 <= 1 {
-			return 0
-		}
-		return s.Range1
-	case "SpellTypeBuff":
-		if s.Range1 <= 1 {
-			return 0
-		}
-		return s.Range1
-	case "SpellTypeTeleport":
+// calcRange is the casting range in tiles. Magic.cfg has no cast range: its
+// "range" columns are the hit box. Offensive spells reach anything on screen;
+// heals and buffs here are self-cast.
+func calcRange(s rawSpell) int {
+	switch mapSpellType(s) {
+	case "SpellTypeHeal", "SpellTypeBuff", "SpellTypeTeleport":
 		return 0
 	case "SpellTypeSummon":
 		return s.Range1
 	}
-
-	// For offensive spells, use the range value, minimum 1
-	r := s.Range1
-	if r < 1 {
-		r = 1
-	}
-	return r
+	return screenRange
 }
 
 // calcCooldown returns cooldown in ms from the Delay field (seconds).
+// calcCooldown is the original Delay column (seconds) when set, e.g.
+// Resurrection or the mantles. Otherwise the original had no cooldown beyond
+// the cast itself, so a spell can be recast once its cast time has passed.
 func calcCooldown(s rawSpell) int {
-	if s.Delay <= 0 {
-		// Default cooldowns based on spell type
-		spType := mapSpellType(s)
-		switch spType {
-		case "SpellTypeDamage":
-			return 2000
-		case "SpellTypeAOE":
-			return 4000
-		case "SpellTypeHeal":
-			return 3000
-		case "SpellTypeBuff":
-			return 10000
-		case "SpellTypeDebuff":
-			return 8000
-		case "SpellTypeSummon":
-			return 30000
-		case "SpellTypeTeleport":
-			return 60000
-		default:
-			return 5000
-		}
+	if s.Delay > 0 {
+		return s.Delay * 1000
 	}
-	return s.Delay * 1000
+	return calcCastTime(s)
 }
 
 // calcCastTime returns cast time in ms based on spell tier.
@@ -529,6 +530,9 @@ func calcCastTime(s rawSpell) int {
 
 // calcDuration returns duration in seconds from the Last field.
 func calcDuration(s rawSpell) int {
+	if s.CfgType == 23 && s.Eff7 > 0 {
+		return s.Eff7 // ICE: freeze seconds (the original's sValue10)
+	}
 	if s.Last > 0 {
 		return s.Last
 	}
@@ -564,12 +568,10 @@ func generate(spells []rawSpell) {
 
 	p("// Code generated by tools/magicimport; DO NOT EDIT.\n")
 	p("//\n")
-	p("// Source: helbreath-v3.82-master/Server/Core/Magic.cfg\n")
-	p("// Contains all %d original Helbreath spells.\n", len(spells))
+	p("// Source: Helbreath v3.82 Server/Core/Magic.cfg\n")
+	p("// Contains all %d original Helbreath spells, at their original IDs.\n", len(spells))
 	p("package magic\n\n")
-	p("// initGeneratedSpells registers all spells parsed from the original Magic.cfg.\n")
-	p("// Spells are only added if the ID is not already present in SpellDB,\n")
-	p("// allowing hand-written definitions to take precedence.\n")
+	p("// init registers every spell parsed from the original Magic.cfg.\n")
 	p("func init() {\n")
 
 	for _, s := range spells {
@@ -639,25 +641,9 @@ func generate(spells []rawSpell) {
 			learnCost = 0
 		}
 
-		// ReqLevel approximation from ReqINT
+		// Magic.cfg's only learning requirement is INT ("ReqInt"); the original
+		// had no level or MAG requirement for learning.
 		reqLevel := 0
-		if s.ReqINT <= 20 {
-			reqLevel = 1
-		} else if s.ReqINT <= 30 {
-			reqLevel = 5
-		} else if s.ReqINT <= 50 {
-			reqLevel = 10
-		} else if s.ReqINT <= 80 {
-			reqLevel = 15
-		} else if s.ReqINT <= 120 {
-			reqLevel = 20
-		} else if s.ReqINT <= 160 {
-			reqLevel = 25
-		} else if s.ReqINT <= 200 {
-			reqLevel = 30
-		} else {
-			reqLevel = 35
-		}
 
 		// SpriteID = spell ID (client can map these)
 		spriteID := s.ID
@@ -677,40 +663,57 @@ func generate(spells []rawSpell) {
 			soundID = 45
 		}
 
-		p("\tif SpellDB[%d] == nil {\n", s.ID)
-		p("\t\tSpellDB[%d] = &SpellDef{\n", s.ID)
-		p("\t\t\tID: %d, Name: %q,\n", s.ID, name)
-		p("\t\t\tType: %s, Element: %s,\n", spType, element)
-		p("\t\t\tManaCost: %d, CastTime: %d, Cooldown: %d, Range: %d,\n",
-			s.Mana, castTime, cooldown, rng)
+		rngExpr := strconv.Itoa(rng)
+		if rng == screenRange {
+			rngExpr = "MaxCastRange"
+		}
+		hit := spellHitPattern(s)
 
-		if radius > 0 {
-			p("\t\t\tRadius: %d,\n", radius)
+		p("\tSpellDB[%d] = &SpellDef{\n", s.ID)
+		p("\t\tID: %d, Name: %q, CfgType: %d,\n", s.ID, name, s.CfgType)
+		p("\t\tType: %s, Element: %s,\n", spType, element)
+		p("\t\tManaCost: %d, CastTime: %d, Cooldown: %d, Range: %s,\n",
+			s.Mana, castTime, cooldown, rngExpr)
+
+		if hit.damages() {
+			if hit.areaX > 0 || hit.areaY > 0 {
+				p("\t\tAreaX: %d, AreaY: %d, Radius: %d,\n", hit.areaX, hit.areaY, radius)
+			}
+			if hit.line {
+				p("\t\tLine: true,\n")
+			}
+			if !hit.centre.zero() {
+				p("\t\tCentreDice: %s,\n", hit.centre.goLiteral())
+			}
+			if !hit.area.zero() {
+				p("\t\tAreaDice: %s,\n", hit.area.goLiteral())
+			}
+			if !hit.lineDice.zero() {
+				p("\t\tLineDice: %s,\n", hit.lineDice.goLiteral())
+			}
 		}
 		if minDmg > 0 || maxDmg > 0 {
-			p("\t\t\tMinDamage: %d, MaxDamage: %d,\n", minDmg, maxDmg)
+			p("\t\tMinDamage: %d, MaxDamage: %d,\n", minDmg, maxDmg)
 		}
 		if healAmt > 0 {
-			p("\t\t\tHealAmount: %d,\n", healAmt)
+			p("\t\tHealAmount: %d,\n", healAmt)
 		}
 		if duration > 0 {
-			p("\t\t\tDuration: %d,\n", duration)
+			p("\t\tDuration: %d,\n", duration)
 		}
 		if buffStat > 0 {
-			p("\t\t\tBuffStat: %d, BuffAmount: %d,\n", buffStat, buffAmount)
+			p("\t\tBuffStat: %d, BuffAmount: %d,\n", buffStat, buffAmount)
 		}
-		p("\t\t\tReqLevel: %d, ReqMAG: %d, ReqINT: %d,\n",
-			reqLevel, s.ReqINT, s.ReqINT)
-		p("\t\t\tSpriteID: %d, SoundID: %d,\n", spriteID, soundID)
+		p("\t\tReqLevel: %d, ReqMAG: 0, ReqINT: %d,\n", reqLevel, s.ReqINT)
+		p("\t\tSpriteID: %d, SoundID: %d,\n", spriteID, soundID)
 
 		if effectName != "" && effectLevel > 0 {
-			p("\t\t\tApplyEffect: %s, EffectLevel: %d,\n", effectName, effectLevel)
+			p("\t\tApplyEffect: %s, EffectLevel: %d,\n", effectName, effectLevel)
 		}
 		if tickDmg > 0 {
-			p("\t\t\tTickDamage: %d, TickIntervalMs: %d,\n", tickDmg, tickInterval)
+			p("\t\tTickDamage: %d, TickIntervalMs: %d,\n", tickDmg, tickInterval)
 		}
 
-		p("\t\t}\n")
 		p("\t}\n\n")
 	}
 

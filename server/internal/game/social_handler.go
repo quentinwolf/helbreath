@@ -820,6 +820,21 @@ func (e *Engine) handlePvPAttack(attacker, target *player.Player) {
 	}
 
 	if result.Killed {
+		e.onPlayerKilledByPlayer(attacker, target)
+	}
+
+	// SP cost
+	attacker.SP -= 3
+	if attacker.SP < 0 {
+		attacker.SP = 0
+	}
+	e.sendStatUpdate(attacker)
+}
+
+// onPlayerKilledByPlayer applies PK/EK tracking, reputation and kill rewards,
+// then handles the victim's death. Shared by melee and spell kills.
+func (e *Engine) onPlayerKilledByPlayer(attacker, target *player.Player) {
+	{
 		// PK tracking
 		sameFaction := target.Side != 0 && attacker.Side != 0 && target.Side == attacker.Side
 		enemyFaction := target.Side != 0 && attacker.Side != 0 && target.Side != attacker.Side
@@ -863,13 +878,6 @@ func (e *Engine) handlePvPAttack(attacker, target *player.Player) {
 		e.sendPKStatus(attacker)
 		e.handlePlayerDeath(target, attacker.ObjectID, attacker.Name, false)
 	}
-
-	// SP cost
-	attacker.SP -= 3
-	if attacker.SP < 0 {
-		attacker.SP = 0
-	}
-	e.sendStatUpdate(attacker)
 }
 
 func (e *Engine) sendPKStatus(p *player.Player) {

@@ -3,6 +3,7 @@ package game
 import (
 	"fmt"
 	"log"
+	"math"
 	"math/rand"
 	"time"
 
@@ -17,6 +18,9 @@ import (
 )
 
 // handleSpellCast handles a spell cast request from a player.
+//
+// As in the original game, spells are cast at a tile. The client snaps a click
+// to a nearby creature and sends its ID, otherwise just the tile.
 func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastRequest) {
 	p := e.getPlayerByClient(client)
 	if p == nil || p.HP <= 0 {
@@ -40,8 +44,10 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 		return
 	}
 
+	tx, ty, targetID := e.resolveSpellTarget(p, req)
+
 	// Check the target before spending anything, so a misclick costs no mana or cooldown
-	if reason := e.validateSpellTarget(p, spellDef, req); reason != "" {
+	if reason := e.validateSpellTarget(p, spellDef, tx, ty, targetID); reason != "" {
 		e.sendNotification(p, reason, 2)
 		return
 	}
@@ -50,6 +56,17 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 	if !p.GodMode {
 		p.MP -= spellDef.ManaCost
 		p.StartCooldown(spellDef.ID, spellDef.Cooldown)
+	}
+
+	offensive := spellDef.DealsDamage() || spellDef.Type == magic.SpellTypeDebuff
+	if offensive {
+		if tx != p.X || ty != p.Y {
+			p.Direction = directionTo(p.X, p.Y, tx, ty)
+		}
+		// Casting an offensive spell breaks invisibility
+		if p.Effects != nil && p.Effects.HasEffect(magic.EffectInvisibility) {
+			p.Effects.RemoveEffect(magic.EffectInvisibility)
+		}
 	}
 
 	// Broadcast casting animation
@@ -63,18 +80,15 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 	}
 	e.broadcastToNearby(gm, p.X, p.Y, -1, network.MsgMotionEvent, castMotion)
 
-	// Apply spell effect based on type
-	switch spellDef.Type {
-	case magic.SpellTypeDamage:
-		e.handleDamageSpell(p, spellDef, req.TargetId, gm)
-	case magic.SpellTypeAOE:
-		e.handleAOESpell(p, spellDef, req.TargetPosition, gm)
-	case magic.SpellTypeHeal:
+	switch {
+	case spellDef.DealsDamage():
+		e.castDamageSpell(p, spellDef, tx, ty, gm)
+	case spellDef.Type == magic.SpellTypeHeal:
 		e.handleHealSpell(p, spellDef, gm)
-	case magic.SpellTypeBuff:
+	case spellDef.Type == magic.SpellTypeBuff:
 		e.handleBuffSpell(p, spellDef, gm)
-	case magic.SpellTypeDebuff:
-		e.handleDebuffSpell(p, spellDef, req.TargetId, gm)
+	case spellDef.Type == magic.SpellTypeDebuff:
+		e.handleDebuffSpell(p, spellDef, targetID, gm)
 	}
 
 	// Gain magic skill mastery
@@ -88,212 +102,265 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 	e.sendStatUpdate(p)
 }
 
-// validateSpellTarget mirrors the target checks in the per-type handlers below.
-// It returns "" when the cast can go ahead, or the message to show the player.
-func (e *Engine) validateSpellTarget(p *player.Player, spell *magic.SpellDef, req *pb.SpellCastRequest) string {
-	switch spell.Type {
-	case magic.SpellTypeDamage, magic.SpellTypeDebuff:
-		if req.TargetId == 0 {
-			return "No target selected"
+// resolveSpellTarget returns the tile a spell lands on and whoever stands
+// there (0 if nobody). A named target wins over the clicked tile, so a click
+// near a moving monster still lands on it.
+func (e *Engine) resolveSpellTarget(p *player.Player, req *pb.SpellCastRequest) (tx, ty int, targetID int32) {
+	if req.TargetId != 0 {
+		if x, y, ok := e.livingObjectPosition(p.MapName, req.TargetId); ok && req.TargetId != p.ObjectID {
+			return x, y, req.TargetId
 		}
-		if val, isNPC := e.npcs.Load(req.TargetId); isNPC {
-			n := val.(*npc.NPC)
-			if !n.IsAlive() || n.MapName != p.MapName {
-				return "No target selected"
-			}
-			if n.DistanceTo(p.X, p.Y) > spell.Range {
-				return "Target out of range"
-			}
-			return ""
+	}
+	if req.TargetPosition == nil {
+		return p.X, p.Y, 0
+	}
+	tx, ty = int(req.TargetPosition.GetX()), int(req.TargetPosition.GetY())
+	return tx, ty, e.livingObjectAt(p.MapName, tx, ty, p.ObjectID)
+}
+
+// livingObjectPosition finds a living NPC or player on the given map.
+func (e *Engine) livingObjectPosition(mapName string, id int32) (x, y int, ok bool) {
+	if val, isNPC := e.npcs.Load(id); isNPC {
+		n := val.(*npc.NPC)
+		if n.IsAlive() && n.MapName == mapName {
+			return n.X, n.Y, true
 		}
-		t := e.getPlayerByID(req.TargetId)
-		if t == nil || t.HP <= 0 || t.MapName != p.MapName {
-			return "No target selected"
+		return 0, 0, false
+	}
+	if t := e.getPlayerByID(id); t != nil && t.HP > 0 && t.MapName == mapName {
+		return t.X, t.Y, true
+	}
+	return 0, 0, false
+}
+
+// livingObjectAt returns the living NPC or player standing on a tile, ignoring
+// the given object (the caster).
+func (e *Engine) livingObjectAt(mapName string, x, y int, ignore int32) int32 {
+	var found int32
+	e.npcs.Range(func(_, value any) bool {
+		n := value.(*npc.NPC)
+		if n.IsAlive() && n.MapName == mapName && n.X == x && n.Y == y {
+			found = n.ObjectID
+			return false
 		}
-		// handleDamageSpell only damages NPCs so far; don't charge for a cast that does nothing
-		if spell.Type == magic.SpellTypeDamage {
-			return "That spell can only target monsters"
+		return true
+	})
+	if found != 0 {
+		return found
+	}
+	e.players.Range(func(_, value any) bool {
+		t := value.(*player.Player)
+		if t.ObjectID != ignore && t.HP > 0 && t.MapName == mapName && t.X == x && t.Y == y {
+			found = t.ObjectID
+			return false
 		}
-		if abs(p.X-t.X)+abs(p.Y-t.Y) > spell.Range {
-			return "Target out of range"
+		return true
+	})
+	return found
+}
+
+// validateSpellTarget returns "" when the cast can go ahead, or the message to
+// show the player. It runs before mana or cooldown is spent.
+func (e *Engine) validateSpellTarget(p *player.Player, spell *magic.SpellDef, tx, ty int, targetID int32) string {
+	if spell.Range > 0 && max(abs(tx-p.X), abs(ty-p.Y)) > spell.Range {
+		return "Target out of range"
+	}
+	if !spell.NeedsTarget() {
+		return ""
+	}
+	if targetID == 0 {
+		return "No target selected"
+	}
+	if t := e.getPlayerByID(targetID); t != nil && !spellCanHitPlayer(p, t) {
+		if t.Side != 0 && t.Side == p.Side {
+			return "Cannot attack a member of your own faction"
 		}
-	case magic.SpellTypeAOE:
-		tx, ty := int(req.TargetPosition.GetX()), int(req.TargetPosition.GetY())
-		if max(abs(tx-p.X), abs(ty-p.Y)) > spell.Range {
-			return "Target location out of range"
-		}
+		return "No target selected"
 	}
 	return ""
 }
 
-// handleDamageSpell handles single-target damage spells.
-func (e *Engine) handleDamageSpell(p *player.Player, spell *magic.SpellDef, targetID int32, gm *mapdata.GameMap) {
-	if targetID == 0 {
-		e.sendNotification(p, "No target selected", 2)
-		return
+// spellCanHitPlayer is the PvP rule for spells, the same one melee uses: never
+// yourself, never your own faction (Aresden or Elvine).
+func spellCanHitPlayer(caster, target *player.Player) bool {
+	if target == caster || target.HP <= 0 || target.MapName != caster.MapName || target.GodMode {
+		return false
 	}
-
-	// Try NPC target
-	npcVal, isNPC := e.npcs.Load(targetID)
-	if isNPC {
-		n := npcVal.(*npc.NPC)
-		if !n.IsAlive() || n.MapName != p.MapName {
-			return
-		}
-
-		dist := n.DistanceTo(p.X, p.Y)
-		if dist > spell.Range {
-			e.sendNotification(p, "Target out of range", 2)
-			return
-		}
-
-		// Calculate spell damage: base + MAG/3 + INT/4
-		damage := spell.MinDamage
-		dmgRange := spell.MaxDamage - spell.MinDamage
-		if dmgRange > 0 {
-			damage += rand.Intn(dmgRange + 1)
-		}
-		damage += p.EffectiveMAG()/3 + p.EffectiveINT()/4
-
-		// Element bonus
-		damage = applyElementBonus(damage, spell.Element)
-
-		// Defense reduction (capped at 60% for magic)
-		reduction := n.Type.Defense / 2
-		maxReduction := damage * 60 / 100
-		if reduction > maxReduction {
-			reduction = maxReduction
-		}
-		damage -= reduction
-		if damage < 1 {
-			damage = 1
-		}
-
-		// Break invisibility on spell cast
-		if p.Effects != nil && p.Effects.HasEffect(magic.EffectInvisibility) {
-			p.Effects.RemoveEffect(magic.EffectInvisibility)
-		}
-
-		killed := n.TakeDamage(damage)
-
-		// Send spell effect
-		e.broadcastSpellEffect(p, spell, targetID, p.X, p.Y, n.X, n.Y, damage, 0, false, gm)
-
-		// Send damage event
-		dmgEvent := &pb.DamageEvent{
-			AttackerId:  p.ObjectID,
-			TargetId:    n.ObjectID,
-			TargetType:  2,
-			Damage:      int32(damage),
-			TargetHp:    int32(n.HP),
-			TargetMaxHp: int32(n.MaxHP),
-		}
-		e.broadcastToNearby(gm, p.X, p.Y, -1, network.MsgDamageEvent, dmgEvent)
-
-		// NPC aggroes caster
-		if n.IsAlive() && n.TargetID == 0 {
-			n.TargetID = p.ObjectID
-			n.State = npc.StateChase
-		}
-
-		if killed {
-			e.handleNPCDeath(n, p, gm)
-		}
-
-		log.Printf("Spell %s hit NPC %s for %d damage", spell.Name, n.Type.Name, damage)
-	}
+	return !(target.Side != 0 && target.Side == caster.Side)
 }
 
-// handleAOESpell handles area of effect damage spells.
-func (e *Engine) handleAOESpell(p *player.Player, spell *magic.SpellDef, targetPos *pb.Vec2, gm *mapdata.GameMap) {
-	tx, ty := int(targetPos.GetX()), int(targetPos.GetY())
+// spellTileHit records which of a spell's rolls land on one tile.
+type spellTileHit struct{ centre, area, line bool }
 
-	// Check range to target location
-	dx := tx - p.X
-	dy := ty - p.Y
-	if dx < 0 {
-		dx = -dx
-	}
-	if dy < 0 {
-		dy = -dy
-	}
-	dist := dx
-	if dy > dist {
-		dist = dy
-	}
-	if dist > spell.Range {
-		e.sendNotification(p, "Target location out of range", 2)
-		return
+// spellHitTiles lays out a damage spell's footprint the way the original
+// server did: the clicked tile, a box around it, and for line spells the
+// tiles 2-9 steps out from the caster towards the target plus their four
+// neighbours.
+func spellHitTiles(spell *magic.SpellDef, cx, cy, tx, ty int) map[[2]int]spellTileHit {
+	hits := map[[2]int]spellTileHit{}
+	mark := func(x, y int, f func(h *spellTileHit)) {
+		h := hits[[2]int{x, y}]
+		f(&h)
+		hits[[2]int{x, y}] = h
 	}
 
-	// Send spell effect at target location
+	if !spell.CentreDice.IsZero() {
+		mark(tx, ty, func(h *spellTileHit) { h.centre = true })
+	}
+	if !spell.AreaDice.IsZero() {
+		for y := ty - spell.AreaY; y <= ty+spell.AreaY; y++ {
+			for x := tx - spell.AreaX; x <= tx+spell.AreaX; x++ {
+				mark(x, y, func(h *spellTileHit) { h.area = true })
+			}
+		}
+	}
+	if spell.Line && !spell.LineDice.IsZero() {
+		dist := max(abs(tx-cx), abs(ty-cy))
+		for i := 2; i < 10 && dist > 0; i++ {
+			lx := cx + int(math.Round(float64((tx-cx)*i)/float64(dist)))
+			ly := cy + int(math.Round(float64((ty-cy)*i)/float64(dist)))
+			for _, d := range [][2]int{{0, 0}, {-1, 0}, {1, 0}, {0, -1}, {0, 1}} {
+				mark(lx+d[0], ly+d[1], func(h *spellTileHit) { h.line = true })
+			}
+			if abs(lx-tx) <= 1 && abs(ly-ty) <= 1 {
+				break
+			}
+		}
+	}
+	return hits
+}
+
+// rollDice rolls an original-style damage roll: Count d Sides + Bonus.
+func rollDice(d magic.Dice) int {
+	total := d.Bonus
+	for i := 0; i < d.Count && d.Sides > 0; i++ {
+		total += 1 + rand.Intn(d.Sides)
+	}
+	return total
+}
+
+// rollSpellDamage is one victim's damage from the rolls that reach its tile.
+func rollSpellDamage(p *player.Player, spell *magic.SpellDef, h spellTileHit) int {
+	dmg := 0
+	if h.centre {
+		dmg += rollDice(spell.CentreDice)
+	}
+	if h.area {
+		dmg += rollDice(spell.AreaDice)
+	} else if h.line {
+		dmg += rollDice(spell.LineDice)
+	}
+	if dmg <= 0 {
+		return 0
+	}
+	if h.centre {
+		dmg += p.EffectiveMAG()/3 + p.EffectiveINT()/4
+	} else {
+		dmg += p.EffectiveMAG()/4 + p.EffectiveINT()/5
+	}
+	dmg = applyElementBonus(dmg, spell.Element)
+	if p.GodMode {
+		dmg *= 1000
+	}
+	return dmg
+}
+
+// castDamageSpell lands a damage spell on a tile and hits every monster and
+// enemy player inside its footprint.
+func (e *Engine) castDamageSpell(p *player.Player, spell *magic.SpellDef, tx, ty int, gm *mapdata.GameMap) {
+	hits := spellHitTiles(spell, p.X, p.Y, tx, ty)
+
+	// One effect for the whole cast; each victim's number comes with its DamageEvent
 	e.broadcastSpellEffect(p, spell, 0, p.X, p.Y, tx, ty, 0, 0, false, gm)
 
-	// Find all NPCs in radius
-	e.npcs.Range(func(key, value any) bool {
+	var npcVictims []*npc.NPC
+	e.npcs.Range(func(_, value any) bool {
 		n := value.(*npc.NPC)
-		if !n.IsAlive() || n.MapName != p.MapName {
-			return true
-		}
-
-		ndx := n.X - tx
-		ndy := n.Y - ty
-		if ndx < 0 {
-			ndx = -ndx
-		}
-		if ndy < 0 {
-			ndy = -ndy
-		}
-		ndist := ndx
-		if ndy > ndist {
-			ndist = ndy
-		}
-		if ndist > spell.Radius {
-			return true
-		}
-
-		// Calculate damage
-		damage := spell.MinDamage
-		dmgRange := spell.MaxDamage - spell.MinDamage
-		if dmgRange > 0 {
-			damage += rand.Intn(dmgRange + 1)
-		}
-		damage += p.EffectiveMAG()/4 + p.EffectiveINT()/5
-
-		damage = applyElementBonus(damage, spell.Element)
-
-		reduction := n.Type.Defense / 2
-		maxReduction := damage * 60 / 100
-		if reduction > maxReduction {
-			reduction = maxReduction
-		}
-		damage -= reduction
-		if damage < 1 {
-			damage = 1
-		}
-
-		killed := n.TakeDamage(damage)
-
-		dmgEvent := &pb.DamageEvent{
-			AttackerId:  p.ObjectID,
-			TargetId:    n.ObjectID,
-			TargetType:  2,
-			Damage:      int32(damage),
-			TargetHp:    int32(n.HP),
-			TargetMaxHp: int32(n.MaxHP),
-		}
-		e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgDamageEvent, dmgEvent)
-
-		if n.IsAlive() && n.TargetID == 0 {
-			n.TargetID = p.ObjectID
-			n.State = npc.StateChase
-		}
-
-		if killed {
-			e.handleNPCDeath(n, p, gm)
+		if n.IsAlive() && n.MapName == p.MapName {
+			if _, hit := hits[[2]int{n.X, n.Y}]; hit {
+				npcVictims = append(npcVictims, n)
+			}
 		}
 		return true
 	})
+	var playerVictims []*player.Player
+	e.players.Range(func(_, value any) bool {
+		t := value.(*player.Player)
+		if spellCanHitPlayer(p, t) {
+			if _, hit := hits[[2]int{t.X, t.Y}]; hit {
+				playerVictims = append(playerVictims, t)
+			}
+		}
+		return true
+	})
+
+	for _, n := range npcVictims {
+		dmg := rollSpellDamage(p, spell, hits[[2]int{n.X, n.Y}])
+		// Defense reduction (capped at 60% for magic)
+		dmg -= min(n.Type.Defense/2, dmg*60/100)
+		if dmg < 1 {
+			dmg = 1
+		}
+		killed := n.TakeDamage(dmg)
+		e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgDamageEvent, &pb.DamageEvent{
+			AttackerId:  p.ObjectID,
+			TargetId:    n.ObjectID,
+			TargetType:  2,
+			Damage:      int32(dmg),
+			TargetHp:    int32(n.HP),
+			TargetMaxHp: int32(n.MaxHP),
+		})
+		if n.IsAlive() && n.TargetID == 0 {
+			n.TargetID = p.ObjectID
+			n.State = npc.StateChase
+		}
+		if killed {
+			e.handleNPCDeath(n, p, gm)
+		}
+	}
+
+	for _, t := range playerVictims {
+		dmg := rollSpellDamage(p, spell, hits[[2]int{t.X, t.Y}])
+		// Protection From Magic halves spell damage; Absolute Magic Protection blocks it
+		if t.Effects != nil && t.Effects.HasEffect(magic.EffectMagicProtection) {
+			if t.Effects.GetEffectLevel(magic.EffectMagicProtection) >= 3 {
+				dmg = 0
+			} else {
+				dmg /= 2
+			}
+		}
+		if dmg <= 0 {
+			continue
+		}
+		t.HP -= dmg
+		killed := t.HP <= 0
+		if killed {
+			t.HP = 0
+		}
+		e.broadcastToNearby(gm, t.X, t.Y, -1, network.MsgDamageEvent, &pb.DamageEvent{
+			AttackerId:  p.ObjectID,
+			TargetId:    t.ObjectID,
+			TargetType:  1,
+			Damage:      int32(dmg),
+			TargetHp:    int32(t.HP),
+			TargetMaxHp: int32(t.MaxHP),
+		})
+		e.cancelLogoutOnDamage(t)
+		if !killed && spell.ApplyEffect == magic.EffectIce && t.Effects != nil {
+			t.Effects.AddEffect(&magic.ActiveEffect{
+				Type:      magic.EffectIce,
+				Level:     max(spell.EffectLevel, 1),
+				ExpiresAt: time.Now().Add(time.Duration(spell.Duration) * time.Second),
+				SourceID:  p.ObjectID,
+			})
+		}
+		e.sendStatUpdate(t)
+		if killed {
+			e.onPlayerKilledByPlayer(p, t)
+		}
+	}
+
+	log.Printf("Spell %s at (%d,%d): hit %d monsters, %d players", spell.Name, tx, ty, len(npcVictims), len(playerVictims))
 }
 
 // handleHealSpell handles self-heal spells.

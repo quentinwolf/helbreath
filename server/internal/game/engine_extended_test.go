@@ -978,49 +978,6 @@ func TestHandleDebuffSpellNoTarget(t *testing.T) {
 // handleAOESpell
 // ============================================================
 
-func TestHandleAOESpell(t *testing.T) {
-	e := makeTestEngine()
-	gm := makeTestGameMap(100, 100)
-	gm.Name = "test"
-	e.maps["test"] = gm
-
-	p := makeFullTestPlayer(1, "AOEMage")
-	p.MAG = 40
-	p.INT = 30
-
-	var spell *magic.SpellDef
-	for i := 1; i <= 100; i++ {
-		s := magic.GetSpellDef(i)
-		if s != nil && s.Type == magic.SpellTypeAOE {
-			spell = s
-			break
-		}
-	}
-	if spell == nil {
-		t.Skip("No AOE spell found")
-	}
-
-	npcType := npc.NpcTypes[10]
-	n := npc.NewNPC(100, npcType, "test", 52, 50)
-	e.npcs.Store(n.ObjectID, n)
-
-	targetPos := &pb.Vec2{X: 52, Y: 50}
-	e.handleAOESpell(p, spell, targetPos, gm)
-}
-
-func TestHandleAOESpellOutOfRange(t *testing.T) {
-	e := makeTestEngine()
-	gm := makeTestGameMap(200, 200)
-	e.maps["test"] = gm
-
-	p := makeFullTestPlayer(1, "Mage")
-	spell := &magic.SpellDef{ID: 99, Type: magic.SpellTypeAOE, Range: 5, Radius: 3, MinDamage: 10, MaxDamage: 20}
-
-	// Target way too far
-	targetPos := &pb.Vec2{X: 100, Y: 100}
-	e.handleAOESpell(p, spell, targetPos, gm) // should notify out of range
-}
-
 // ============================================================
 // handleMining / handleFishing
 // ============================================================
@@ -1823,54 +1780,6 @@ func TestSendTradeUpdate(t *testing.T) {
 // ============================================================
 // handleDamageSpell direct
 // ============================================================
-
-func TestHandleDamageSpellNoTarget(t *testing.T) {
-	e := makeTestEngine()
-	gm := makeTestGameMap(100, 100)
-	e.maps["test"] = gm
-
-	p := makeFullTestPlayer(1, "Mage")
-	spell := &magic.SpellDef{ID: 1, Type: magic.SpellTypeDamage, Range: 5, MinDamage: 10, MaxDamage: 20}
-
-	e.handleDamageSpell(p, spell, 0, gm) // no target
-}
-
-func TestHandleDamageSpellKillNPC(t *testing.T) {
-	e := makeTestEngine()
-	gm := makeTestGameMap(100, 100)
-	gm.Name = "test"
-	e.maps["test"] = gm
-
-	p := makeFullTestPlayer(1, "Mage")
-	p.MAG = 50
-	p.INT = 50
-	addPlayerToEngine(e, p)
-	gm.AddPlayerToSector(p.X, p.Y, p.ObjectID)
-
-	npcType := npc.NpcTypes[10]
-	n := npc.NewNPC(100, npcType, "test", 52, 50)
-	n.HP = 1
-	e.npcs.Store(n.ObjectID, n)
-
-	spell := &magic.SpellDef{ID: 1, Type: magic.SpellTypeDamage, Range: 10, MinDamage: 50, MaxDamage: 100}
-	e.handleDamageSpell(p, spell, n.ObjectID, gm)
-}
-
-func TestHandleDamageSpellOutOfRange(t *testing.T) {
-	e := makeTestEngine()
-	gm := makeTestGameMap(200, 200)
-	gm.Name = "test"
-	e.maps["test"] = gm
-
-	p := makeFullTestPlayer(1, "Mage")
-
-	npcType := npc.NpcTypes[10]
-	n := npc.NewNPC(100, npcType, "test", 150, 150) // far
-	e.npcs.Store(n.ObjectID, n)
-
-	spell := &magic.SpellDef{ID: 1, Type: magic.SpellTypeDamage, Range: 5, MinDamage: 10, MaxDamage: 20}
-	e.handleDamageSpell(p, spell, n.ObjectID, gm) // out of range
-}
 
 // ============================================================
 // broadcastToNearby / broadcastToMap
@@ -4105,40 +4014,6 @@ func TestPartyLeaveError(t *testing.T) {
 	addPlayerToEngine(e, p)
 
 	e.partyLeave(p) // not in a party
-}
-
-// handleAOESpell: kill NPC in AOE
-func TestHandleAOESpellKillNPC(t *testing.T) {
-	e := makeTestEngine()
-	gm := makeTestGameMap(100, 100)
-	e.maps["test"] = gm
-
-	p := makeFullTestPlayer(1, "Caster")
-	p.MAG = 100
-	p.INT = 100
-	addPlayerToEngine(e, p)
-
-	n := &npc.NPC{
-		ObjectID: 500,
-		Type:     npc.NpcTypes[10], // Slime
-		MapName:  "test",
-		X:        51, Y: 50,
-		HP: 1, MaxHP: 10,
-	}
-	e.npcs.Store(n.ObjectID, n)
-
-	spellDef := magic.GetSpellDef(5) // Fireball - AOE
-	if spellDef == nil {
-		t.Skip("AOE spell not available")
-	}
-
-	targetPos := &pb.Vec2{X: 51, Y: 50}
-	e.handleAOESpell(p, spellDef, targetPos, gm)
-
-	// NPC should be dead or damaged
-	if n.HP > 0 {
-		t.Logf("NPC survived AOE with %d HP (RNG)", n.HP)
-	}
 }
 
 // handleDebuffSpell: NPC out of range
