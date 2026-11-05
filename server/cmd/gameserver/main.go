@@ -28,6 +28,7 @@ func main() {
 	dbURL := flag.String("db", envOrDefault("DATABASE_URL", "postgres://hbonline:hbonline@localhost:5432/hbonline?sslmode=disable"), "PostgreSQL connection URL")
 	mapDir := flag.String("maps", envOrDefault("MAP_DIR", "assets/MAPDATA"), "Directory containing AMD map files")
 	memDB := flag.Bool("memdb", envOrDefault("MEMDB", "false") == "true", "Use in-memory store (development)")
+	saveFile := flag.String("savefile", envOrDefault("SAVE_FILE", ""), "With -memdb: keep accounts and characters in this JSON file between runs")
 	jwtSecret := flag.String("jwt-secret", envOrDefault("JWT_SECRET", "helbreath-xyz-secret-change-me"), "Secret key for JWT signing")
 	jwtExpiryStr := flag.String("jwt-expiry", envOrDefault("JWT_EXPIRY", "24h"), "JWT token expiration duration")
 	flag.Parse()
@@ -47,9 +48,16 @@ func main() {
 
 	var store db.DataStore
 
-	if *memDB {
+	if *memDB && *saveFile != "" {
+		fileStore, err := db.NewFileStore(*saveFile)
+		if err != nil {
+			log.Fatalf("Save file: %v", err)
+		}
+		store = fileStore
+		log.Printf("Using in-memory store saved to %s (no PostgreSQL required)", *saveFile)
+	} else if *memDB {
 		store = db.NewMemoryStore()
-		log.Println("Using in-memory store (no PostgreSQL required)")
+		log.Println("Using in-memory store (no PostgreSQL required, nothing is saved; add -savefile to keep data)")
 	} else {
 		pool, err := db.Connect(ctx, *dbURL)
 		if err != nil {

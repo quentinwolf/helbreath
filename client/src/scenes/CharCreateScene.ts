@@ -2,9 +2,26 @@ import Phaser from 'phaser';
 import { MessageHandler, CreateCharacterResponse } from '../network/MessageHandler';
 import * as Proto from '../network/Protocol';
 import { API_BASE } from '../env';
+import { IDLE_ANIMATION_FPS } from '../Config';
+import { GameAsset } from '../game/objects/GameAsset';
+import {
+  buildPlayerAssetConfigs,
+  getHumanSpriteName,
+  PlayerState,
+  PLAYER_ANIMATION_FRAME_COUNT,
+  type GearConfig,
+} from '../game/PlayerAppearanceManager';
+
+// Where the live preview stands on the 640x480 canvas (left of the form)
+const PREVIEW_X = 90;
+const PREVIEW_Y = 230;
+const DIRECTION_NAMES = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 
 export class CharCreateScene extends Phaser.Scene {
   private formDiv: HTMLDivElement | null = null;
+  private previewLayers: GameAsset[] = [];
+  private previewDirection = 4; // 0-7, start facing south (towards the player)
+  private previewLabel: Phaser.GameObjects.Text | null = null;
 
   constructor() {
     super({ key: 'CharCreateScene' });
@@ -68,6 +85,13 @@ export class CharCreateScene extends Phaser.Scene {
       }
     };
     statInputs.forEach(el => el.addEventListener('input', updateTotal));
+
+    // Live preview: redraw whenever gender, skin, hair style or underwear changes
+    const refreshPreview = () => this.renderPreview(this.readAppearance());
+    div.querySelectorAll('input[name="gender"], #skin-color, #hair-style, #underwear-color')
+      .forEach(el => el.addEventListener('change', refreshPreview));
+    this.createPreviewControls(refreshPreview);
+    refreshPreview();
 
     document.getElementById('create-btn')?.addEventListener('click', async () => {
       const name = (document.getElementById('char-name') as HTMLInputElement)?.value || '';
@@ -148,5 +172,63 @@ export class CharCreateScene extends Phaser.Scene {
       this.formDiv.remove();
       this.formDiv = null;
     }
+    this.previewLayers = []; // their sprites go down with the scene
+  }
+
+  private readAppearance(): { gender: number; skin: number; hairStyle: number; underwear: number } {
+    const num = (sel: string) => parseInt((document.querySelector(sel) as HTMLInputElement | null)?.value || '0');
+    return {
+      gender: num('input[name="gender"]:checked'),
+      skin: num('#skin-color'),
+      hairStyle: num('#hair-style'),
+      underwear: num('#underwear-color'),
+    };
+  }
+
+  /** Arrows under the preview to turn the character, plus a facing label. */
+  private createPreviewControls(refresh: () => void): void {
+    const style = { fontSize: '18px', color: '#FFD700', backgroundColor: '#222', padding: { x: 8, y: 2 } };
+    const turn = (step: number) => {
+      this.previewDirection = (this.previewDirection + step + 8) % 8;
+      refresh();
+    };
+    this.add.text(PREVIEW_X - 38, PREVIEW_Y + 50, '<', style).setOrigin(0.5)
+      .setInteractive({ useHandCursor: true }).on('pointerdown', () => turn(-1));
+    this.add.text(PREVIEW_X + 38, PREVIEW_Y + 50, '>', style).setOrigin(0.5)
+      .setInteractive({ useHandCursor: true }).on('pointerdown', () => turn(1));
+    this.previewLabel = this.add.text(PREVIEW_X, PREVIEW_Y + 50, '', { fontSize: '11px', color: '#aaa' }).setOrigin(0.5);
+  }
+
+  /**
+   * Draws the character standing, using the same layered sprites as the game
+   * (body by gender and skin, then hair and underwear).
+   */
+  private renderPreview(look: { gender: number; skin: number; hairStyle: number; underwear: number }): void {
+    for (const layer of this.previewLayers) layer.destroy();
+    this.previewLayers = [];
+
+    const state = PlayerState.IdlePeace;
+    const gear: GearConfig = {
+      human: getHumanSpriteName(look.gender, look.skin),
+      hairStyleIndex: look.hairStyle,
+      underwearColorIndex: look.underwear,
+    };
+    const framesPerDirection = PLAYER_ANIMATION_FRAME_COUNT[state] ?? 8;
+
+    buildPlayerAssetConfigs(this.previewDirection, state, gear).forEach((cfg, i) => {
+      const animKey = `${cfg.spriteName}-${cfg.spriteSheetIndex}`;
+      if (!this.anims.exists(animKey)) return;
+      try {
+        const layer = new GameAsset(this, { ...cfg, x: PREVIEW_X, y: PREVIEW_Y });
+        layer.playAnimationWithDirection(animKey, cfg.direction ?? 0, IDLE_ANIMATION_FPS,
+          undefined, undefined, cfg.framesPerDirection ?? framesPerDirection, cfg.animationType);
+        layer.setDepth(10 + i);
+        this.previewLayers.push(layer);
+      } catch {
+        // A missing frame just leaves that layer out of the preview
+      }
+    });
+
+    this.previewLabel?.setText(DIRECTION_NAMES[this.previewDirection]);
   }
 }

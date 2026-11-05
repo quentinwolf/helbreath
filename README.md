@@ -52,6 +52,13 @@ cd server
 go run ./cmd/gameserver
 ```
 
+If you wish to start the client with memdb but still allow saving to json use
+
+```bash
+cd server
+go run ./server/cmd/gameserver -memdb -savefile saves/dev.json
+```
+
 ### 4. Start the Client
 
 ```bash

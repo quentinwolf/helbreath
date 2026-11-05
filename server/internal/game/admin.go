@@ -71,6 +71,9 @@ func (e *Engine) handleAdminCommand(p *player.Player, message string) bool {
 
 	cmd := strings.ToLower(parts[0])
 	args := parts[1:]
+	if cmd == "spawn" {
+		cmd = "summon" // common name for it in other servers
+	}
 
 	// Player-level commands (no admin required)
 	switch cmd {
@@ -86,6 +89,10 @@ func (e *Engine) handleAdminCommand(p *player.Player, message string) bool {
 	requiredLevel := getRequiredLevel(cmd)
 	if p.AdminLevel < requiredLevel {
 		if p.AdminLevel > 0 {
+			if requiredLevel > AdminLevelServerAdmin {
+				e.sendNotification(p, "Unknown command: /"+cmd, 2)
+				return true
+			}
 			e.sendNotification(p, "Insufficient admin level for this command", 2)
 			return true
 		}

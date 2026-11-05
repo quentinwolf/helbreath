@@ -14,6 +14,7 @@ type MemoryStore struct {
 	characters    map[int]*CharacterRow // by character ID
 	nextAccountID int
 	nextCharID    int
+	path          string // JSON save file (NewFileStore); empty = memory only
 }
 
 type memAccount struct {
@@ -48,6 +49,7 @@ func (m *MemoryStore) CreateAccount(_ context.Context, username, passwordHash, e
 	uuid := fmt.Sprintf("mem-%d", id)
 	m.accounts[id] = &memAccount{ID: id, Username: username, PasswordHash: passwordHash, UUID: uuid}
 	m.accountsByName[username] = id
+	m.saveLocked()
 	return id, nil
 }
 
@@ -154,6 +156,7 @@ func (m *MemoryStore) CreateCharacter(_ context.Context, accountID int, name str
 		Hunger:         100,
 		AdminLevel:     4, // Dev mode: all characters start as Super GM
 	}
+	m.saveLocked()
 	return id, nil
 }
 
@@ -166,6 +169,7 @@ func (m *MemoryStore) MarkIntroShown(_ context.Context, charID int) error {
 		return fmt.Errorf("character not found")
 	}
 	c.IntroShown = true
+	m.saveLocked()
 	return nil
 }
 
@@ -178,6 +182,7 @@ func (m *MemoryStore) DeleteCharacter(_ context.Context, charID, accountID int) 
 		return fmt.Errorf("character not found")
 	}
 	delete(m.characters, charID)
+	m.saveLocked()
 	return nil
 }
 
@@ -193,6 +198,7 @@ func (m *MemoryStore) SaveCharacterPosition(_ context.Context, charID int, mapNa
 	c.PosX = x
 	c.PosY = y
 	c.Direction = direction
+	m.saveLocked()
 	return nil
 }
 
@@ -232,6 +238,7 @@ func (m *MemoryStore) SaveCharacter(_ context.Context, charID int, mapName strin
 	c.InventoryJSON = inventoryJSON
 	c.EquipmentJSON = equipmentJSON
 	c.SpellDataJSON = spellDataJSON
+	m.saveLocked()
 	return nil
 }
 

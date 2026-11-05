@@ -298,11 +298,16 @@ func TestEffectiveStats(t *testing.T) {
 	}
 }
 
+// testSpell is a minimal spell for exercising CanCastSpell's rules, independent
+// of the real spell data: no requirements, 8 mana.
+func testSpell() *magic.SpellDef {
+	return &magic.SpellDef{ID: 1, Name: "Test Bolt", ManaCost: 8}
+}
+
 func TestCanCastSpell(t *testing.T) {
 	p := makeTestPlayer()
 
-	// Energy Bolt: req level 1, MAG 10, cost 8 mana
-	eb := magic.GetSpellDef(1)
+	eb := testSpell()
 
 	// Not learned
 	can, reason := p.CanCastSpell(eb)
@@ -317,7 +322,7 @@ func TestCanCastSpell(t *testing.T) {
 	p.LearnSpell(1)
 	can, _ = p.CanCastSpell(eb)
 	if !can {
-		t.Error("Should be able to cast Energy Bolt")
+		t.Error("Should be able to cast a learned spell")
 	}
 
 	// Drain mana
@@ -347,7 +352,7 @@ func TestCanCastSpellDead(t *testing.T) {
 	p.LearnSpell(1)
 	p.HP = 0
 
-	can, reason := p.CanCastSpell(magic.GetSpellDef(1))
+	can, reason := p.CanCastSpell(testSpell())
 	if can {
 		t.Error("Dead player should not cast")
 	}
@@ -358,15 +363,14 @@ func TestCanCastSpellDead(t *testing.T) {
 
 func TestCanCastSpellRequirements(t *testing.T) {
 	p := makeTestPlayer()
-	p.Level = 5 // Below fireball req
+	p.Level = 5 // below the spell's level requirement
 
-	// Fireball: req level 10, MAG 18, INT 14
-	fb := magic.GetSpellDef(3)
+	fb := &magic.SpellDef{ID: 3, Name: "Test Fire", ManaCost: 8, ReqLevel: 10}
 	p.LearnSpell(3)
 
 	can, reason := p.CanCastSpell(fb)
 	if can {
-		t.Error("Level 5 should not cast Fireball")
+		t.Error("Level 5 should not cast a level 10 spell")
 	}
 	if reason != "Your level is too low" {
 		t.Errorf("Expected level reason, got: %s", reason)
@@ -398,8 +402,8 @@ func TestStartCooldown(t *testing.T) {
 
 func TestToSpellList(t *testing.T) {
 	p := makeTestPlayer()
-	p.LearnSpell(1) // Energy Bolt
-	p.LearnSpell(20) // Heal
+	p.LearnSpell(10) // Energy Bolt
+	p.LearnSpell(1)  // Heal
 
 	list := p.ToSpellList()
 	if len(list.Spells) != 2 {
@@ -451,7 +455,7 @@ func TestCanCastSpellSilenced(t *testing.T) {
 	p.LearnSpell(1)
 
 	// Should be able to cast normally
-	can, _ := p.CanCastSpell(magic.GetSpellDef(1))
+	can, _ := p.CanCastSpell(testSpell())
 	if !can {
 		t.Error("Should be able to cast before silence")
 	}
@@ -463,7 +467,7 @@ func TestCanCastSpellSilenced(t *testing.T) {
 		ExpiresAt: time.Now().Add(10 * time.Second),
 	})
 
-	can, reason := p.CanCastSpell(magic.GetSpellDef(1))
+	can, reason := p.CanCastSpell(testSpell())
 	if can {
 		t.Error("Should not cast while silenced")
 	}

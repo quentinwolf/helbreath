@@ -76,6 +76,9 @@ type Engine struct {
 	// PK decay timer
 	lastPKDecayCheck time.Time
 
+	// Periodic save of online players (otherwise only saved on logout/shutdown)
+	lastAutosave time.Time
+
 	// Teleport config
 	teleports mapdata.TeleportConfig
 
@@ -103,6 +106,7 @@ func NewEngine(store db.DataStore, jwtManager *auth.JWTManager) *Engine {
 		lastWorldSync:    now,
 		lastWeatherCheck: now,
 		lastPKDecayCheck: now,
+		lastAutosave:     now,
 		teleports:        mapdata.BuildTeleportConfig(),
 		shutdownChan:     make(chan struct{}),
 	}
@@ -225,6 +229,12 @@ func (e *Engine) processTick() {
 		e.processPKDecay(now)
 	}
 
+	// Autosave every online player so a crash or closed window loses at most a few minutes
+	if now.Sub(e.lastAutosave) >= AutosaveInterval {
+		e.lastAutosave = now
+		e.autosavePlayers()
+	}
+
 	// Process pending logouts
 	e.processLogouts(now)
 
@@ -234,6 +244,31 @@ func (e *Engine) processTick() {
 		e.processNPCTick(n, now)
 		return true
 	})
+}
+
+// AutosaveInterval is how often online players are saved.
+const AutosaveInterval = 2 * time.Minute
+
+// autosavePlayers saves every online player's full state.
+func (e *Engine) autosavePlayers() {
+	if e.store == nil {
+		return
+	}
+	saved := 0
+	e.players.Range(func(_, value any) bool {
+		p := value.(*player.Player)
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := savePlayerToDB(e.store, ctx, p); err != nil {
+			log.Printf("Autosave failed for %s: %v", p.Name, err)
+		} else {
+			saved++
+		}
+		cancel()
+		return true
+	})
+	if saved > 0 {
+		log.Printf("Autosaved %d player(s)", saved)
+	}
 }
 
 func (e *Engine) regenAllPlayers(stat string) {
@@ -449,10 +484,20 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 		}
 	}
 
+	// Nearest enemy: a player, or for monsters and guards an enemy NPC
+	var foundID int32
+	foundDist := 999
+	if nearestPlayer != nil {
+		foundID, foundDist = nearestPlayer.ObjectID, nearestDist
+	}
+	if enemy, d := e.findNearestEnemyNPC(n, aggroRange); enemy != nil && d < foundDist {
+		foundID, foundDist = enemy.ObjectID, d
+	}
+
 	switch n.State {
 	case npc.StateIdle:
-		if nearestPlayer != nil && nearestDist <= aggroRange {
-			n.TargetID = nearestPlayer.ObjectID
+		if foundID != 0 && foundDist <= aggroRange {
+			n.TargetID = foundID
 			n.State = npc.StateChase
 		} else if rand.Intn(5) == 0 {
 			// Random wander
@@ -460,8 +505,8 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 		}
 
 	case npc.StateWander:
-		if nearestPlayer != nil && nearestDist <= aggroRange {
-			n.TargetID = nearestPlayer.ObjectID
+		if foundID != 0 && foundDist <= aggroRange {
+			n.TargetID = foundID
 			n.State = npc.StateChase
 			return
 		}
@@ -508,14 +553,14 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 			return
 		}
 
-		target := e.getPlayerByID(n.TargetID)
-		if target == nil || target.HP <= 0 || target.MapName != n.MapName {
+		tx, ty, ok := e.npcTargetPosition(n)
+		if !ok {
 			n.TargetID = 0
 			n.State = npc.StateIdle
 			return
 		}
 
-		dist := n.DistanceTo(target.X, target.Y)
+		dist := n.DistanceTo(tx, ty)
 
 		// Give up if too far from spawn
 		spawnDist := n.DistanceTo(n.SpawnX, n.SpawnY)
@@ -536,7 +581,7 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 			return
 		}
 
-		dir := n.DirectionTo(target.X, target.Y)
+		dir := n.DirectionTo(tx, ty)
 		newX := n.X + dirDX[dir]
 		newY := n.Y + dirDY[dir]
 
@@ -554,14 +599,14 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 			return
 		}
 
-		target := e.getPlayerByID(n.TargetID)
-		if target == nil || target.HP <= 0 || target.MapName != n.MapName {
+		tx, ty, ok := e.npcTargetPosition(n)
+		if !ok {
 			n.TargetID = 0
 			n.State = npc.StateIdle
 			return
 		}
 
-		dist := n.DistanceTo(target.X, target.Y)
+		dist := n.DistanceTo(tx, ty)
 		if dist > 1 {
 			n.State = npc.StateChase
 			return
@@ -572,6 +617,18 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 			return
 		}
 		n.LastAttackTime = now
+
+		// Fighting another NPC (guard vs monster)
+		if val, isNPC := e.npcs.Load(n.TargetID); isNPC {
+			e.npcAttackNPC(n, val.(*npc.NPC), gm)
+			return
+		}
+		target := e.getPlayerByID(n.TargetID)
+		if target == nil {
+			n.TargetID = 0
+			n.State = npc.StateIdle
+			return
+		}
 
 		// Face the target
 		n.Direction = n.DirectionTo(target.X, target.Y)
@@ -622,12 +679,12 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 		}
 
 	case npc.StateFlee:
-		target := e.getPlayerByID(n.TargetID)
+		tx, ty, ok := e.npcTargetPosition(n)
 
 		// Stop fleeing if: fled 5+ tiles, or target gone/out of aggro range
-		targetGone := target == nil || target.HP <= 0 || target.MapName != n.MapName
+		targetGone := !ok
 		fleeDistReached := n.FleeDistance() >= 5
-		outOfSight := !targetGone && n.DistanceTo(target.X, target.Y) > n.Type.AggroRange
+		outOfSight := !targetGone && n.DistanceTo(tx, ty) > n.Type.AggroRange
 
 		if targetGone || fleeDistReached || outOfSight {
 			n.TargetID = 0
@@ -640,7 +697,7 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 			return
 		}
 
-		dir := n.DirectionAwayFrom(target.X, target.Y)
+		dir := n.DirectionAwayFrom(tx, ty)
 		newX := n.X + dirDX[dir]
 		newY := n.Y + dirDY[dir]
 
