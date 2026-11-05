@@ -46,9 +46,11 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 		return
 	}
 
-	// Deduct mana and start cooldown
-	p.MP -= spellDef.ManaCost
-	p.StartCooldown(spellDef.ID, spellDef.Cooldown)
+	// Deduct mana and start cooldown (god mode casts for free with no cooldown)
+	if !p.GodMode {
+		p.MP -= spellDef.ManaCost
+		p.StartCooldown(spellDef.ID, spellDef.Cooldown)
+	}
 
 	// Broadcast casting animation
 	castMotion := &pb.MotionEvent{
@@ -731,6 +733,9 @@ func (e *Engine) processEffectTicks(now time.Time) {
 		for _, evt := range events {
 			switch evt.EventType {
 			case magic.EffectEventPoisonDamage:
+				if p.GodMode {
+					continue // invulnerable: poison does nothing
+				}
 				p.HP -= evt.Damage
 				if p.HP <= 0 {
 					p.HP = 0

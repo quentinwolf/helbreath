@@ -381,7 +381,8 @@ func (e *Engine) adminSetFreeze(p *player.Player, args []string) {
 func (e *Engine) adminGod(p *player.Player) {
 	p.GodMode = !p.GodMode
 	if p.GodMode {
-		e.sendNotification(p, "God mode ON - Invulnerable, max damage", 1)
+		e.sendStatUpdate(p) // fills HP/MP/SP straight away
+		e.sendNotification(p, "God mode ON - Invulnerable, max damage, unlimited HP/MP/SP, no spell cooldowns", 1)
 	} else {
 		e.sendNotification(p, "God mode OFF", 1)
 	}

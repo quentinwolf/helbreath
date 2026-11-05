@@ -750,6 +750,9 @@ func (e *Engine) getPlayerByID(objectID int32) *player.Player {
 }
 
 func (e *Engine) sendStatUpdate(p *player.Player) {
+	// Every HP/MP/SP change ends with a stat update, so this one call keeps
+	// god mode topped up after stamina use, poison ticks and anything else.
+	p.RefillForGodMode()
 	update := &pb.StatUpdate{
 		Hp:         int32(p.HP),
 		MaxHp:      int32(p.MaxHP),

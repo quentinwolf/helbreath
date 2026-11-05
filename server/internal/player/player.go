@@ -431,6 +431,12 @@ func (p *Player) CanCastSpell(spellDef *magic.SpellDef) (bool, string) {
 	if p.INT < spellDef.ReqINT {
 		return false, "Not enough INT"
 	}
+	if p.HP <= 0 {
+		return false, "You are dead"
+	}
+	if p.GodMode {
+		return true, "" // god mode ignores mana and cooldowns
+	}
 	if p.MP < spellDef.ManaCost {
 		return false, "Not enough mana"
 	}
@@ -439,10 +445,15 @@ func (p *Player) CanCastSpell(spellDef *magic.SpellDef) (bool, string) {
 			return false, "Spell is on cooldown"
 		}
 	}
-	if p.HP <= 0 {
-		return false, "You are dead"
-	}
 	return true, ""
+}
+
+// RefillForGodMode keeps a god-mode player's HP, MP and SP at maximum.
+func (p *Player) RefillForGodMode() {
+	if !p.GodMode || p.HP <= 0 {
+		return
+	}
+	p.HP, p.MP, p.SP = p.MaxHP, p.MaxMP, p.MaxSP
 }
 
 // StartCooldown sets a spell's cooldown.
