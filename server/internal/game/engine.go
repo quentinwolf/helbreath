@@ -539,7 +539,7 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 		if foundID != 0 && foundDist <= aggroRange {
 			n.TargetID = foundID
 			n.State = npc.StateChase
-		} else if rand.Intn(5) == 0 {
+		} else if !n.Type.Stationary && rand.Intn(5) == 0 {
 			// Wander again after about a second (the original never rested at all)
 			n.State = npc.StateWander
 		}

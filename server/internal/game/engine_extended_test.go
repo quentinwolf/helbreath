@@ -2729,7 +2729,9 @@ func TestHandleLearnSpellWithReqs(t *testing.T) {
 	p.Level = 50
 	p.MAG = 50
 	p.INT = 50
+	p.Gold = 100000
 	addPlayerToEngine(e, p)
+	addWizardNear(e, p)
 	client := makeClientWithObjectID(p.ObjectID)
 
 	// Find a spell the player qualifies for

@@ -557,11 +557,56 @@ func (e *Engine) handleLearnSpell(client *network.Client, req *pb.LearnSpellRequ
 		return
 	}
 
+	// Gandalf sells spells (the original's magic shop); GMs can learn anywhere.
+	cost := int64(spellDef.GoldCost)
+	isGM := p.AdminLevel >= 1
+	if !isGM && !e.nearWizard(p) {
+		e.sendNotification(p, "Visit Gandalf in the Wizard Tower to learn spells", 2)
+		return
+	}
+	if cost < 0 {
+		if !isGM {
+			e.sendNotification(p, fmt.Sprintf("Gandalf doesn't teach %s: it's learnt from a manual", spellDef.Name), 2)
+			return
+		}
+		cost = 0 // not sold: free for GMs
+	}
+	if p.Gold < cost {
+		e.sendNotification(p, fmt.Sprintf("%s costs %d gold", spellDef.Name, cost), 2)
+		return
+	}
+
+	p.Gold -= cost
 	p.LearnSpell(spellDef.ID)
+	if cost > 0 {
+		e.sendStatUpdate(p) // gold first, so the Learn tab redraws with it
+	}
 	e.sendSpellList(p)
 	e.sendSpellCatalog(p)
-	e.sendNotification(p, fmt.Sprintf("Learned %s!", spellDef.Name), 3)
-	log.Printf("Player %s learned spell %s", p.Name, spellDef.Name)
+	if cost > 0 {
+		e.sendNotification(p, fmt.Sprintf("Learned %s for %d gold!", spellDef.Name, cost), 3)
+	} else {
+		e.sendNotification(p, fmt.Sprintf("Learned %s!", spellDef.Name), 3)
+	}
+	log.Printf("Player %s learned spell %s (%d gold)", p.Name, spellDef.Name, cost)
+}
+
+// wizardReach is how close to Gandalf you must be to buy a spell: anywhere in
+// his tower's main room, so the Learn panel keeps working while you browse.
+const wizardReach = 10
+
+// nearWizard reports whether a living Gandalf stands within wizardReach.
+func (e *Engine) nearWizard(p *player.Player) bool {
+	near := false
+	e.npcs.Range(func(_, v any) bool {
+		n := v.(*npc.NPC)
+		if n.Type.ID == npcWizard && n.IsAlive() && n.MapName == p.MapName && n.DistanceTo(p.X, p.Y) <= wizardReach {
+			near = true
+			return false
+		}
+		return true
+	})
+	return near
 }
 
 // handleSkillUse handles using a gathering/crafting skill.

@@ -52,6 +52,9 @@ type NpcType struct {
 	MoveSpeed   int // ms per tile movement
 	AttackSpeed int // ms between attacks
 	WanderRange int // max tiles from spawn to wander
+	// Stationary NPCs never walk (original NPC.cfg action limit 2, 3 or 5:
+	// shopkeepers and officers)
+	Stationary bool
 
 	// Dice-based damage (C++ port — authoritative for combat)
 	DiceThrow   int // number of dice for attack
@@ -258,16 +261,18 @@ var NpcTypes = map[int]*NpcType{
 	// ================================================================
 	// Town NPCs (stationary, non-aggressive)
 	// ================================================================
-	15: {ID: 15, Name: "ShopKeeper-W", SpriteType: 15, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral},
-	19: {ID: 19, Name: "Gandlf", SpriteType: 19, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral},
-	20: {ID: 20, Name: "Howard", SpriteType: 20, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral},
-	24: {ID: 24, Name: "Tom", SpriteType: 24, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral},
-	25: {ID: 25, Name: "William", SpriteType: 25, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral},
-	26: {ID: 26, Name: "Kennedy", SpriteType: 26, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral},
-	67: {ID: 67, Name: "McGaffin", SpriteType: 67, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral},
-	68: {ID: 68, Name: "Perry", SpriteType: 68, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral},
-	69: {ID: 69, Name: "Devlin", SpriteType: 69, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral},
-	90: {ID: 90, Name: "Gail", SpriteType: 90, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral},
+	// Speeds are NPC.cfg action times (one step per action time). Shop and office
+	// NPCs never move; McGaffin, Perry and Devlin stroll around town slowly.
+	15: {ID: 15, Name: "ShopKeeper-W", SpriteType: 15, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral, MoveSpeed: 15000, Stationary: true},
+	19: {ID: 19, Name: "Gandlf", SpriteType: 19, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral, MoveSpeed: 5000, Stationary: true},
+	20: {ID: 20, Name: "Howard", SpriteType: 20, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral, MoveSpeed: 30000, Stationary: true},
+	24: {ID: 24, Name: "Tom", SpriteType: 24, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral, MoveSpeed: 5000, Stationary: true},
+	25: {ID: 25, Name: "William", SpriteType: 25, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral, MoveSpeed: 5000, Stationary: true},
+	26: {ID: 26, Name: "Kennedy", SpriteType: 26, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral, MoveSpeed: 5000, Stationary: true},
+	67: {ID: 67, Name: "McGaffin", SpriteType: 67, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral, MoveSpeed: 15000},
+	68: {ID: 68, Name: "Perry", SpriteType: 68, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral, MoveSpeed: 5000},
+	69: {ID: 69, Name: "Devlin", SpriteType: 69, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral, MoveSpeed: 30000},
+	90: {ID: 90, Name: "Gail", SpriteType: 90, HP: 100, Defense: 10, DEX: 20, Side: SideNeutral, MoveSpeed: 5000, Stationary: true},
 
 	// ================================================================
 	// Guards (faction-based, aggressive to enemies)
@@ -356,6 +361,10 @@ type NPC struct {
 
 	// Path
 	PathX, PathY int // next tile to move to (simple 1-step pathfinding)
+	// Turn is the side an NPC sidesteps to when its way is blocked, fixed per
+	// NPC like the original's m_cTurn, so it follows a wall instead of
+	// flipping back and forth beside it (+1 clockwise, -1 anticlockwise).
+	Turn int
 }
 
 // NewNPC creates a new NPC from a spawn point.
@@ -372,13 +381,24 @@ func NewNPC(objectID int32, npcType *NpcType, mapName string, x, y int) *NPC {
 		Y:            y,
 		SpawnX:       x,
 		SpawnY:       y,
-		Direction:    1 + rand.Intn(8), // random initial direction
+		Direction:    spawnDirection(npcType),
+		Turn:         1 - 2*rand.Intn(2),
 		HP:           npcType.HP,
 		MaxHP:        npcType.HP,
 		Mana:         npcType.MaxMana,
 		State:        StateIdle,
 		RespawnDelay: respawnDelay,
 	}
+}
+
+// spawnDirection is the way an NPC faces when it appears. Stationary NPCs face
+// the room: down-right, down or down-left (4-6, as the original did for its
+// shopkeepers); everything else faces a random way.
+func spawnDirection(t *NpcType) int {
+	if t.Stationary {
+		return 4 + rand.Intn(3)
+	}
+	return 1 + rand.Intn(8)
 }
 
 // LeashRange is how far from its spawn point an NPC will chase before giving
@@ -433,7 +453,7 @@ func (n *NPC) Respawn() {
 	n.Mana = n.Type.MaxMana
 	n.X = n.SpawnX
 	n.Y = n.SpawnY
-	n.Direction = 1 + rand.Intn(8)
+	n.Direction = spawnDirection(n.Type)
 	n.State = StateIdle
 	n.TargetID = 0
 	n.Action = 0

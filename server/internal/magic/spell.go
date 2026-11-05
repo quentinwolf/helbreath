@@ -72,6 +72,7 @@ type SpellDef struct {
 	ReqLevel   int
 	ReqMAG     int
 	ReqINT     int
+	GoldCost   int // gold to learn from Gandalf (-1 = not sold, manual only)
 	SpriteID   int // client spell effect sprite
 	SoundID    int // client sound effect
 

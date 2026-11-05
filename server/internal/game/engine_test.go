@@ -1618,3 +1618,65 @@ var (
 	_ = (*pb.FactionSelectRequest)(nil)
 	_ = (*db.CharacterRow)(nil)
 )
+
+// addWizardNear puts Gandalf two tiles from the player, as in his tower.
+func addWizardNear(e *Engine, p *player.Player) *npc.NPC {
+	g := npc.NewNPC(900, npc.NpcTypes[npcWizard], p.MapName, p.X+2, p.Y)
+	e.npcs.Store(g.ObjectID, g)
+	return g
+}
+
+func learnSetup(t *testing.T, gold int64) (*Engine, *player.Player) {
+	t.Helper()
+	e := makeTestEngine()
+	p := makeFullTestPlayer(1, "Mage")
+	p.Level, p.MAG, p.INT = 100, 100, 100
+	p.Gold = gold
+	addPlayerToEngine(e, p)
+	return e, p
+}
+
+func TestLearnSpellNeedsGandalf(t *testing.T) {
+	e, p := learnSetup(t, 1000)
+	e.handleLearnSpell(makeClientWithObjectID(1), &pb.LearnSpellRequest{SpellId: 0}) // Magic Missile, 100 gold
+	if p.LearnedSpells[0] || p.Gold != 1000 {
+		t.Fatalf("learned away from Gandalf (gold %d)", p.Gold)
+	}
+	addWizardNear(e, p)
+	e.handleLearnSpell(makeClientWithObjectID(1), &pb.LearnSpellRequest{SpellId: 0})
+	if !p.LearnedSpells[0] || p.Gold != 900 {
+		t.Fatalf("Gandalf should sell Magic Missile for 100 gold (learned %v, gold %d)", p.LearnedSpells[0], p.Gold)
+	}
+}
+
+func TestLearnSpellCostsItsPrice(t *testing.T) {
+	e, p := learnSetup(t, 50)
+	addWizardNear(e, p)
+	e.handleLearnSpell(makeClientWithObjectID(1), &pb.LearnSpellRequest{SpellId: 0})
+	if p.LearnedSpells[0] || p.Gold != 50 {
+		t.Fatalf("learned without enough gold (gold %d)", p.Gold)
+	}
+}
+
+func TestGandalfDoesNotSellManualSpells(t *testing.T) {
+	e, p := learnSetup(t, 1000000)
+	addWizardNear(e, p)
+	e.handleLearnSpell(makeClientWithObjectID(1), &pb.LearnSpellRequest{SpellId: 3}) // Abaddons terror, cost -1
+	if p.LearnedSpells[3] {
+		t.Fatal("bought a spell that isn't sold")
+	}
+}
+
+func TestGMLearnsAnywhere(t *testing.T) {
+	e, p := learnSetup(t, 1000)
+	p.AdminLevel = 1
+	p.INT = 400 // Abaddons terror needs 301
+	e.handleLearnSpell(makeClientWithObjectID(1), &pb.LearnSpellRequest{SpellId: 0})
+	if !p.LearnedSpells[0] || p.Gold != 900 {
+		t.Fatalf("GM should buy anywhere at the price (learned %v, gold %d)", p.LearnedSpells[0], p.Gold)
+	}
+	e.handleLearnSpell(makeClientWithObjectID(1), &pb.LearnSpellRequest{SpellId: 3})
+	if !p.LearnedSpells[3] || p.Gold != 900 {
+		t.Fatalf("GM should get unsold spells free (learned %v, gold %d)", p.LearnedSpells[3], p.Gold)
+	}
+}

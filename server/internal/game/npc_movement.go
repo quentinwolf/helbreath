@@ -10,20 +10,21 @@ import (
 )
 
 // npcStepToward moves an NPC one tile towards (tx, ty). When the straight step
-// is blocked it tries the two neighbouring directions, then the next two out,
-// so it walks around a pillar instead of freezing. It reports whether it moved.
+// is blocked it turns, always to its own side (n.Turn), one direction at a
+// time until a step is free, like the original's cGetNextMoveDir. A fixed side
+// makes it follow a wall round to the end instead of stepping up, down, up
+// beside it. It reports whether it moved.
 func (e *Engine) npcStepToward(n *npc.NPC, gm *mapdata.GameMap, tx, ty int) bool {
-	dir := n.DirectionTo(tx, ty)
 	if tx == n.X && ty == n.Y {
 		return false
 	}
-	// Try the closer side first, so detours bend towards the target
-	first, second := 1, -1
-	if rand.Intn(2) == 0 {
-		first, second = -1, 1
+	dir := n.DirectionTo(tx, ty)
+	turn := n.Turn
+	if turn == 0 {
+		turn = 1
 	}
-	for _, turn := range []int{0, first, second, 2 * first, 2 * second} {
-		d := (dir-1+turn+8)%8 + 1
+	for i := 0; i < 8; i++ {
+		d := (dir-1+i*turn+16)%8 + 1
 		nx, ny := n.X+dirDX[d], n.Y+dirDY[d]
 		if gm.IsWalkable(nx, ny) {
 			e.moveNPC(n, gm, nx, ny, d)

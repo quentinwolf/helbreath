@@ -105,3 +105,18 @@ func TestNPCsSpawnOnTheirOwnTiles(t *testing.T) {
 		t.Errorf("two NPCs given the same spot should end up on different tiles, got %d NPCs on %d tiles", count, len(tiles))
 	}
 }
+
+func TestBothWizardTowersHaveGandalf(t *testing.T) {
+	cfg := DefaultSpawnConfig()
+	for _, m := range []string{"wzdtwr_1", "wzdtwr_2"} {
+		found := false
+		for _, s := range cfg.Spawns {
+			if s.MapName == m && s.NpcTypeID == npcWizard {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("Gandalf should spawn in %s (the original has him in both towers)", m)
+		}
+	}
+}

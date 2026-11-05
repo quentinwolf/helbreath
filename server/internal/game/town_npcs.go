@@ -12,11 +12,12 @@ import (
 const (
 	npcCityHallOfficer  = 25 // William: citizenship
 	npcGuildHallOfficer = 26 // Kennedy: guilds
+	npcWizard           = 19 // Gandalf: the magic shop (original dialog 16)
 )
 
 // notifyOpenMenu is the Notification type that opens an NPC's menu on the
-// client: "cityhall:<side>" (side = the town this City Hall belongs to) or
-// "guildhall".
+// client: "cityhall:<side>" (side = the town this City Hall belongs to),
+// "guildhall" or "magicshop".
 const notifyOpenMenu = 12
 
 // townSide is the town a map belongs to (1 Aresden, 2 Elvine, 0 neither), like
@@ -53,6 +54,8 @@ func (e *Engine) openOfficerMenu(p *player.Player, n *npc.NPC) bool {
 		e.sendNotification(p, fmt.Sprintf("cityhall:%d", townSide(n.MapName)), notifyOpenMenu)
 	case npcGuildHallOfficer:
 		e.sendNotification(p, "guildhall", notifyOpenMenu)
+	case npcWizard:
+		e.sendNotification(p, "magicshop", notifyOpenMenu)
 	default:
 		return false
 	}

@@ -13,6 +13,7 @@ func init() {
 		CentreDice: Dice{Count: 1, Sides: 8, Bonus: 0},
 		MinDamage:  1, MaxDamage: 8,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 18,
+		GoldCost: 100,
 		SpriteID: 0, SoundID: 5,
 	}
 
@@ -23,6 +24,7 @@ func init() {
 		HealAmount: 17,
 		HealDice:   Dice{Count: 2, Sides: 6, Bonus: 10},
 		ReqLevel:   0, ReqMAG: 0, ReqINT: 20,
+		GoldCost: 100,
 		SpriteID: 1, SoundID: 45,
 	}
 
@@ -32,6 +34,7 @@ func init() {
 		ManaCost: 18, CastTime: 500, Cooldown: 500, Range: 0,
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 18,
+		GoldCost: 100,
 		SpriteID: 2, SoundID: 1,
 	}
 
@@ -43,6 +46,7 @@ func init() {
 		AreaDice:  Dice{Count: 999, Sides: 999, Bonus: 999},
 		MinDamage: 1998, MaxDamage: 999000,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 301,
+		GoldCost: -1,
 		SpriteID: 3, SoundID: 5,
 	}
 
@@ -54,6 +58,7 @@ func init() {
 		AreaDice:  Dice{Count: 7, Sides: 7, Bonus: 30},
 		MinDamage: 37, MaxDamage: 79,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 301,
+		GoldCost: -1,
 		SpriteID: 4, SoundID: 1,
 	}
 
@@ -65,6 +70,7 @@ func init() {
 		AreaDice:  Dice{Count: 6, Sides: 3, Bonus: 10},
 		MinDamage: 16, MaxDamage: 28,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 5, SoundID: 7,
 	}
 
@@ -77,6 +83,7 @@ func init() {
 		AreaDice:   Dice{Count: 7, Sides: 6, Bonus: 17},
 		MinDamage:  44, MaxDamage: 84,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 6, SoundID: 4,
 	}
 
@@ -89,6 +96,7 @@ func init() {
 		AreaDice:   Dice{Count: 2, Sides: 4, Bonus: 1},
 		MinDamage:  6, MaxDamage: 18,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 24,
+		GoldCost: 200,
 		SpriteID: 10, SoundID: 5,
 	}
 
@@ -98,6 +106,7 @@ func init() {
 		ManaCost: 14, CastTime: 500, Cooldown: 500, Range: MaxCastRange,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 22,
+		GoldCost: 200,
 		SpriteID: 11, SoundID: 1,
 	}
 
@@ -106,6 +115,7 @@ func init() {
 		Type: SpellTypeTeleport, Element: ElementNone,
 		ManaCost: 15, CastTime: 500, Cooldown: 500, Range: 0,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 20,
+		GoldCost: 120,
 		SpriteID: 12, SoundID: 1,
 	}
 
@@ -116,6 +126,7 @@ func init() {
 		Duration: 60,
 		BuffStat: 2, BuffAmount: 5,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 26,
+		GoldCost: 200,
 		SpriteID: 13, SoundID: 1,
 		ApplyEffect: EffectDefenseShield, EffectLevel: 1,
 	}
@@ -126,6 +137,7 @@ func init() {
 		ManaCost: 20, CastTime: 500, Cooldown: 500, Range: MaxCastRange,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 25,
+		GoldCost: 400,
 		SpriteID: 14, SoundID: 1,
 	}
 
@@ -138,6 +150,7 @@ func init() {
 		AreaX:      2, AreaY: 2,
 		AreaHealDice: Dice{Count: 2, Sides: 6, Bonus: 5},
 		ReqLevel:     0, ReqMAG: 0, ReqINT: 20,
+		GoldCost: 300,
 		SpriteID: 15, SoundID: 45,
 	}
 
@@ -147,6 +160,7 @@ func init() {
 		ManaCost: 77, CastTime: 1100, Cooldown: 1100, Range: 0,
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 16, SoundID: 1,
 	}
 
@@ -156,6 +170,7 @@ func init() {
 		ManaCost: 44, CastTime: 900, Cooldown: 180000, Range: 0,
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 17, SoundID: 1,
 		ApplyEffect: EffectDefenseShield, EffectLevel: 1,
 	}
@@ -169,6 +184,7 @@ func init() {
 		AreaDice:   Dice{Count: 2, Sides: 6, Bonus: 2},
 		MinDamage:  8, MaxDamage: 28,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 26,
+		GoldCost: 500,
 		SpriteID: 20, SoundID: 4,
 	}
 
@@ -179,6 +195,7 @@ func init() {
 		HealAmount: 42,
 		HealDice:   Dice{Count: 4, Sides: 10, Bonus: 20},
 		ReqLevel:   0, ReqMAG: 0, ReqINT: 28,
+		GoldCost: 500,
 		SpriteID: 21, SoundID: 45,
 	}
 
@@ -190,6 +207,7 @@ func init() {
 		AreaDice:  Dice{Count: 3, Sides: 4, Bonus: 5},
 		MinDamage: 8, MaxDamage: 17,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 22, SoundID: 7,
 	}
 
@@ -202,6 +220,7 @@ func init() {
 		AreaX:      3, AreaY: 3,
 		AreaHealDice: Dice{Count: 2, Sides: 12, Bonus: 10},
 		ReqLevel:     0, ReqMAG: 0, ReqINT: 30,
+		GoldCost: 800,
 		SpriteID: 23, SoundID: 45,
 	}
 
@@ -211,6 +230,7 @@ func init() {
 		ManaCost: 22, CastTime: 700, Cooldown: 700, Range: 0,
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 20,
+		GoldCost: 300,
 		SpriteID: 24, SoundID: 1,
 	}
 
@@ -221,6 +241,7 @@ func init() {
 		Duration: 30,
 		BuffStat: 3, BuffAmount: -5,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 26,
+		GoldCost: 500,
 		SpriteID: 25, SoundID: 1,
 		ApplyEffect: EffectIce, EffectLevel: 1,
 	}
@@ -231,6 +252,7 @@ func init() {
 		ManaCost: 25, CastTime: 700, Cooldown: 700, Range: MaxCastRange,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 26,
+		GoldCost: 500,
 		SpriteID: 26, SoundID: 1,
 	}
 
@@ -240,6 +262,7 @@ func init() {
 		ManaCost: 28, CastTime: 700, Cooldown: 700, Range: MaxCastRange,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 29,
+		GoldCost: 700,
 		SpriteID: 27, SoundID: 7,
 		ApplyEffect: EffectPoison, EffectLevel: 1,
 		TickDamage: 25, TickIntervalMs: 3000,
@@ -254,6 +277,7 @@ func init() {
 		AreaX:      4, AreaY: 4,
 		AreaHealDice: Dice{Count: 4, Sides: 12, Bonus: 20},
 		ReqLevel:     0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 28, SoundID: 45,
 	}
 
@@ -266,6 +290,7 @@ func init() {
 		AreaDice:   Dice{Count: 2, Sides: 8, Bonus: 3},
 		MinDamage:  10, MaxDamage: 38,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 34,
+		GoldCost: 1000,
 		SpriteID: 30, SoundID: 4,
 	}
 
@@ -274,6 +299,7 @@ func init() {
 		Type: SpellTypeSummon, Element: ElementEarth,
 		ManaCost: 35, CastTime: 700, Cooldown: 700, Range: 1,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 38,
+		GoldCost: 1000,
 		SpriteID: 31, SoundID: 7,
 	}
 
@@ -283,6 +309,7 @@ func init() {
 		ManaCost: 31, CastTime: 700, Cooldown: 700, Range: 0,
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 30,
+		GoldCost: 800,
 		SpriteID: 32, SoundID: 1,
 		ApplyEffect: EffectInvisibility, EffectLevel: 1,
 	}
@@ -293,6 +320,7 @@ func init() {
 		ManaCost: 35, CastTime: 700, Cooldown: 700, Range: 0,
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 32,
+		GoldCost: 850,
 		SpriteID: 33, SoundID: 1,
 		ApplyEffect: EffectMagicProtection, EffectLevel: 1,
 	}
@@ -303,6 +331,7 @@ func init() {
 		ManaCost: 33, CastTime: 700, Cooldown: 700, Range: 0,
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 30,
+		GoldCost: 700,
 		SpriteID: 34, SoundID: 1,
 	}
 
@@ -313,6 +342,7 @@ func init() {
 		Duration: 50,
 		BuffStat: 3, BuffAmount: -10,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 36,
+		GoldCost: 1000,
 		SpriteID: 35, SoundID: 1,
 		ApplyEffect: EffectIce, EffectLevel: 2,
 	}
@@ -322,6 +352,7 @@ func init() {
 		Type: SpellTypeHeal, Element: ElementEarth,
 		ManaCost: 32, CastTime: 700, Cooldown: 700, Range: 0,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 35,
+		GoldCost: 700,
 		SpriteID: 36, SoundID: 45,
 	}
 
@@ -332,6 +363,7 @@ func init() {
 		CentreDice: Dice{Count: 4, Sides: 8, Bonus: 10},
 		MinDamage:  14, MaxDamage: 42,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 38,
+		GoldCost: 1100,
 		SpriteID: 37, SoundID: 5,
 	}
 
@@ -342,6 +374,7 @@ func init() {
 		Duration: 40,
 		BuffStat: 2, BuffAmount: 8,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 38, SoundID: 1,
 	}
 
@@ -354,6 +387,7 @@ func init() {
 		MinDamage: 2, MaxDamage: 16,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 45,
+		GoldCost: 1200,
 		SpriteID: 40, SoundID: 4,
 	}
 
@@ -366,6 +400,7 @@ func init() {
 		MinDamage: 2, MaxDamage: 16,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 48,
+		GoldCost: 1400,
 		SpriteID: 41, SoundID: 4,
 	}
 
@@ -375,6 +410,7 @@ func init() {
 		ManaCost: 40, CastTime: 700, Cooldown: 700, Range: MaxCastRange,
 		Duration: 120,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 42,
+		GoldCost: 1300,
 		SpriteID: 42, SoundID: 1,
 		ApplyEffect: EffectConfusion, EffectLevel: 1,
 	}
@@ -386,6 +422,7 @@ func init() {
 		CentreDice: Dice{Count: 7, Sides: 6, Bonus: 17},
 		MinDamage:  24, MaxDamage: 59,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 47,
+		GoldCost: 1700,
 		SpriteID: 43, SoundID: 5,
 	}
 
@@ -396,6 +433,7 @@ func init() {
 		Duration: 60,
 		BuffStat: 2, BuffAmount: 12,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 46,
+		GoldCost: 1500,
 		SpriteID: 44, SoundID: 1,
 		ApplyEffect: EffectDefenseShield, EffectLevel: 2,
 	}
@@ -409,6 +447,7 @@ func init() {
 		MinDamage: 6, MaxDamage: 27,
 		Duration: 7,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 50,
+		GoldCost: 2000,
 		SpriteID: 45, SoundID: 46,
 		ApplyEffect: EffectIce, EffectLevel: 1,
 	}
@@ -422,6 +461,7 @@ func init() {
 		MinDamage: 11, MaxDamage: 21,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 49,
+		GoldCost: 1800,
 		SpriteID: 46, SoundID: 7,
 	}
 
@@ -434,6 +474,7 @@ func init() {
 		AreaDice:   Dice{Count: 3, Sides: 8, Bonus: 3},
 		MinDamage:  10, MaxDamage: 37,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 45,
+		GoldCost: 1700,
 		SpriteID: 47, SoundID: 5,
 	}
 
@@ -444,6 +485,7 @@ func init() {
 		HealAmount: 94,
 		HealDice:   Dice{Count: 8, Sides: 10, Bonus: 50},
 		ReqLevel:   0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 48, SoundID: 45,
 	}
 
@@ -454,6 +496,7 @@ func init() {
 		Duration: 40,
 		BuffStat: 1, BuffAmount: 10,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 59,
+		GoldCost: 2200,
 		SpriteID: 50, SoundID: 1,
 		ApplyEffect: EffectBerserk, EffectLevel: 1,
 	}
@@ -469,6 +512,7 @@ func init() {
 		LineDice:   Dice{Count: 3, Sides: 6, Bonus: 5},
 		MinDamage:  16, MaxDamage: 46,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 58,
+		GoldCost: 2500,
 		SpriteID: 51, SoundID: 5,
 	}
 
@@ -478,6 +522,7 @@ func init() {
 		ManaCost: 66, CastTime: 1100, Cooldown: 1100, Range: 0,
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 52, SoundID: 1,
 	}
 
@@ -487,6 +532,7 @@ func init() {
 		ManaCost: 54, CastTime: 900, Cooldown: 900, Range: MaxCastRange,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 52,
+		GoldCost: 2100,
 		SpriteID: 53, SoundID: 7,
 		ApplyEffect: EffectPoison, EffectLevel: 1,
 		TickDamage: 60, TickIntervalMs: 3000,
@@ -501,6 +547,7 @@ func init() {
 		MinDamage: 2, MaxDamage: 16,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 56,
+		GoldCost: 2300,
 		SpriteID: 54, SoundID: 7,
 	}
 
@@ -513,6 +560,7 @@ func init() {
 		MinDamage: 8, MaxDamage: 8,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 59,
+		GoldCost: -1,
 		SpriteID: 55, SoundID: 46,
 	}
 
@@ -523,6 +571,7 @@ func init() {
 		CentreDice: Dice{Count: 7, Sides: 6, Bonus: 17},
 		MinDamage:  24, MaxDamage: 59,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 53,
+		GoldCost: 3000,
 		SpriteID: 56, SoundID: 5,
 	}
 
@@ -535,6 +584,7 @@ func init() {
 		MinDamage: 17, MaxDamage: 42,
 		Duration: 4,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 60,
+		GoldCost: 4200,
 		SpriteID: 57, SoundID: 46,
 		ApplyEffect: EffectIce, EffectLevel: 1,
 	}
@@ -545,6 +595,7 @@ func init() {
 		ManaCost: 88, CastTime: 1100, Cooldown: 180000, Range: 0,
 		Duration: 25,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 65,
+		GoldCost: -1,
 		SpriteID: 58, SoundID: 1,
 		ApplyEffect: EffectDefenseShield, EffectLevel: 2,
 	}
@@ -557,6 +608,7 @@ func init() {
 		AreaDice:  Dice{Count: 7, Sides: 6, Bonus: 17},
 		MinDamage: 24, MaxDamage: 59,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 67,
+		GoldCost: 5000,
 		SpriteID: 60, SoundID: 5,
 	}
 
@@ -569,6 +621,7 @@ func init() {
 		AreaDice:   Dice{Count: 7, Sides: 6, Bonus: 19},
 		MinDamage:  38, MaxDamage: 93,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 85,
+		GoldCost: -1,
 		SpriteID: 61, SoundID: 4,
 	}
 
@@ -578,6 +631,7 @@ func init() {
 		ManaCost: 78, CastTime: 1100, Cooldown: 1100, Range: MaxCastRange,
 		Duration: 45,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 75,
+		GoldCost: 7500,
 		SpriteID: 62, SoundID: 1,
 		ApplyEffect: EffectConfusion, EffectLevel: 2,
 	}
@@ -591,6 +645,7 @@ func init() {
 		MinDamage: 24, MaxDamage: 59,
 		Duration: 15,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 93,
+		GoldCost: 9800,
 		SpriteID: 63, SoundID: 46,
 		ApplyEffect: EffectIce, EffectLevel: 1,
 	}
@@ -603,6 +658,7 @@ func init() {
 		AreaDice:  Dice{Count: 7, Sides: 6, Bonus: 17},
 		MinDamage: 24, MaxDamage: 59,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 97,
+		GoldCost: 12000,
 		SpriteID: 64, SoundID: 7,
 	}
 
@@ -612,6 +668,7 @@ func init() {
 		ManaCost: 90, CastTime: 1100, Cooldown: 1100, Range: 0,
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 112,
+		GoldCost: 13500,
 		SpriteID: 65, SoundID: 1,
 		ApplyEffect: EffectMagicProtection, EffectLevel: 3,
 	}
@@ -624,6 +681,7 @@ func init() {
 		AreaDice:  Dice{Count: 7, Sides: 6, Bonus: 17},
 		MinDamage: 24, MaxDamage: 59,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 97,
+		GoldCost: 20000,
 		SpriteID: 66, SoundID: 7,
 	}
 
@@ -633,6 +691,7 @@ func init() {
 		ManaCost: 50, CastTime: 900, Cooldown: 900, Range: 0,
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 70,
+		GoldCost: 7500,
 		SpriteID: 67, SoundID: 7,
 	}
 
@@ -645,6 +704,7 @@ func init() {
 		AreaX:      1, AreaY: 1,
 		AreaHealDice: Dice{Count: 8, Sides: 10, Bonus: 50},
 		ReqLevel:     0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 68, SoundID: 45,
 	}
 
@@ -659,6 +719,7 @@ func init() {
 		LineDice:   Dice{Count: 4, Sides: 8, Bonus: 15},
 		MinDamage:  38, MaxDamage: 94,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 105,
+		GoldCost: -1,
 		SpriteID: 70, SoundID: 4,
 	}
 
@@ -668,6 +729,7 @@ func init() {
 		ManaCost: 125, CastTime: 1300, Cooldown: 1300, Range: MaxCastRange,
 		Duration: 90,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 130,
+		GoldCost: 15000,
 		SpriteID: 71, SoundID: 1,
 		ApplyEffect: EffectConfusion, EffectLevel: 2,
 	}
@@ -681,6 +743,7 @@ func init() {
 		MinDamage: 29, MaxDamage: 71,
 		Duration: 7,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 133,
+		GoldCost: 21000,
 		SpriteID: 72, SoundID: 46,
 		ApplyEffect: EffectIce, EffectLevel: 1,
 	}
@@ -694,6 +757,7 @@ func init() {
 		MinDamage: 13, MaxDamage: 23,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 120,
+		GoldCost: 20000,
 		SpriteID: 73, SoundID: 7,
 	}
 
@@ -705,6 +769,7 @@ func init() {
 		AreaDice:  Dice{Count: 7, Sides: 7, Bonus: 22},
 		MinDamage: 29, MaxDamage: 71,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 123,
+		GoldCost: 35000,
 		SpriteID: 74, SoundID: 5,
 	}
 
@@ -715,6 +780,7 @@ func init() {
 		Duration: 90,
 		BuffStat: 1, BuffAmount: 12,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 90,
+		GoldCost: 22000,
 		SpriteID: 75, SoundID: 1,
 		ApplyEffect: EffectBerserk, EffectLevel: 2,
 	}
@@ -725,6 +791,7 @@ func init() {
 		ManaCost: 120, CastTime: 1300, Cooldown: 1300, Range: MaxCastRange,
 		Duration: 3,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 135,
+		GoldCost: -200,
 		SpriteID: 76, SoundID: 1,
 	}
 
@@ -734,6 +801,7 @@ func init() {
 		ManaCost: 130, CastTime: 1300, Cooldown: 1300, Range: MaxCastRange,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 160,
+		GoldCost: 28000,
 		SpriteID: 77, SoundID: 5,
 		ApplyEffect: EffectConfusion, EffectLevel: 4,
 	}
@@ -747,6 +815,7 @@ func init() {
 		AreaDice:   Dice{Count: 7, Sides: 7, Bonus: 22},
 		MinDamage:  43, MaxDamage: 109,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 78, SoundID: 4,
 	}
 
@@ -756,6 +825,7 @@ func init() {
 		ManaCost: 143, CastTime: 1300, Cooldown: 1300, Range: MaxCastRange,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 150,
+		GoldCost: 27000,
 		SpriteID: 80, SoundID: 1,
 		ApplyEffect: EffectConfusion, EffectLevel: 3,
 	}
@@ -769,6 +839,7 @@ func init() {
 		AreaDice:   Dice{Count: 7, Sides: 8, Bonus: 25},
 		MinDamage:  47, MaxDamage: 124,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 169,
+		GoldCost: 40000,
 		SpriteID: 81, SoundID: 4,
 	}
 
@@ -778,6 +849,7 @@ func init() {
 		ManaCost: 500, CastTime: 1500, Cooldown: 180000, Range: 0,
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 156,
+		GoldCost: -1,
 		SpriteID: 82, SoundID: 1,
 	}
 
@@ -787,6 +859,7 @@ func init() {
 		ManaCost: 180, CastTime: 1500, Cooldown: 1500, Range: MaxCastRange,
 		Duration: 40,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 180,
+		GoldCost: -1,
 		SpriteID: 83, SoundID: 1,
 		ApplyEffect: EffectInhibition, EffectLevel: 1,
 	}
@@ -797,6 +870,7 @@ func init() {
 		ManaCost: 200, CastTime: 1500, Cooldown: 1500, Range: MaxCastRange,
 		Duration: 30,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 166,
+		GoldCost: 53000,
 		SpriteID: 84, SoundID: 1,
 	}
 
@@ -812,6 +886,7 @@ func init() {
 		MinDamage:  44, MaxDamage: 98,
 		Duration: 20,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 195,
+		GoldCost: 43000,
 		SpriteID: 85, SoundID: 46,
 	}
 
@@ -822,6 +897,7 @@ func init() {
 		HealAmount: 909,
 		HealDice:   Dice{Count: 20, Sides: 80, Bonus: 99},
 		ReqLevel:   0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 86, SoundID: 45,
 	}
 
@@ -831,6 +907,7 @@ func init() {
 		ManaCost: 88, CastTime: 1100, Cooldown: 180000, Range: 0,
 		Duration: 45,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 87, SoundID: 1,
 		ApplyEffect: EffectDefenseShield, EffectLevel: 3,
 	}
@@ -842,6 +919,7 @@ func init() {
 		Duration: 75,
 		BuffStat: 3, BuffAmount: -45,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 88, SoundID: 1,
 		ApplyEffect: EffectIce, EffectLevel: 9,
 	}
@@ -852,6 +930,7 @@ func init() {
 		ManaCost: 200, CastTime: 1500, Cooldown: 1500, Range: MaxCastRange,
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 180,
+		GoldCost: 35000,
 		SpriteID: 90, SoundID: 1,
 		ApplyEffect: EffectConfusion, EffectLevel: 3,
 	}
@@ -867,6 +946,7 @@ func init() {
 		LineDice:   Dice{Count: 11, Sides: 8, Bonus: 22},
 		MinDamage:  56, MaxDamage: 182,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 250,
+		GoldCost: 65000,
 		SpriteID: 91, SoundID: 46,
 	}
 
@@ -878,6 +958,7 @@ func init() {
 		AreaDice:  Dice{Count: 7, Sides: 7, Bonus: 22},
 		MinDamage: 29, MaxDamage: 71,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 208,
+		GoldCost: 20000,
 		SpriteID: 92, SoundID: 7,
 	}
 
@@ -889,6 +970,7 @@ func init() {
 		AreaDice:  Dice{Count: 7, Sides: 11, Bonus: 43},
 		MinDamage: 50, MaxDamage: 120,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 231,
+		GoldCost: 55000,
 		SpriteID: 93, SoundID: 5,
 	}
 
@@ -898,6 +980,7 @@ func init() {
 		ManaCost: 200, CastTime: 1500, Cooldown: 600000, Range: 0,
 		HealAmount: 3,
 		ReqLevel:   0, ReqMAG: 0, ReqINT: 10,
+		GoldCost: -1,
 		SpriteID: 94, SoundID: 45,
 	}
 
@@ -907,6 +990,7 @@ func init() {
 		ManaCost: 220, CastTime: 1500, Cooldown: 1500, Range: MaxCastRange,
 		Duration: 60,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 200,
+		GoldCost: 38000,
 		SpriteID: 95, SoundID: 1,
 		ApplyEffect: EffectConfusion, EffectLevel: 4,
 	}
@@ -921,6 +1005,7 @@ func init() {
 		LineDice:  Dice{Count: 7, Sides: 8, Bonus: 18},
 		MinDamage: 25, MaxDamage: 74,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 215,
+		GoldCost: -1,
 		SpriteID: 96, SoundID: 7,
 	}
 
@@ -932,6 +1017,7 @@ func init() {
 		AreaDice:  Dice{Count: 7, Sides: 6, Bonus: 17},
 		MinDamage: 24, MaxDamage: 59,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 182,
+		GoldCost: -1,
 		SpriteID: 97, SoundID: 1,
 	}
 
@@ -942,6 +1028,7 @@ func init() {
 		Duration: 180,
 		BuffStat: 3, BuffAmount: -100,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 235,
+		GoldCost: -1,
 		SpriteID: 98, SoundID: 1,
 		ApplyEffect: EffectIce, EffectLevel: 20,
 	}

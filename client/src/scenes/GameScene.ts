@@ -60,6 +60,7 @@ import { playSpellEffect, spellEffectSprites } from '../game/spells/SpellEffects
 import { clearSpellUpdates } from '../game/spells/SceneUpdate';
 import { CameraShake } from '../utils/CameraShake';
 import { EFFECT_SOUND_FILES } from '../constants/EffectSounds';
+import { SPELL_GOLD_COST } from '../constants/SpellCosts';
 import { EFFECT_FOOTSTEPS_DRY, EFFECT_WET_SPLASH } from '../constants/Effects';
 import { drawEffect } from '../utils/EffectUtils';
 import { getAssetByKey } from '../constants/Assets';
@@ -519,6 +520,9 @@ export class GameScene extends Phaser.Scene {
   private selectedSpellId = 0;
   private spellCatalog: SpellCatalogEntry[] = [];
   private spellBookTab: 'known' | 'learn' = 'known';
+  private adminLevel = 0;
+  // Whether the open Learn tab was drawn with Gandalf in reach (redrawn when that changes)
+  private learnTabAtWizard = false;
   private lastSpellCastAt = new Map<number, number>(); // caster object ID -> scene time of their last spell
   private cameraShake!: CameraShake;
   /** Our own status bits (invisible, polymorphed), from our PlayerAppear. */
@@ -592,6 +596,13 @@ export class GameScene extends Phaser.Scene {
     this.spriteWaiters.clear();
     this.morphs.clear(); // their sprites went down with the old scene
     this.suppressedLayers.clear();
+    // Their sprites and labels went down with the old scene. An NPC that moved
+    // between the map change and this restart was re-added to the old map, and
+    // touching its dead label here crashed create(), freezing on "Entering <map>...".
+    this.npcs.clear();
+    this.remotePlayers.clear();
+    this.groundItems.clear();
+    this.tileOccupancy.clear();
     this.localStatus = 0;
     this.cameraShake = new CameraShake(this);
     // Spell projectiles hook scene 'update', which survives the restart: drop them.
@@ -617,6 +628,11 @@ export class GameScene extends Phaser.Scene {
       Proto.MSG_SPELL_CATALOG,
     ];
     for (const t of gameSceneMsgTypes) this.msgHandler.off(t);
+
+    // Our real level, before buffered stat updates replay: otherwise the first
+    // one after login compares against the default level 1 and cheers "Level up!"
+    const entering = this.registry.get('enterGameData') as EnterGameResponse | undefined;
+    if (entering?.player) this.playerLevel = entering.player.level;
 
     // Register network handlers FIRST — the server sends inventory/spell/skill
     // updates immediately after EnterGameResponse, so handlers must be ready.
@@ -662,6 +678,7 @@ export class GameScene extends Phaser.Scene {
     this.playerSP = pd.sp;
     this.playerMaxSP = pd.maxSp;
     this.playerLevel = pd.level;
+    this.adminLevel = pd.adminLevel ?? 0;
     this.playerExp = pd.experience ?? 0;
     this.playerGold = pd.gold ?? 0;
     this.playerLUPool = pd.luPool ?? 0;
@@ -1132,6 +1149,9 @@ export class GameScene extends Phaser.Scene {
       gi.label.destroy();
     }
     this.groundItems.clear();
+    // The door tile we stepped on stays marked as ours otherwise, and blocks
+    // that exit next time we come back (the warehouse doors filled up this way)
+    this.tileOccupancy.clear();
 
     // Load new map
     this.currentMapName = mapName;
@@ -1946,7 +1966,47 @@ export class GameScene extends Phaser.Scene {
     const dir = this.angleToDirection(dx, dy);
     if (dir === 0) return;
 
-    this.tryMove(dir, now);
+    const step = this.pickStepDirection(dir,
+      Math.floor(worldPoint.x / TILE_SIZE), Math.floor(worldPoint.y / TILE_SIZE));
+    if (step !== 0) this.tryMove(step, now);
+  }
+
+  private canStepTo(x: number, y: number): boolean {
+    return this.isWalkable(x, y) && !this.isTileOccupied(x, y);
+  }
+
+  /**
+   * The step to take when aiming in `dir` at tile (tx, ty). If that step is
+   * blocked, turn up to two directions to one side, like the original client's
+   * cGetNextMoveDir, so you slide along a wall or into a doorway instead of
+   * stopping dead. The side is the one that gets closer to the target in a
+   * test walk (the original tried both sides the same way).
+   */
+  private pickStepDirection(dir: number, tx: number, ty: number): number {
+    if (this.canStepTo(this.tileX + DIR_DX[dir], this.tileY + DIR_DY[dir])) return dir;
+    if (tx === this.tileX && ty === this.tileY) return 0;
+    const turn = this.walkScore(tx, ty, 1) <= this.walkScore(tx, ty, -1) ? 1 : -1;
+    for (const i of [1, 2]) {
+      const d = ((dir - 1 + i * turn + 16) % 8) + 1;
+      if (this.canStepTo(this.tileX + DIR_DX[d], this.tileY + DIR_DY[d])) return d;
+    }
+    return 0;
+  }
+
+  /** Test-walk up to 30 steps towards (tx, ty) turning to one side; lower = closer, then sooner. */
+  private walkScore(tx: number, ty: number, turn: number): number {
+    let x = this.tileX, y = this.tileY;
+    for (let n = 0; n < 30; n++) {
+      if (x === tx && y === ty) return n;
+      const dir = this.angleToDirection(tx - x, ty - y);
+      let moved = false;
+      for (const i of [0, 1, 2]) {
+        const d = ((dir - 1 + i * turn + 16) % 8) + 1;
+        if (this.canStepTo(x + DIR_DX[d], y + DIR_DY[d])) { x += DIR_DX[d]; y += DIR_DY[d]; moved = true; break; }
+      }
+      if (!moved) break;
+    }
+    return 1000 + Math.max(Math.abs(tx - x), Math.abs(ty - y)) * 31;
   }
 
   private angleToDirection(dx: number, dy: number): number {
@@ -3467,7 +3527,8 @@ export class GameScene extends Phaser.Scene {
    * for women) and "Level up!" floating up from above your head.
    */
   private playLevelUp(): void {
-    this.soundManager.playOnce(this.playerGender === 1 ? LEVEL_UP_FEMALE : LEVEL_UP); // gender 1 = female here
+    // No sound manager yet on the very first create (a replayed level-up)
+    this.soundManager?.playOnce(this.playerGender === 1 ? LEVEL_UP_FEMALE : LEVEL_UP); // gender 1 = female here
     const text = this.add.text(this.visualX + TILE_SIZE / 2, this.visualY - 65, 'Level up!', {
       fontSize: '20px', fontStyle: 'bold', color: '#ffd84a', stroke: '#3a2400', strokeThickness: 4,
     }).setOrigin(0.5, 1).setDepth(999000);
@@ -3692,6 +3753,11 @@ export class GameScene extends Phaser.Scene {
         this.openCityHallMenu(Number(data.message.slice('cityhall:'.length)));
       } else if (data.message === 'guildhall' && !this.guildOpen) {
         this.toggleGuild();
+      } else if (data.message === 'magicshop') {
+        // Gandalf: the spell book on its Learn tab
+        this.spellBookTab = 'learn';
+        if (this.spellBarOpen) this.renderSpellBarUI();
+        else this.toggleSpellBar();
       }
       return;
     }
@@ -3984,6 +4050,10 @@ export class GameScene extends Phaser.Scene {
   private updateCoordsHUD(): void {
     const coords = `${this.tileX},${this.tileY}`;
     if (coords === this.lastCoordsShown) return;
+    // Walked up to Gandalf or away from him: the Learn tab's buttons follow
+    if (this.spellBarOpen && this.spellBookTab === 'learn' && this.nearWizard() !== this.learnTabAtWizard) {
+      this.renderSpellBarUI();
+    }
     const el = document.getElementById('hud-coords');
     if (el) {
       el.textContent = coords;
@@ -5111,6 +5181,14 @@ export class GameScene extends Phaser.Scene {
 
   // --- Spell Bar ---
 
+  /** Gandalf within reach (the server's wizardReach): his spells can be bought. */
+  private nearWizard(): boolean {
+    for (const n of this.npcs.values()) {
+      if (n.npcType === 19 && Math.max(Math.abs(n.tileX - this.tileX), Math.abs(n.tileY - this.tileY)) <= 10) return true;
+    }
+    return false;
+  }
+
   private toggleSpellBar(): void {
     this.spellBarOpen = !this.spellBarOpen;
     if (this.spellBarOpen) {
@@ -5223,6 +5301,18 @@ export class GameScene extends Phaser.Scene {
         .filter(s => !s.learned)
         .sort((a, b) => a.reqInt - b.reqInt || a.reqLevel - b.reqLevel || a.reqMag - b.reqMag);
       const visible = available.filter(passes);
+      const isGM = this.adminLevel >= 1;
+      const atWizard = this.nearWizard();
+      this.learnTabAtWizard = atWizard;
+      const canBuyHere = isGM || atWizard;
+
+      // Where spells come from: Gandalf sells them; elsewhere the list is to browse
+      const note = isGM
+        ? "GM: you can learn any spell here. Spells Gandalf doesn't sell are free."
+        : atWizard
+          ? `Gandalf will teach you these spells for gold. You have ${this.playerGold.toLocaleString()} gold.`
+          : 'To learn a spell, visit Gandalf in the Wizard Tower (in Aresden or Elvine) and pay his price. This list shows what you can learn and what it costs.';
+      html += `<div style="font-size:11px; color:${canBuyHere ? '#b8d4ff' : '#d8c08a'}; background:#22223a; border:1px solid #333; border-radius:3px; padding:5px 7px; margin-bottom:6px; line-height:1.35;">${note}</div>`;
 
       if (available.length === 0) {
         html += '<div style="color:#888; padding:10px; text-align:center;">You have learned all available spells!</div>';
@@ -5239,6 +5329,9 @@ export class GameScene extends Phaser.Scene {
           const meetsMag = this.playerMAG >= spell.reqMag;
           const meetsInt = this.playerINT >= spell.reqInt;
           const canLearn = meetsLevel && meetsMag && meetsInt;
+          const cost = SPELL_GOLD_COST[spell.spellId] ?? -1;
+          const sold = cost >= 0;
+          const affordable = !sold || this.playerGold >= cost;
 
           html += `<div style="display:flex; justify-content:space-between; align-items:center; padding:5px 4px; border-bottom:1px solid #222;">`;
           html += `<div>`;
@@ -5248,11 +5341,16 @@ export class GameScene extends Phaser.Scene {
           if (spell.reqLevel > 0) html += `<span style="color:${meetsLevel ? '#2ecc71' : '#e74c3c'};">Lv.${spell.reqLevel}</span> `;
           if (spell.reqMag > 0) html += `<span style="color:${meetsMag ? '#2ecc71' : '#e74c3c'};">MAG ${spell.reqMag}</span>`;
           if (spell.reqInt > 0) html += ` <span style="color:${meetsInt ? '#2ecc71' : '#e74c3c'};">INT ${spell.reqInt}</span>`;
+          html += sold
+            ? ` <span style="color:${this.playerGold >= cost ? '#f1c40f' : '#e74c3c'};">${cost.toLocaleString()} gold</span>`
+            : ' <span style="color:#888;">Manual only</span>';
           html += `</div></div>`;
-          if (canLearn) {
-            html += `<button class="learn-spell-btn" data-spell="${spell.spellId}" style="padding:3px 10px; cursor:pointer; background:#2d3c5f; color:#fff; border:1px solid #4488ff; border-radius:3px; font-size:11px;">Learn</button>`;
+          const buyable = canLearn && canBuyHere && affordable && (sold || isGM);
+          if (buyable) {
+            html += `<button class="learn-spell-btn" data-spell="${spell.spellId}" style="padding:3px 10px; cursor:pointer; background:#2d3c5f; color:#fff; border:1px solid #4488ff; border-radius:3px; font-size:11px; white-space:nowrap;">${isGM && !sold ? 'Learn' : 'Buy'}</button>`;
           } else {
-            html += `<span style="color:#555; font-size:10px;">Locked</span>`;
+            const why = !canLearn ? 'Locked' : !sold ? 'Manual only' : !canBuyHere ? 'At Gandalf' : 'Need gold';
+            html += `<span style="color:#555; font-size:10px; white-space:nowrap;">${why}</span>`;
           }
           html += `</div>`;
         }
