@@ -327,7 +327,7 @@ func (e *Engine) processSummonTick(n *npc.NPC, now time.Time, gm *mapdata.GameMa
 		e.npcStopMoving(n, gm)
 		return true
 	}
-	if now.Sub(n.LastMoveTime) < time.Duration(n.Type.MoveSpeed)*time.Millisecond {
+	if now.Sub(n.LastMoveTime) < npcStepInterval(n) {
 		return true
 	}
 	dir := n.DirectionTo(master.X, master.Y)

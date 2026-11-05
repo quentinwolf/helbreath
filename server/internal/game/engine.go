@@ -509,7 +509,7 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 			n.TargetID = foundID
 			n.State = npc.StateChase
 		} else if rand.Intn(5) == 0 {
-			// Random wander
+			// Wander again after about a second (the original never rested at all)
 			n.State = npc.StateWander
 		}
 
@@ -520,35 +520,15 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 			return
 		}
 
-		if now.Sub(n.LastMoveTime) < time.Duration(n.Type.MoveSpeed)*time.Millisecond {
+		if now.Sub(n.LastMoveTime) < npcStepInterval(n) {
 			return
 		}
 
-		// Random direction; if it has strayed outside its wander range (after a
-		// chase), head back towards its spawn point instead
-		dir := 1 + rand.Intn(8)
-		if n.DistanceTo(n.SpawnX, n.SpawnY) > n.Type.WanderRange {
-			dir = n.DirectionTo(n.SpawnX, n.SpawnY)
-		}
-		newX := n.X + dirDX[dir]
-		newY := n.Y + dirDY[dir]
-
-		// Stay within wander range of spawn (stepping back towards it is always fine)
-		if abs(newX-n.SpawnX) > n.Type.WanderRange || abs(newY-n.SpawnY) > n.Type.WanderRange {
-			if n.DistanceTo(n.SpawnX, n.SpawnY) <= n.Type.WanderRange {
-				e.npcStopMoving(n, gm)
-				n.State = npc.StateIdle
-				return
-			}
-		}
-
-		if gm.IsWalkable(newX, newY) {
-			e.moveNPC(n, gm, newX, newY, dir)
-		}
+		// Walk to a spot in the wander area (or back home after a chase), then
+		// stand a while: steady, readable paths instead of a new random
+		// direction every step.
 		n.LastMoveTime = now
-
-		// Go back to idle randomly (once home)
-		if rand.Intn(3) == 0 && n.DistanceTo(n.SpawnX, n.SpawnY) <= n.Type.WanderRange {
+		if !e.npcWanderStep(n, gm) {
 			e.npcStopMoving(n, gm)
 			n.State = npc.StateIdle
 		}
@@ -584,17 +564,11 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 		}
 
 		// Move toward target
-		if now.Sub(n.LastMoveTime) < time.Duration(n.Type.MoveSpeed)*time.Millisecond {
+		if now.Sub(n.LastMoveTime) < npcStepInterval(n) {
 			return
 		}
 
-		dir := n.DirectionTo(tx, ty)
-		newX := n.X + dirDX[dir]
-		newY := n.Y + dirDY[dir]
-
-		if gm.IsWalkable(newX, newY) {
-			e.moveNPC(n, gm, newX, newY, dir)
-		}
+		e.npcStepToward(n, gm, tx, ty)
 		n.LastMoveTime = now
 
 	case npc.StateAttack:
@@ -707,7 +681,7 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 		}
 
 		// Move away from target
-		if now.Sub(n.LastMoveTime) < time.Duration(n.Type.MoveSpeed)*time.Millisecond {
+		if now.Sub(n.LastMoveTime) < npcStepInterval(n) {
 			return
 		}
 

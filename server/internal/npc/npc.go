@@ -330,6 +330,9 @@ type NPC struct {
 	// AI state
 	TargetID       int32     // object ID of aggro target (player)
 	LastMoveTime   time.Time // for movement rate limiting
+	// Wandering walks to a picked spot instead of a random step each tile
+	WanderDestX, WanderDestY int
+	HasWanderDest            bool
 	LastAttackTime time.Time // for attack rate limiting
 	NextThinkTime  time.Time // next AI decision time
 	DeathTime      time.Time // when the NPC died (for respawn timer)

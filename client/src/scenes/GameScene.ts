@@ -89,6 +89,16 @@ const NPC_STATUS_ARESDEN = 0x04000000;
 const NAME_FRIENDLY = '#66ff66';
 const NAME_NEUTRAL = '#c8c8c8';
 const NAME_ENEMY = '#ff6666';
+/**
+ * Longest an NPC's step takes on screen. The server steps them once per action
+ * time (1 s for a guard, 2.1 s for a Slime), so slow creatures walk a tile, then
+ * stand until their next step, as in the original, instead of gliding the whole
+ * time. (560 ms looked like fast-forward.)
+ */
+const NPC_STEP_MS = 1000;
+/** Walk animation speed: one 8-frame cycle per step, kept between these. */
+const NPC_WALK_FPS_MIN = 6;
+const NPC_WALK_FPS_MAX = 10;
 /** Polymorph turns players into this creature (the original's owner type 18). */
 const POLYMORPH_SPRITE = 'zom';
 
@@ -133,6 +143,8 @@ interface GameNPC {
   npcType: number;
   /** Server status bits (NPC_STATUS_*): whose side it's on; undefined until known. */
   status?: number;
+  /** The server said it stopped while a step was still playing: go idle once it ends. */
+  stopAfterMove?: boolean;
   tileX: number;
   tileY: number;
   visualX: number;
@@ -671,8 +683,8 @@ export class GameScene extends Phaser.Scene {
       onUnequip: (equipSlot) => this.msgHandler.sendMessage(Proto.MSG_ITEM_EQUIP_REQUEST, { slotIndex: -1, equipSlot }),
       onEquipFromBag: (bagSlot) => this.msgHandler.sendMessage(Proto.MSG_ITEM_EQUIP_REQUEST, { slotIndex: bagSlot, equipSlot: 0 }),
       onAllocStat: (statType, points) => {
+        // The server's StatUpdate redraws the panel (onStatUpdate)
         this.msgHandler.sendMessage(Proto.MSG_STAT_ALLOC_REQUEST, { statType, points });
-        setTimeout(() => { if (this.charPanel?.visible) this.renderStatsUI(); }, 200);
       },
       onClose: () => this.toggleStats(),
       onRefreshPortrait: (cb) => this.capturePlayerPortrait(cb),
@@ -2914,6 +2926,9 @@ export class GameScene extends Phaser.Scene {
       npcEntity.tileY = npcEntity.targetTileY;
       npcEntity.visualX = npcEntity.tileX * TILE_SIZE;
       npcEntity.visualY = npcEntity.tileY * TILE_SIZE;
+      // Stand between steps; the next step (if any) starts the walk again
+      npcEntity.stopAfterMove = false;
+      this.playNpcIdle(npcEntity);
     }
   }
 
@@ -2973,11 +2988,17 @@ export class GameScene extends Phaser.Scene {
     if (data.action === 1) {
       // Movement
       this.playMonsterSound(npcEntity, 'move');
+      if (npcEntity.isMoving) {
+        // The server has it on its previous tile already; carry on from where it's drawn
+        npcEntity.tileX = npcEntity.targetTileX;
+        npcEntity.tileY = npcEntity.targetTileY;
+      }
+      npcEntity.stopAfterMove = false;
       npcEntity.moveStartX = npcEntity.visualX;
       npcEntity.moveStartY = npcEntity.visualY;
       npcEntity.targetTileX = data.position?.x ?? npcEntity.tileX;
       npcEntity.targetTileY = data.position?.y ?? npcEntity.tileY;
-      npcEntity.moveDuration = data.speed || 800;
+      npcEntity.moveDuration = Math.min(data.speed || NPC_STEP_MS, NPC_STEP_MS);
       npcEntity.moveStartTime = this.time.now;
       npcEntity.isMoving = true;
       npcEntity.direction = data.direction;
@@ -2990,33 +3011,51 @@ export class GameScene extends Phaser.Scene {
           const walkSheet = 8 + dirIdx; // walk sheets start at 8
           const animKey = `${spriteName}-${walkSheet}`;
           if (this.anims.exists(animKey)) {
+            // One walk cycle (8 frames) per step
+            const fps = Phaser.Math.Clamp(Math.round(8000 / npcEntity.moveDuration), NPC_WALK_FPS_MIN, NPC_WALK_FPS_MAX);
             npcEntity.asset.playAnimationWithDirection(
-              animKey, 0, 6, undefined, undefined, undefined,
+              animKey, 0, fps, undefined, undefined, undefined,
               AnimationType.FullFrame,
             );
           }
         }
       }
     } else {
-      npcEntity.tileX = data.position?.x ?? npcEntity.tileX;
-      npcEntity.tileY = data.position?.y ?? npcEntity.tileY;
-      npcEntity.isMoving = false;
-
-      // Switch back to idle sprite sheet for current direction
-      if (npcEntity.asset && npcEntity.direction >= 1 && npcEntity.direction <= 8) {
-        const spriteName = NPC_SPRITE_MAP[npcEntity.npcType];
-        if (spriteName) {
-          const dirIdx = npcEntity.direction - 1;
-          const idleSheet = dirIdx; // idle sheets are 0-7
-          const animKey = `${spriteName}-${idleSheet}`;
-          if (this.anims.exists(animKey)) {
-            npcEntity.asset.playAnimationWithDirection(
-              animKey, 0, 4, undefined, undefined, undefined,
-              AnimationType.FullFrame,
-            );
-          }
+      const stopX = data.position?.x ?? npcEntity.tileX;
+      const stopY = data.position?.y ?? npcEntity.tileY;
+      if (npcEntity.isMoving) {
+        // The server sends "stopped" right after the last step: let that step
+        // play out instead of jumping to the tile (that jump was the snapping).
+        if (stopX !== npcEntity.targetTileX || stopY !== npcEntity.targetTileY) {
+          // It's somewhere else after all: glide there over the time left
+          const left = Math.max(150, npcEntity.moveDuration - (this.time.now - npcEntity.moveStartTime));
+          npcEntity.moveStartX = npcEntity.visualX;
+          npcEntity.moveStartY = npcEntity.visualY;
+          npcEntity.targetTileX = stopX;
+          npcEntity.targetTileY = stopY;
+          npcEntity.moveStartTime = this.time.now;
+          npcEntity.moveDuration = left;
         }
+        npcEntity.stopAfterMove = true;
+        return;
       }
+      npcEntity.tileX = stopX;
+      npcEntity.tileY = stopY;
+      this.playNpcIdle(npcEntity);
+    }
+  }
+
+  /** Back to the standing sprite sheet for the NPC's current direction. */
+  private playNpcIdle(npcEntity: GameNPC): void {
+    if (!npcEntity.asset || npcEntity.direction < 1 || npcEntity.direction > 8) return;
+    const spriteName = NPC_SPRITE_MAP[npcEntity.npcType];
+    if (!spriteName) return;
+    const animKey = `${spriteName}-${npcEntity.direction - 1}`; // idle sheets are 0-7
+    if (this.anims.exists(animKey)) {
+      npcEntity.asset.playAnimationWithDirection(
+        animKey, 0, 4, undefined, undefined, undefined,
+        AnimationType.FullFrame,
+      );
     }
   }
 
@@ -3347,8 +3386,17 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Everything the character panel shows, to tell when it needs redrawing. */
+  private charPanelSignature(): string {
+    return [this.playerLevel, this.playerExp, this.playerLUPool,
+      this.playerSTR, this.playerVIT, this.playerDEX, this.playerINT, this.playerMAG, this.playerCHR,
+      this.playerHP, this.playerMaxHP, this.playerMP, this.playerMaxMP, this.playerSP, this.playerMaxSP,
+      this.ekCount].join('|');
+  }
+
   private onStatUpdate(data: StatUpdateData): void {
     const prevReqs = `${this.playerLevel}|${this.playerINT}|${this.playerMAG}`;
+    const prevPanel = this.charPanelSignature();
     this.playerHP = data.hp;
     this.playerMaxHP = data.maxHp;
     this.playerMP = data.mp;
@@ -3373,6 +3421,11 @@ export class GameScene extends Phaser.Scene {
     const reqsChanged = prevReqs !== `${this.playerLevel}|${this.playerINT}|${this.playerMAG}`;
     if (reqsChanged && this.spellBarOpen && this.spellBookTab === 'learn') {
       this.renderSpellBarUI();
+    }
+    // An open character panel follows along: new stat points on a level-up,
+    // spent points, HP and the rest (no need to close and reopen it)
+    if (this.charPanel?.visible && prevPanel !== this.charPanelSignature()) {
+      this.renderStatsUI();
     }
   }
 
@@ -5614,7 +5667,9 @@ export class GameScene extends Phaser.Scene {
   private onPKStatus(data: PKStatusData): void {
     this.pkCount = data.pkCount;
     this.refreshNpcNameColours();
+    const ekChanged = this.ekCount !== data.ekCount;
     this.ekCount = data.ekCount;
+    if (ekChanged && this.charPanel?.visible) this.renderStatsUI();
     this.criminal = data.criminal;
     if (data.criminal) {
       this.showSystemMessage(`Criminal status! PK: ${data.pkCount} EK: ${data.ekCount}`);
