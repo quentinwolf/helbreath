@@ -32,7 +32,8 @@ export const ITEM_PICKUP = 'sound-item-pickup';
 // Effects
 export const EXPLOSION = 'sound-explosion';
 export const ENERGY_EXPLOSION = 'sound-energy-explosion';
-export const LEVEL_UP = 'sound-level-up';
+export const LEVEL_UP = 'sound-level-up'; // C21.mp3 (men)
+export const LEVEL_UP_FEMALE = 'sound-level-up-female'; // C22.mp3 (women)
 
 // Spell effects
 export const LIGHTNING = 'sound-lightning';

@@ -575,7 +575,9 @@ const SOUND_ASSETS: AssetData[] = [
     // Effects
     { key: 'sound-explosion', fileName: 'E4.mp3', assetType: AssetType.SOUND },
     { key: 'sound-energy-explosion', fileName: 'E2.mp3', assetType: AssetType.SOUND },
-    { key: 'sound-level-up', fileName: 'E5.mp3', assetType: AssetType.SOUND },
+    // Level up: the original's cheer, PlaySound('C', 21) for men and ('C', 22) for women
+    { key: 'sound-level-up', fileName: 'C21.mp3', assetType: AssetType.SOUND },
+    { key: 'sound-level-up-female', fileName: 'C22.mp3', assetType: AssetType.SOUND },
 
     // Spells
     { key: 'sound-lightning', fileName: 'E40.mp3', assetType: AssetType.SOUND },

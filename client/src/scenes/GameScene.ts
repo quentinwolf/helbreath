@@ -52,7 +52,7 @@ import { SoundManager } from '../audio/SoundManager';
 import { MONSTER_SOUNDS, monsterSoundKey, type MonsterSoundSet } from '../constants/MonsterSounds';
 import { MusicManager } from '../audio/MusicManager';
 import { SoundTracker } from '../audio/SoundTracker';
-import { PLAYER_WALKING, PLAYER_RUNNING, PLAYER_MELEE_ATTACK, PLAYER_CAST, TAKE_DAMAGE_BLADE } from '../audio/SoundFileNames';
+import { PLAYER_WALKING, PLAYER_RUNNING, PLAYER_MELEE_ATTACK, PLAYER_CAST, TAKE_DAMAGE_BLADE, LEVEL_UP, LEVEL_UP_FEMALE } from '../audio/SoundFileNames';
 import { showDamageNumber } from '../game/effects/FloatingText';
 import { WeatherManager } from '../game/effects/WeatherManager';
 import { Effect } from '../game/effects/Effect';
@@ -67,6 +67,7 @@ import { getItemGroundFrame } from '../constants/ItemGroundSprites';
 import { ItemSpriteExtractor } from '../utils/ItemSpriteExtractor';
 import { InventoryBagPanel } from '../game/ui/InventoryBagPanel';
 import { CharacterInfoPanel, CharacterData } from '../game/ui/CharacterInfoPanel';
+import { EntityLabel } from '../game/ui/EntityLabel';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -89,6 +90,9 @@ const NPC_STATUS_ARESDEN = 0x04000000;
 const NAME_FRIENDLY = '#66ff66';
 const NAME_NEUTRAL = '#c8c8c8';
 const NAME_ENEMY = '#ff6666';
+const TAG_ENEMY = '#ff3030';
+const TAG_NEUTRAL = '#6f86ff';
+const TAG_FRIENDLY = '#30e030';
 /**
  * Longest an NPC's step takes on screen. The server steps them once per action
  * time (1 s for a guard, 2.1 s for a Slime), so slow creatures walk a tile, then
@@ -118,7 +122,7 @@ interface RemotePlayer {
   direction: number;
   action: number;
   assets: PlayerAssets | null;
-  nameText: Phaser.GameObjects.Text;
+  nameText: EntityLabel;
   targetTileX: number;
   targetTileY: number;
   moveStartTime: number;
@@ -155,7 +159,7 @@ interface GameNPC {
   maxHp: number;
   asset: GameAsset | null;
   fallbackSprite: Phaser.GameObjects.Ellipse | null;
-  nameText: Phaser.GameObjects.Text;
+  nameText: EntityLabel;
   hpBar: Phaser.GameObjects.Graphics;
   targetTileX: number;
   targetTileY: number;
@@ -363,7 +367,16 @@ export class GameScene extends Phaser.Scene {
   private playerBoots = 0;
   private playerCape = 0;
   private playerAssets: PlayerAssets | null = null;
-  private playerNameText!: Phaser.GameObjects.Text;
+  private playerNameText!: EntityLabel;
+  /** Show every name all the time (N), instead of only under the cursor as in the original. */
+  private alwaysShowNames = false;
+  /** Last coordinates written to the HUD (so we only touch the page when they change). */
+  private lastCoordsShown = '';
+  /** This scene's WeatherManager exists (false while a restart is setting up). */
+  private weatherReady = false;
+  /** The NPC we last attacked keeps its name up for a few seconds, as when focused in the original. */
+  private labelTargetId = 0;
+  private labelTargetUntil = 0;
   private playerState: PlayerState = PlayerState.IdlePeace;
 
   // Smooth movement
@@ -660,6 +673,8 @@ export class GameScene extends Phaser.Scene {
     this.playerCHR = pd.charisma ?? 10;
     this.isDead = false;
     this.closeDeathPanel(); // HTML outlives a scene restart
+    this.lastCoordsShown = ''; // the HUD is rebuilt with this scene
+    this.weatherReady = false; // until this scene's WeatherManager is made below
     this.closeCityHallMenu();
 
     // Parse collision grid
@@ -757,6 +772,8 @@ export class GameScene extends Phaser.Scene {
     this.musicManager = new MusicManager(this);
     this.soundTracker = new SoundTracker(this.soundManager);
     this.weatherManager = new WeatherManager(this, this.soundManager);
+    this.weatherReady = true;
+    this.applyWorldState(); // anything that arrived while the scene was starting
 
     // This scene restarts on every teleport (the server re-sends EnterGameResponse).
     // Phaser's sound system outlives the scene, so stop our music and loops on
@@ -769,6 +786,7 @@ export class GameScene extends Phaser.Scene {
       this.registry.set('musicVolume', this.musicManager.getVolume());
       this.registry.set('sfxVolume', this.soundManager.getVolume());
       this.musicManager.destroy();
+      this.weatherReady = false;
       this.weatherManager.destroy();
       this.soundManager.destroy();
       this.npcCorpses.clear(); // their sprites go down with the scene
@@ -806,6 +824,8 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown-G', ifNotTyping(() => this.toggleGuild()));
     this.input.keyboard!.on('keydown-P', ifNotTyping(() => this.toggleParty()));
     this.input.keyboard!.on('keydown-J', ifNotTyping(() => this.toggleQuests()));
+    this.input.keyboard!.on('keydown-N', ifNotTyping(() => this.toggleAlwaysShowNames()));
+    try { this.alwaysShowNames = localStorage.getItem('hb_always_names') === '1'; } catch { /* private mode */ }
 
     // Potion hotkeys
     this.input.keyboard!.on('keydown-ONE', ifNotTyping(() => this.usePotion('hp')));
@@ -948,6 +968,7 @@ export class GameScene extends Phaser.Scene {
 
     // Show player names only on mouse hover
     this.updateNameHover();
+    this.updateCoordsHUD();
 
     // Invisibility and polymorph (after names, so hidden players stay nameless)
     this.updateStatusVisuals();
@@ -1201,10 +1222,10 @@ export class GameScene extends Phaser.Scene {
 
     this.setPlayerAssetsPosition(this.playerAssets, this.visualX, this.visualY, this.tileY);
 
-    this.playerNameText = this.add.text(this.visualX + TILE_SIZE / 2, this.visualY - 45, this.playerName, {
-      fontSize: '10px', color: '#ffffff',
-      stroke: '#000000', strokeThickness: 2,
-    }).setOrigin(0.5, 1).setDepth(this.tileY * DEPTH_MULTIPLIER + 50).setVisible(false);
+    this.playerNameText?.destroy();
+    this.playerNameText = new EntityLabel(this, this.visualX, this.visualY, this.playerName)
+      .setDepth(this.tileY * DEPTH_MULTIPLIER + 50);
+    this.refreshLocalPlayerTag();
 
     this.playerState = this.idleState;
   }
@@ -1539,6 +1560,7 @@ export class GameScene extends Phaser.Scene {
     rp.status = info.status ?? 0;
     rp.side = info.side ?? rp.side;
     rp.pkCount = info.pkCount ?? rp.pkCount;
+    this.refreshPlayerTag(rp);
     this.setPlayerAssetsPosition(rp.assets, rp.visualX, rp.visualY, rp.tileY);
   }
 
@@ -1815,14 +1837,14 @@ export class GameScene extends Phaser.Scene {
   private updateLocalPlayerPosition(): void {
     if (!this.playerAssets) return;
     this.setPlayerAssetsPosition(this.playerAssets, this.visualX, this.visualY, this.tileY);
-    this.playerNameText.setPosition(this.visualX + TILE_SIZE / 2, this.visualY - 45);
+    this.playerNameText.setPosition(this.visualX, this.visualY);
     this.playerNameText.setDepth(this.tileY * DEPTH_MULTIPLIER + 50);
   }
 
   private updateRemotePlayerPosition(rp: RemotePlayer): void {
     if (!rp.assets) return;
     this.setPlayerAssetsPosition(rp.assets, rp.visualX, rp.visualY, rp.tileY);
-    rp.nameText.setPosition(rp.visualX + TILE_SIZE / 2, rp.visualY - 45);
+    rp.nameText.setPosition(rp.visualX, rp.visualY);
     rp.nameText.setDepth(rp.tileY * DEPTH_MULTIPLIER + 50);
   }
 
@@ -2362,10 +2384,7 @@ export class GameScene extends Phaser.Scene {
     const worldX = px * TILE_SIZE;
     const worldY = py * TILE_SIZE;
 
-    const nameText = this.add.text(worldX + TILE_SIZE / 2, worldY - 45, info.name || '???', {
-      fontSize: '10px', color: '#ffffff',
-      stroke: '#000000', strokeThickness: 2,
-    }).setOrigin(0.5, 1).setVisible(false);
+    const nameText = new EntityLabel(this, worldX, worldY, info.name || '???');
 
     const rp: RemotePlayer = {
       objectId: info.objectId,
@@ -2397,6 +2416,7 @@ export class GameScene extends Phaser.Scene {
     nameText.setDepth(rp.tileY * DEPTH_MULTIPLIER + 50);
 
     this.remotePlayers.set(info.objectId, rp);
+    this.refreshPlayerTag(rp);
   }
 
   private removeRemotePlayer(objectId: number): void {
@@ -2690,19 +2710,32 @@ export class GameScene extends Phaser.Scene {
     const hoverTileY = Math.floor(worldPoint.y / TILE_SIZE);
     const HOVER_RANGE = 1; // tiles
 
+    const near = (x: number, y: number) =>
+      Math.abs(hoverTileX - x) <= HOVER_RANGE && Math.abs(hoverTileY - y) <= HOVER_RANGE;
+    const always = this.alwaysShowNames;
+
     // Local player name
     if (this.playerNameText) {
-      const near = Math.abs(hoverTileX - this.tileX) <= HOVER_RANGE &&
-                   Math.abs(hoverTileY - this.tileY) <= HOVER_RANGE;
-      this.playerNameText.setVisible(near);
+      this.playerNameText.setVisible(always || near(this.tileX, this.tileY));
     }
 
     // Remote player names
     for (const rp of this.remotePlayers.values()) {
-      const near = Math.abs(hoverTileX - rp.tileX) <= HOVER_RANGE &&
-                   Math.abs(hoverTileY - rp.tileY) <= HOVER_RANGE;
-      rp.nameText.setVisible(near);
+      rp.nameText.setVisible(always || near(rp.tileX, rp.tileY));
     }
+
+    // NPC names: under the cursor, or the one we're fighting
+    const fighting = this.time.now < this.labelTargetUntil ? this.labelTargetId : 0;
+    for (const n of this.npcs.values()) {
+      n.nameText.setVisible(always || n.objectId === fighting || near(n.tileX, n.tileY));
+    }
+  }
+
+  /** N: names on everyone all the time, or only under the cursor (the original). */
+  private toggleAlwaysShowNames(): void {
+    this.alwaysShowNames = !this.alwaysShowNames;
+    try { localStorage.setItem('hb_always_names', this.alwaysShowNames ? '1' : '0'); } catch { /* private mode */ }
+    this.showSystemMessage(this.alwaysShowNames ? 'Names: always shown' : 'Names: shown under the cursor');
   }
 
   private updateMinimapDot(): void {
@@ -2733,7 +2766,7 @@ export class GameScene extends Phaser.Scene {
       if (data.npcType === undefined || data.npcType === existing.npcType) {
         if (data.status !== undefined) {
           existing.status = data.status;
-          existing.nameText.setColor(this.npcNameColour(existing));
+          this.refreshNpcTag(existing);
         }
         return;
       }
@@ -2784,10 +2817,8 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    const nameText = this.add.text(worldX + TILE_SIZE / 2, worldY - 2, data.name || 'NPC', {
-      fontSize: '9px', color: NAME_NEUTRAL,
-      stroke: '#000000', strokeThickness: 2,
-    }).setOrigin(0.5, 1).setDepth(py * DEPTH_MULTIPLIER + 50);
+    const nameText = new EntityLabel(this, worldX, worldY, data.name || 'NPC')
+      .setDepth(py * DEPTH_MULTIPLIER + 50);
 
     const hpBar = this.add.graphics().setDepth(py * DEPTH_MULTIPLIER + 51);
 
@@ -2818,7 +2849,7 @@ export class GameScene extends Phaser.Scene {
     };
 
     this.npcs.set(data.objectId, npcEntity);
-    nameText.setColor(this.npcNameColour(npcEntity));
+    this.refreshNpcTag(npcEntity);
     const soundSprite = NPC_SPRITE_MAP[npcEntity.npcType];
     if (soundSprite) this.ensureMonsterSounds(soundSprite);
   }
@@ -2844,7 +2875,41 @@ export class GameScene extends Phaser.Scene {
 
   /** Recolour every NPC name (after we join a town or our criminal status changes). */
   private refreshNpcNameColours(): void {
-    for (const n of this.npcs.values()) n.nameText.setColor(this.npcNameColour(n));
+    for (const n of this.npcs.values()) this.refreshNpcTag(n);
+    for (const rp of this.remotePlayers.values()) this.refreshPlayerTag(rp);
+    this.refreshLocalPlayerTag();
+  }
+
+  /** The NPC's second line: "(Enemy)", "Neutral" or "(Friendly)" (the original's DrawNpcName). */
+  private refreshNpcTag(n: GameNPC): void {
+    const colour = this.npcNameColour(n);
+    if (colour === NAME_ENEMY) n.nameText.setTag('(Enemy)', TAG_ENEMY);
+    else if (colour === NAME_FRIENDLY) n.nameText.setTag('(Friendly)', TAG_FRIENDLY);
+    else n.nameText.setTag('Neutral', TAG_NEUTRAL);
+  }
+
+  /** "Traveller", "Aresden Combatant", "Elvine Criminal"... as the original's DrawObjectName. */
+  private playerTagText(side: number, pkCount: number): string {
+    const town = side === 1 ? 'Aresden' : side === 2 ? 'Elvine' : '';
+    if (pkCount > 0) return town ? `${town} Criminal` : 'Criminal';
+    return town ? `${town} Combatant` : 'Traveller';
+  }
+
+  /** How another player stands to us, as the original's _iGetFOE. */
+  private playerTagColour(side: number, pkCount: number): string {
+    if (this.pkCount !== 0 || pkCount > 0) return TAG_ENEMY;
+    if (side === 0 || this.mySide === 0) return TAG_NEUTRAL;
+    return side === this.mySide ? TAG_FRIENDLY : TAG_ENEMY;
+  }
+
+  private refreshPlayerTag(rp: RemotePlayer): void {
+    rp.nameText.setTag(this.playerTagText(rp.side, rp.pkCount), this.playerTagColour(rp.side, rp.pkCount));
+  }
+
+  /** Our own label: green, or red while we're a criminal. */
+  private refreshLocalPlayerTag(): void {
+    this.playerNameText?.setTag(this.playerTagText(this.mySide, this.pkCount),
+      this.pkCount > 0 ? TAG_ENEMY : TAG_FRIENDLY);
   }
 
   private removeNPC(objectId: number): void {
@@ -2947,7 +3012,7 @@ export class GameScene extends Phaser.Scene {
       npcEntity.fallbackSprite.setDepth(baseDepth);
     }
 
-    npcEntity.nameText.setPosition(cx, npcEntity.visualY - 2);
+    npcEntity.nameText.setPosition(npcEntity.visualX, npcEntity.visualY);
     npcEntity.nameText.setDepth(npcEntity.tileY * DEPTH_MULTIPLIER + 50);
 
     // Draw HP bar if we know HP
@@ -3257,6 +3322,8 @@ export class GameScene extends Phaser.Scene {
 
     // Send attack to server
     console.log(`[ATTACK] Sending attack request: dir=${dir}, targetId=${closestNPC.objectId}`);
+    this.labelTargetId = closestNPC.objectId;
+    this.labelTargetUntil = this.time.now + 4000;
     this.msgHandler.sendMessage(Proto.MSG_ATTACK_REQUEST, {
       direction: dir,
       action: 3,
@@ -3395,8 +3462,24 @@ export class GameScene extends Phaser.Scene {
       this.ekCount].join('|');
   }
 
+  /**
+   * Level up, as the original's NotifyMsg_LevelUp: the cheer (C21 for men, C22
+   * for women) and "Level up!" floating up from above your head.
+   */
+  private playLevelUp(): void {
+    this.soundManager.playOnce(this.playerGender === 1 ? LEVEL_UP_FEMALE : LEVEL_UP); // gender 1 = female here
+    const text = this.add.text(this.visualX + TILE_SIZE / 2, this.visualY - 65, 'Level up!', {
+      fontSize: '20px', fontStyle: 'bold', color: '#ffd84a', stroke: '#3a2400', strokeThickness: 4,
+    }).setOrigin(0.5, 1).setDepth(999000);
+    this.tweens.add({
+      targets: text, y: text.y - 30, alpha: { from: 1, to: 0 },
+      delay: 1500, duration: 1500, onComplete: () => text.destroy(),
+    });
+  }
+
   private onStatUpdate(data: StatUpdateData): void {
     const prevReqs = `${this.playerLevel}|${this.playerINT}|${this.playerMAG}`;
+    const prevLevel = this.playerLevel;
     const prevPanel = this.charPanelSignature();
     this.playerHP = data.hp;
     this.playerMaxHP = data.maxHp;
@@ -3417,6 +3500,7 @@ export class GameScene extends Phaser.Scene {
 
     // Update HUD
     this.updateHUD();
+    if (prevLevel > 0 && this.playerLevel > prevLevel) this.playLevelUp();
 
     // Spell unlocks depend on level/INT/MAG: refresh an open Learn tab when they change
     const reqsChanged = prevReqs !== `${this.playerLevel}|${this.playerINT}|${this.playerMAG}`;
@@ -3662,22 +3746,27 @@ export class GameScene extends Phaser.Scene {
     const parts = message.split('|');
     for (const part of parts) {
       const [key, value] = part.split(':');
-      if (key === 'time' && value) {
-        this.timeOfDay = value;
-        if (['day', 'dusk', 'night', 'dawn'].includes(value)) {
-          this.weatherManager.setTimeOfDay(value as any);
-        }
-      } else if (key === 'weather' && value) {
-        this.weather = value;
-        if (['clear', 'rain', 'fog'].includes(value)) {
-          // No weather effects indoors
-          if (GameScene.INDOOR_MAPS.has(this.currentMapName)) {
-            this.weatherManager.setWeather('clear');
-          } else {
-            this.weatherManager.setWeather(value as any);
-          }
-        }
-      }
+      if (key === 'time' && value) this.timeOfDay = value;
+      else if (key === 'weather' && value) this.weather = value;
+    }
+    this.applyWorldState();
+  }
+
+  /**
+   * Shows the stored time of day and weather. A world-state message can arrive
+   * while a map change restarts this scene: it's replayed before the new
+   * WeatherManager exists, and using the old (destroyed) one threw and stopped
+   * the scene from starting, freezing on "Entering <map>...". So until the
+   * scene has its weather manager we only store the values; create() applies them.
+   */
+  private applyWorldState(): void {
+    if (!this.weatherReady) return;
+    if (['day', 'dusk', 'night', 'dawn'].includes(this.timeOfDay)) {
+      this.weatherManager.setTimeOfDay(this.timeOfDay as any);
+    }
+    if (['clear', 'rain', 'fog'].includes(this.weather)) {
+      // No weather effects indoors
+      this.weatherManager.setWeather(GameScene.INDOOR_MAPS.has(this.currentMapName) ? 'clear' : this.weather as any);
     }
   }
 
@@ -3823,6 +3912,7 @@ export class GameScene extends Phaser.Scene {
             <div><kbd>Right Click</kbd> Cast spell / Melee attack</div>
             <div><kbd>A</kbd> Toggle Attack / Rest mode</div>
             <div><kbd>R</kbd> Toggle Always Run</div>
+            <div><kbd>N</kbd> Always show names (or only under the cursor)</div>
             <div><kbd>Shift</kbd> Hold to run (or walk if Always Run)</div>
           </div>
 
@@ -3888,6 +3978,17 @@ export class GameScene extends Phaser.Scene {
     document.body.appendChild(div);
     div.querySelector('#help-close')?.addEventListener('click', () => this.toggleHelpModal());
     this.events.on('shutdown', () => div.remove());
+  }
+
+  /** The HUD's tile coordinates follow us as we walk (they only changed on stat updates). */
+  private updateCoordsHUD(): void {
+    const coords = `${this.tileX},${this.tileY}`;
+    if (coords === this.lastCoordsShown) return;
+    const el = document.getElementById('hud-coords');
+    if (el) {
+      el.textContent = coords;
+      this.lastCoordsShown = coords;
+    }
   }
 
   private updateHUD(): void {
@@ -4797,7 +4898,7 @@ export class GameScene extends Phaser.Scene {
    * Zombie. Runs every frame because animation changes re-show layers.
    */
   private applyStatusVisuals(
-    objectId: number, assets: PlayerAssets, nameText: Phaser.GameObjects.Text | undefined,
+    objectId: number, assets: PlayerAssets, nameText: EntityLabel | undefined,
     mode: 'normal' | 'ghost' | 'hidden', polymorphed: boolean, block: number,
     direction: number, x: number, y: number, tileY: number,
   ): void {
