@@ -49,6 +49,7 @@ import { ASSET_BASE } from '../env';
 import { HBSpriteFile } from '../game/assets/HBSprite';
 import { SpriteType } from '../game/assets/HBSprite';
 import { SoundManager } from '../audio/SoundManager';
+import { MONSTER_SOUNDS, monsterSoundKey, type MonsterSoundSet } from '../constants/MonsterSounds';
 import { MusicManager } from '../audio/MusicManager';
 import { SoundTracker } from '../audio/SoundTracker';
 import { PLAYER_WALKING, PLAYER_RUNNING, PLAYER_MELEE_ATTACK, PLAYER_CAST, TAKE_DAMAGE_BLADE } from '../audio/SoundFileNames';
@@ -488,6 +489,7 @@ export class GameScene extends Phaser.Scene {
     // loader dropped its 'complete' callbacks at shutdown, so anything still
     // marked as loading was cancelled. Forget it so it can be requested again.
     this.loadingDeferredSprites.clear();
+    this.loadingMonsterSounds.clear();
 
     this.msgHandler = this.registry.get('msgHandler') as MessageHandler;
     // Clear GameScene-specific handlers to prevent duplicates on scene restart
@@ -2652,6 +2654,8 @@ export class GameScene extends Phaser.Scene {
     };
 
     this.npcs.set(data.objectId, npcEntity);
+    const soundSprite = NPC_SPRITE_MAP[npcEntity.npcType];
+    if (soundSprite) this.ensureMonsterSounds(soundSprite);
   }
 
   private removeNPC(objectId: number): void {
@@ -2792,6 +2796,7 @@ export class GameScene extends Phaser.Scene {
 
     if (data.action === 1) {
       // Movement
+      this.playMonsterSound(npcEntity, 'move');
       npcEntity.moveStartX = npcEntity.visualX;
       npcEntity.moveStartY = npcEntity.visualY;
       npcEntity.targetTileX = data.position?.x ?? npcEntity.tileX;
@@ -2858,6 +2863,7 @@ export class GameScene extends Phaser.Scene {
     if (!npcEntity?.asset || !spriteName || direction < 1 || direction > 8) return;
 
     npcEntity.direction = direction;
+    this.playMonsterSound(npcEntity, 'attack');
     const attackKey = `${spriteName}-${16 + direction - 1}`;
     if (!this.anims.exists(attackKey)) return;
 
@@ -2874,6 +2880,51 @@ export class GameScene extends Phaser.Scene {
         npcEntity.asset.playAnimationWithDirection(idleKey, 0, 4, undefined, undefined, undefined, AnimationType.FullFrame);
       }
     });
+  }
+
+  // Monster sounds are loaded the first time that monster type appears
+  private loadingMonsterSounds = new Set<string>();
+  private lastNpcMoveSoundAt = new Map<number, number>(); // NPC object ID -> scene time
+
+  /** Queues the sound files for a monster sprite that aren't loaded yet. */
+  private ensureMonsterSounds(spriteName: string): void {
+    const set = MONSTER_SOUNDS[spriteName];
+    if (!set) return;
+    let queued = false;
+    for (const name of Object.values(set)) {
+      const key = monsterSoundKey(name);
+      if (this.cache.audio.exists(key) || this.loadingMonsterSounds.has(key)) continue;
+      this.loadingMonsterSounds.add(key);
+      this.load.audio(key, `${ASSET_BASE}/assets/sounds/${name}.mp3`);
+      queued = true;
+    }
+    if (queued) {
+      this.load.once('complete', () => this.loadingMonsterSounds.clear());
+      this.load.start();
+    }
+  }
+
+  /**
+   * Plays one of a monster's sounds, quieter and panned by distance from the
+   * player. Move sounds are limited to one every few seconds per monster so a
+   * pack doesn't turn into constant noise.
+   */
+  private playMonsterSound(npcEntity: GameNPC, kind: keyof MonsterSoundSet): void {
+    const spriteName = NPC_SPRITE_MAP[npcEntity.npcType];
+    const name = spriteName ? MONSTER_SOUNDS[spriteName]?.[kind] : undefined;
+    if (!name) return;
+    const key = monsterSoundKey(name);
+    if (!this.cache.audio.exists(key)) {
+      this.ensureMonsterSounds(spriteName);
+      return;
+    }
+    if (kind === 'move') {
+      const last = this.lastNpcMoveSoundAt.get(npcEntity.objectId) ?? -Infinity;
+      if (this.time.now - last < 3000) return;
+      this.lastNpcMoveSoundAt.set(npcEntity.objectId, this.time.now);
+    }
+    const spatial = SoundManager.computeSpatialConfig(npcEntity.tileX, npcEntity.tileY, this.tileX, this.tileY);
+    if (spatial) this.soundManager.playOnce(key, undefined, spatial);
   }
 
   /** NPCs sorted by distance from a tile, so a click picks the one actually clicked. */
@@ -3048,6 +3099,8 @@ export class GameScene extends Phaser.Scene {
       if (npcEntity) {
         npcEntity.hp = data.targetHp;
         npcEntity.maxHp = data.targetMaxHp;
+        // Pain sound when it survives the hit (dying plays its death sound instead)
+        if (!data.miss && data.targetHp > 0) this.playMonsterSound(npcEntity, 'hurt');
       }
     }
 
@@ -3151,6 +3204,7 @@ export class GameScene extends Phaser.Scene {
     if (data.objectType === 2) {
       // NPC died - play its death animation, or flash and remove if it has none
       const npcEntity = this.npcs.get(data.objectId);
+      if (npcEntity) this.playMonsterSound(npcEntity, 'death');
       if (npcEntity && this.playNPCDeath(npcEntity)) return;
       if (npcEntity) {
         if (npcEntity.asset) {
