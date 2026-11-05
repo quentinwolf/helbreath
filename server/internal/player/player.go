@@ -147,6 +147,7 @@ func FromDB(row *db.CharacterRow, objectID int32, client *network.Client) *Playe
 		EKCount:        row.EKCount,
 		Hunger:         row.Hunger,
 		AdminLevel:     row.AdminLevel,
+		GodMode:        row.GodMode && row.AdminLevel >= 2, // /god needs admin level 2
 		IntroShown:     row.IntroShown,
 		Inventory:      items.NewInventory(),
 		Skills:         skills.NewPlayerSkills(),

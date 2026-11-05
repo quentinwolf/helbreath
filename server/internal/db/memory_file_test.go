@@ -51,6 +51,24 @@ func TestFileStoreSurvivesRestart(t *testing.T) {
 	}
 }
 
+func TestFileStoreRemembersGodMode(t *testing.T) {
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "save.json")
+
+	s, _ := NewFileStore(path)
+	accID, _ := s.CreateAccount(ctx, "gm", "hash", "")
+	charID, _ := s.CreateCharacter(ctx, accID, "GM", 0, 0, 0, 0, 0, 10, 10, 10, 20, 10, 10)
+	if err := s.SaveGodMode(ctx, charID, true); err != nil {
+		t.Fatal(err)
+	}
+
+	s2, _ := NewFileStore(path)
+	c, err := s2.GetCharacterByID(ctx, charID, accID)
+	if err != nil || !c.GodMode {
+		t.Errorf("god mode should survive a restart: %+v err=%v", c, err)
+	}
+}
+
 func TestFileStoreStartsEmptyWithoutFile(t *testing.T) {
 	s, err := NewFileStore(filepath.Join(t.TempDir(), "missing.json"))
 	if err != nil {

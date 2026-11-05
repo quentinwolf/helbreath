@@ -92,6 +92,14 @@ type CharacterRow struct {
 	EquipmentJSON  string // JSON-serialized equipment items
 	SpellDataJSON  string // JSON-serialized learned spell IDs
 	IntroShown     bool
+	GodMode        bool // admin /god toggle; only remembered by stores implementing GodModeStore
+}
+
+// GodModeStore is implemented by stores that remember a character's /god
+// toggle between sessions (the JSON save file). The PostgreSQL store doesn't
+// have a column for it.
+type GodModeStore interface {
+	SaveGodMode(ctx context.Context, charID int, on bool) error
 }
 
 func (s *Store) GetCharactersByAccount(ctx context.Context, accountID int) ([]CharacterRow, error) {

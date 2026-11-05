@@ -171,6 +171,9 @@ func (e *Engine) validateSpellTarget(p *player.Player, spell *magic.SpellDef, tx
 	if targetID == 0 {
 		return "No target selected"
 	}
+	if val, isNPC := e.npcs.Load(targetID); isNPC && !e.playerCanHurtNPC(p, val.(*npc.NPC)) {
+		return "The guards are not your enemy"
+	}
 	if t := e.getPlayerByID(targetID); t != nil && !spellCanHitPlayer(p, t) {
 		if t.Side != 0 && t.Side == p.Side {
 			return "Cannot attack a member of your own faction"
@@ -276,7 +279,7 @@ func (e *Engine) castDamageSpell(p *player.Player, spell *magic.SpellDef, tx, ty
 	var npcVictims []*npc.NPC
 	e.npcs.Range(func(_, value any) bool {
 		n := value.(*npc.NPC)
-		if n.IsAlive() && n.MapName == p.MapName {
+		if n.IsAlive() && n.MapName == p.MapName && e.playerCanHurtNPC(p, n) {
 			if _, hit := hits[[2]int{n.X, n.Y}]; hit {
 				npcVictims = append(npcVictims, n)
 			}

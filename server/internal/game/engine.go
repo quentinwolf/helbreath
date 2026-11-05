@@ -471,6 +471,7 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 		return
 	}
 	n.NextThinkTime = now.Add(200 * time.Millisecond)
+	npcRegenMana(n)
 
 	// Find nearest player in aggro range
 	nearestPlayer, nearestDist := e.findNearestPlayer(n, gm)
@@ -515,23 +516,22 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 			return
 		}
 
-		// Random direction
+		// Random direction; if it has strayed outside its wander range (after a
+		// chase), head back towards its spawn point instead
 		dir := 1 + rand.Intn(8)
+		if n.DistanceTo(n.SpawnX, n.SpawnY) > n.Type.WanderRange {
+			dir = n.DirectionTo(n.SpawnX, n.SpawnY)
+		}
 		newX := n.X + dirDX[dir]
 		newY := n.Y + dirDY[dir]
 
-		// Stay within wander range of spawn
-		dx := newX - n.SpawnX
-		dy := newY - n.SpawnY
-		if dx < 0 {
-			dx = -dx
-		}
-		if dy < 0 {
-			dy = -dy
-		}
-		if dx > n.Type.WanderRange || dy > n.Type.WanderRange {
-			n.State = npc.StateIdle
-			return
+		// Stay within wander range of spawn (stepping back towards it is always fine)
+		if abs(newX-n.SpawnX) > n.Type.WanderRange || abs(newY-n.SpawnY) > n.Type.WanderRange {
+			if n.DistanceTo(n.SpawnX, n.SpawnY) <= n.Type.WanderRange {
+				e.npcStopMoving(n, gm)
+				n.State = npc.StateIdle
+				return
+			}
 		}
 
 		if gm.IsWalkable(newX, newY) {
@@ -539,8 +539,9 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 		}
 		n.LastMoveTime = now
 
-		// Go back to idle randomly
-		if rand.Intn(3) == 0 {
+		// Go back to idle randomly (once home)
+		if rand.Intn(3) == 0 && n.DistanceTo(n.SpawnX, n.SpawnY) <= n.Type.WanderRange {
+			e.npcStopMoving(n, gm)
 			n.State = npc.StateIdle
 		}
 
@@ -555,23 +556,21 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 
 		tx, ty, ok := e.npcTargetPosition(n)
 		if !ok {
-			n.TargetID = 0
-			n.State = npc.StateIdle
+			e.npcDropTarget(n, gm)
 			return
 		}
 
 		dist := n.DistanceTo(tx, ty)
 
 		// Give up if too far from spawn
-		spawnDist := n.DistanceTo(n.SpawnX, n.SpawnY)
-		if spawnDist > n.Type.WanderRange*2 {
-			n.TargetID = 0
-			n.State = npc.StateIdle
+		if n.DistanceTo(n.SpawnX, n.SpawnY) > n.LeashRange() {
+			e.npcDropTarget(n, gm)
 			return
 		}
 
-		if dist <= 1 {
-			// Adjacent - attack
+		if dist <= npcReach(n) {
+			// Close enough to hit (melee, or ranged/magic for those who can)
+			e.npcStopMoving(n, gm)
 			n.State = npc.StateAttack
 			return
 		}
@@ -601,13 +600,12 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 
 		tx, ty, ok := e.npcTargetPosition(n)
 		if !ok {
-			n.TargetID = 0
-			n.State = npc.StateIdle
+			e.npcDropTarget(n, gm)
 			return
 		}
 
 		dist := n.DistanceTo(tx, ty)
-		if dist > 1 {
+		if dist > npcReach(n) {
 			n.State = npc.StateChase
 			return
 		}
@@ -617,6 +615,14 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 			return
 		}
 		n.LastAttackTime = now
+
+		// Casters use magic once the target is out of melee reach
+		if dist > 1 {
+			if spell := npcPickSpell(n); spell != nil {
+				e.npcCastSpell(n, spell, gm)
+				return
+			}
+		}
 
 		// Fighting another NPC (guard vs monster)
 		if val, isNPC := e.npcs.Load(n.TargetID); isNPC {
@@ -789,13 +795,17 @@ func (e *Engine) npcCanTarget(n *npc.NPC, p *player.Player) bool {
 		return false
 	}
 
-	// For faction NPCs (Aresden/Elvine/Special guards):
-	// Attack players of different side, or criminals (PKCount >= 3)
-	if n.Type.Side != p.Side || p.PKCount >= 3 {
+	// Guards and other faction NPCs always go after criminals (PKCount >= 3)
+	if p.PKCount >= 3 {
 		return true
 	}
 
-	return false
+	// Neutral players (no citizenship) are left alone, and neutral guards only
+	// police criminals. Town guards attack citizens of the enemy town.
+	if p.Side == npc.SideNeutral || n.Type.Side == npc.SideNeutral {
+		return false
+	}
+	return n.Type.Side != p.Side
 }
 
 func (e *Engine) getPlayerByID(objectID int32) *player.Player {
@@ -1458,6 +1468,12 @@ func (e *Engine) handleEnterGame(client *network.Client, req *pb.EnterGameReques
 	// Send nearby ground items
 	e.sendNearbyGroundItems(p, gm)
 
+	// God mode restored from the save file: fill the bars and say so in chat
+	if p.GodMode {
+		e.sendStatUpdate(p)
+		e.sendNotification(p, "God mode is ON (restored from your last session). Type /god to turn it off.", 1)
+	}
+
 	log.Printf("Player %s entered game on map %s at (%d,%d)", p.Name, p.MapName, p.X, p.Y)
 }
 
@@ -1884,6 +1900,12 @@ func (e *Engine) handleAttack(client *network.Client, req *pb.MotionRequest) {
 
 		if !n.IsAlive() || n.MapName != p.MapName {
 			log.Printf("[ATTACK] NPC not alive or wrong map")
+			return
+		}
+
+		// Guards on your side can't be attacked
+		if !e.playerCanHurtNPC(p, n) {
+			e.sendNotification(p, "The guards are not your enemy", 2)
 			return
 		}
 

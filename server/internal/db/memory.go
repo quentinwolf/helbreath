@@ -242,6 +242,22 @@ func (m *MemoryStore) SaveCharacter(_ context.Context, charID int, mapName strin
 	return nil
 }
 
+var _ GodModeStore = (*MemoryStore)(nil)
+
+// SaveGodMode remembers a character's /god toggle (written to the save file).
+func (m *MemoryStore) SaveGodMode(_ context.Context, charID int, on bool) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	c, ok := m.characters[charID]
+	if !ok {
+		return fmt.Errorf("character not found")
+	}
+	c.GodMode = on
+	m.saveLocked()
+	return nil
+}
+
 func (m *MemoryStore) CountCharacters(_ context.Context, accountID int) (int, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()

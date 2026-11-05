@@ -91,8 +91,8 @@ func DefaultSpawnConfig() *SpawnConfig {
 			// ================================================================
 			// ARESDEN (city) — guards + spot mobs from aresden.txt
 			// ================================================================
-			{MapName: "aresden", NpcTypeID: 21, Count: 6, SpawnX: 240, SpawnY: 150, SpawnRadius: 25}, // Guard-Elvine patrol
-			{MapName: "aresden", NpcTypeID: 21, Count: 6, SpawnX: 130, SpawnY: 180, SpawnRadius: 30}, // Guard-Aresden patrol
+			{MapName: "aresden", NpcTypeID: 1013, Count: 6, SpawnX: 240, SpawnY: 150, SpawnRadius: 25}, // Guard-Aresden patrol
+			{MapName: "aresden", NpcTypeID: 1013, Count: 6, SpawnX: 130, SpawnY: 180, SpawnRadius: 30}, // Guard-Aresden patrol
 			{MapName: "aresden", NpcTypeID: 10, Count: 10, SpawnX: 252, SpawnY: 207, SpawnRadius: 12}, // Slime pit 1
 			{MapName: "aresden", NpcTypeID: 10, Count: 10, SpawnX: 139, SpawnY: 242, SpawnRadius: 12}, // Slime pit 2
 			{MapName: "aresden", NpcTypeID: 22, Count: 10, SpawnX: 114, SpawnY: 38, SpawnRadius: 14},  // Amphis pit 1
@@ -116,7 +116,7 @@ func DefaultSpawnConfig() *SpawnConfig {
 			// ================================================================
 			// ELVINE (city) — guards + spot mobs
 			// ================================================================
-			{MapName: "elvine", NpcTypeID: 21, Count: 6, SpawnX: 150, SpawnY: 150, SpawnRadius: 30}, // Guards
+			{MapName: "elvine", NpcTypeID: 1014, Count: 6, SpawnX: 150, SpawnY: 150, SpawnRadius: 30}, // Guard-Elvine
 			{MapName: "elvine", NpcTypeID: 10, Count: 10, SpawnX: 100, SpawnY: 100, SpawnRadius: 20}, // Slimes
 			{MapName: "elvine", NpcTypeID: 22, Count: 10, SpawnX: 200, SpawnY: 200, SpawnRadius: 15}, // Amphis
 

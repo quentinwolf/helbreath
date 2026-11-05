@@ -334,6 +334,7 @@ type NPC struct {
 	DeathTime      time.Time // when the NPC died (for respawn timer)
 	RespawnDelay   time.Duration
 	Summoned       bool // spawned by /summon: removed on death instead of respawning
+	Mana           int  // spent on spells by casters (Type.MaxMana > 0)
 
 	// Flee tracking
 	FleeStartX int // X position when flee began (to measure flee distance)
@@ -360,9 +361,23 @@ func NewNPC(objectID int32, npcType *NpcType, mapName string, x, y int) *NPC {
 		Direction:    1 + rand.Intn(8), // random initial direction
 		HP:           npcType.HP,
 		MaxHP:        npcType.HP,
+		Mana:         npcType.MaxMana,
 		State:        StateIdle,
 		RespawnDelay: respawnDelay,
 	}
+}
+
+// LeashRange is how far from its spawn point an NPC will chase before giving
+// up. Guards (and anything with a long aggro range) get at least twice their
+// aggro range, so they don't drop a target they can still see.
+func (n *NPC) LeashRange() int {
+	return max(n.Type.WanderRange*2, n.Type.AggroRange*2)
+}
+
+// ReachRange is how far away an NPC can hit from: melee (1) or its ranged
+// AttackRange (archers, and casters with mana).
+func (n *NPC) ReachRange() int {
+	return max(1, n.Type.AttackRange)
 }
 
 // IsAlive returns true if the NPC has HP > 0.
@@ -395,6 +410,7 @@ func (n *NPC) ShouldFlee() bool {
 // Respawn resets the NPC to its spawn point with full HP.
 func (n *NPC) Respawn() {
 	n.HP = n.MaxHP
+	n.Mana = n.Type.MaxMana
 	n.X = n.SpawnX
 	n.Y = n.SpawnY
 	n.Direction = 1 + rand.Intn(8)

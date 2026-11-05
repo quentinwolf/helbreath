@@ -1,6 +1,7 @@
 package game
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"math/rand"
@@ -8,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/juanrossi/hbonline/server/internal/db"
 	"github.com/juanrossi/hbonline/server/internal/items"
 	"github.com/juanrossi/hbonline/server/internal/magic"
 	"github.com/juanrossi/hbonline/server/internal/mapdata"
@@ -387,6 +389,14 @@ func (e *Engine) adminSetFreeze(p *player.Player, args []string) {
 // adminGod toggles god mode for the admin.
 func (e *Engine) adminGod(p *player.Player) {
 	p.GodMode = !p.GodMode
+	// Remember it across logins where the store supports it (the JSON save file)
+	if gs, ok := e.store.(db.GodModeStore); ok {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		if err := gs.SaveGodMode(ctx, p.CharacterID, p.GodMode); err != nil {
+			log.Printf("Failed to save god mode for %s: %v", p.Name, err)
+		}
+		cancel()
+	}
 	if p.GodMode {
 		e.sendStatUpdate(p) // fills HP/MP/SP straight away
 		e.sendNotification(p, "God mode ON - Invulnerable, max damage, unlimited HP/MP/SP, no spell cooldowns", 1)

@@ -2276,6 +2276,7 @@ export class GameScene extends Phaser.Scene {
           action: evt.action,
         });
       }
+      if (evt.action === 3) this.playNPCAttack(evt.objectId, evt.direction);
       return;
     }
 
@@ -2846,13 +2847,48 @@ export class GameScene extends Phaser.Scene {
   private static readonly SHOP_NPC_TYPES = new Set([15, 19, 20, 24, 25, 26, 67, 68, 69, 90]);
 
   /** Returns true if there's an NPC near the click position and attack/interact was initiated. */
+  /**
+   * Plays an NPC's attack sheet (16-23, one per direction) once, then returns
+   * it to its standing sheet. Monster sprites are laid out as standing 0-7,
+   * walking 8-15, attacking 16-23, getting hit 24-31 and dying 32-39.
+   */
+  private playNPCAttack(objectId: number, direction: number): void {
+    const npcEntity = this.npcs.get(objectId);
+    const spriteName = npcEntity ? NPC_SPRITE_MAP[npcEntity.npcType] : undefined;
+    if (!npcEntity?.asset || !spriteName || direction < 1 || direction > 8) return;
+
+    npcEntity.direction = direction;
+    const attackKey = `${spriteName}-${16 + direction - 1}`;
+    if (!this.anims.exists(attackKey)) return;
+
+    const fps = 10;
+    npcEntity.asset.playAnimationWithDirection(attackKey, 0, fps, undefined, 0, undefined, AnimationType.FullFrame);
+
+    const frames = this.anims.get(attackKey).frames.length || 4;
+    this.time.delayedCall((frames / fps) * 1000 + 50, () => {
+      // Back to standing, unless it has since died, moved or started another attack
+      if (this.npcs.get(objectId) !== npcEntity || npcEntity.isMoving || !npcEntity.asset) return;
+      if (npcEntity.asset.isAnimationPlaying()) return;
+      const idleKey = `${spriteName}-${npcEntity.direction - 1}`;
+      if (this.anims.exists(idleKey)) {
+        npcEntity.asset.playAnimationWithDirection(idleKey, 0, 4, undefined, undefined, undefined, AnimationType.FullFrame);
+      }
+    });
+  }
+
+  /** NPCs sorted by distance from a tile, so a click picks the one actually clicked. */
+  private npcsNearestTo(tileX: number, tileY: number): GameNPC[] {
+    const dist = (n: GameNPC) => Math.max(Math.abs(tileX - n.tileX), Math.abs(tileY - n.tileY));
+    return [...this.npcs.values()].sort((a, b) => dist(a) - dist(b));
+  }
+
   private tryAttackNPCAtPointer(pointer: Phaser.Input.Pointer): boolean {
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
     const clickTileX = Math.floor(worldPoint.x / TILE_SIZE);
     const clickTileY = Math.floor(worldPoint.y / TILE_SIZE);
 
-    // Find NPC at or near the clicked tile (within 1 tile of click)
-    for (const npcEntity of this.npcs.values()) {
+    // Find NPC at or near the clicked tile (within 1 tile of click), closest first
+    for (const npcEntity of this.npcsNearestTo(clickTileX, clickTileY)) {
       const dx = Math.abs(clickTileX - npcEntity.tileX);
       const dy = Math.abs(clickTileY - npcEntity.tileY);
       if (dx <= 1 && dy <= 1) {
@@ -4682,9 +4718,9 @@ export class GameScene extends Phaser.Scene {
     const clickTileX = Math.floor(worldPoint.x / TILE_SIZE);
     const clickTileY = Math.floor(worldPoint.y / TILE_SIZE);
 
-    // Check if an NPC is at or near the clicked tile (within 1 tile of click)
+    // Check if an NPC is at or near the clicked tile (within 1 tile of click), closest first
     let targetNPC: GameNPC | null = null;
-    for (const npc of this.npcs.values()) {
+    for (const npc of this.npcsNearestTo(clickTileX, clickTileY)) {
       if (Math.abs(clickTileX - npc.tileX) <= 1 && Math.abs(clickTileY - npc.tileY) <= 1) {
         targetNPC = npc;
         break;
