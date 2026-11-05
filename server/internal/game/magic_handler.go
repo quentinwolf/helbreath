@@ -40,6 +40,12 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 		return
 	}
 
+	// Check the target before spending anything, so a misclick costs no mana or cooldown
+	if reason := e.validateSpellTarget(p, spellDef, req); reason != "" {
+		e.sendNotification(p, reason, 2)
+		return
+	}
+
 	// Deduct mana and start cooldown
 	p.MP -= spellDef.ManaCost
 	p.StartCooldown(spellDef.ID, spellDef.Cooldown)
@@ -78,6 +84,44 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 	}
 
 	e.sendStatUpdate(p)
+}
+
+// validateSpellTarget mirrors the target checks in the per-type handlers below.
+// It returns "" when the cast can go ahead, or the message to show the player.
+func (e *Engine) validateSpellTarget(p *player.Player, spell *magic.SpellDef, req *pb.SpellCastRequest) string {
+	switch spell.Type {
+	case magic.SpellTypeDamage, magic.SpellTypeDebuff:
+		if req.TargetId == 0 {
+			return "No target selected"
+		}
+		if val, isNPC := e.npcs.Load(req.TargetId); isNPC {
+			n := val.(*npc.NPC)
+			if !n.IsAlive() || n.MapName != p.MapName {
+				return "No target selected"
+			}
+			if n.DistanceTo(p.X, p.Y) > spell.Range {
+				return "Target out of range"
+			}
+			return ""
+		}
+		t := e.getPlayerByID(req.TargetId)
+		if t == nil || t.HP <= 0 || t.MapName != p.MapName {
+			return "No target selected"
+		}
+		// handleDamageSpell only damages NPCs so far; don't charge for a cast that does nothing
+		if spell.Type == magic.SpellTypeDamage {
+			return "That spell can only target monsters"
+		}
+		if abs(p.X-t.X)+abs(p.Y-t.Y) > spell.Range {
+			return "Target out of range"
+		}
+	case magic.SpellTypeAOE:
+		tx, ty := int(req.TargetPosition.GetX()), int(req.TargetPosition.GetY())
+		if max(abs(tx-p.X), abs(ty-p.Y)) > spell.Range {
+			return "Target location out of range"
+		}
+	}
+	return ""
 }
 
 // handleDamageSpell handles single-target damage spells.

@@ -79,6 +79,13 @@ export class SoundManager {
         if (!this.scene.cache.audio.exists(key)) {
             return -1;
         }
+        // Phaser suspends audio while the window is unfocused, but network events
+        // keep arriving. One-shots started then all fire together on refocus, so
+        // drop them instead: a missed hit sound beats a wall of noise.
+        if (this.isAudioSuspended()) {
+            onComplete?.();
+            return -1;
+        }
 
         try {
             const sound = this.scene.sound.add(key, {
@@ -110,6 +117,12 @@ export class SoundManager {
         } catch {
             return -1;
         }
+    }
+
+    /** True while the browser's audio is paused (window unfocused or not yet unlocked). */
+    private isAudioSuspended(): boolean {
+        const ctx = (this.scene.sound as { context?: AudioContext }).context;
+        return document.hidden || (!!ctx && ctx.state !== 'running');
     }
 
     /**

@@ -428,6 +428,8 @@ export class GameScene extends Phaser.Scene {
   private selectedSpellId = 0;
   private spellCatalog: SpellCatalogEntry[] = [];
   private spellBookTab: 'known' | 'learn' = 'known';
+  private spellCircleFilter = 0; // 0 = all circles, 1-10 = Circle I-X
+  private spellTypesHidden: Set<number> = new Set(); // spell types toggled off
 
   // Social
   private guildInfo: GuildInfoData | null = null;
@@ -478,6 +480,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Phaser reuses this scene instance on restart (every teleport) and the old
+    // loader dropped its 'complete' callbacks at shutdown, so anything still
+    // marked as loading was cancelled. Forget it so it can be requested again.
+    this.loadingDeferredSprites.clear();
+
     this.msgHandler = this.registry.get('msgHandler') as MessageHandler;
     // Clear GameScene-specific handlers to prevent duplicates on scene restart
     // (Don't use removeAllListeners — that would kill CharSelectScene's handlers too)
@@ -3484,7 +3491,26 @@ export class GameScene extends Phaser.Scene {
         chatInput.value = '';
         e.stopPropagation();
         this.processChatInput(msg);
+      } else if (e.key === 'Escape' || e.key === 'Enter') {
+        // Esc (or Enter on an empty line) leaves chat so game keys like Shift work again.
+        // Stop propagation so the game's Enter shortcut doesn't reopen it straight away.
+        e.preventDefault();
+        e.stopPropagation();
+        chatInput.blur();
       }
+    });
+
+    // While playing: Enter opens chat, "/" opens it with the slash already typed.
+    // Phaser's keyboard is disabled while the input has focus, so these only fire in-game.
+    this.input.keyboard!.on('keydown', (evt: KeyboardEvent) => {
+      if (evt.ctrlKey || evt.metaKey || evt.altKey) return;
+      if (evt.key !== 'Enter' && evt.key !== '/') return;
+      const active = document.activeElement;
+      if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+      evt.preventDefault(); // otherwise the "/" would also be typed into the box
+      if (evt.key === '/' && !chatInput.value) chatInput.value = '/';
+      chatInput.focus();
+      chatInput.setSelectionRange(chatInput.value.length, chatInput.value.length);
     });
 
     chatInput.addEventListener('focus', () => { this.input.keyboard!.enabled = false; });
@@ -4446,12 +4472,12 @@ export class GameScene extends Phaser.Scene {
     // The panel is rebuilt on every update (learn, select, catalog refresh), so
     // keep the list's scroll position when we stay on the same tab.
     const oldScroll = this.spellBarDiv?.querySelector('.spell-scroll') as HTMLElement | null;
-    const keepScroll = oldScroll && oldScroll.dataset.tab === this.spellBookTab ? oldScroll.scrollTop : 0;
+    const keepScroll = oldScroll && oldScroll.dataset.tab === `${this.spellBookTab}-${this.spellCircleFilter}` ? oldScroll.scrollTop : 0;
     this.spellBarDiv?.remove();
 
     const div = document.createElement('div');
     div.id = 'spell-bar';
-    div.style.cssText = 'position:fixed; bottom:60px; left:50%; transform:translateX(-50%); background:#1a1a2e; border:1px solid #555; border-radius:6px; padding:10px; z-index:1000; color:#fff; font-size:12px; min-width:340px; max-width:520px; max-height:320px; display:flex; flex-direction:column;';
+    div.style.cssText = 'position:fixed; bottom:60px; left:50%; transform:translateX(-50%); background:#1a1a2e; border:1px solid #555; border-radius:6px; padding:10px; z-index:1000; color:#fff; font-size:12px; min-width:340px; max-width:520px; max-height:400px; display:flex; flex-direction:column;';
     this.spellBarDiv = div;
 
     const typeNames: Record<number, string> = { 1: 'DMG', 2: 'AOE', 3: 'HEAL', 4: 'BUFF', 5: 'DEBUFF' };
@@ -4468,21 +4494,70 @@ export class GameScene extends Phaser.Scene {
     html += '</div>';
     html += '<button id="spell-close" style="cursor:pointer; background:none; border:none; color:#aaa; font-size:14px;">X</button></div>';
 
+    // Circle (I-X, spell ID / 10 + 1 as in the original) and type filters, shared by both tabs
+    const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+    const circleOf = (spellId: number) => Math.min(Math.floor(spellId / 10) + 1, 10);
+    const tabSpells: Array<{ spellId: number; spellType: number }> = this.spellBookTab === 'known'
+      ? this.learnedSpells
+      : this.spellCatalog.filter(s => !s.learned);
+    const circlesPresent = new Set(tabSpells.map(s => circleOf(s.spellId)));
+    const passes = (s: { spellId: number; spellType: number }) =>
+      (this.spellCircleFilter === 0 || circleOf(s.spellId) === this.spellCircleFilter) &&
+      (!typeNames[s.spellType] || !this.spellTypesHidden.has(s.spellType));
+
+    if (tabSpells.length > 0) {
+      html += '<div style="display:flex; gap:3px; flex-wrap:wrap; margin-bottom:4px;">';
+      for (let c = 0; c <= 10; c++) {
+        const active = this.spellCircleFilter === c;
+        const has = c === 0 || circlesPresent.has(c);
+        const label = c === 0 ? 'All' : ROMAN[c - 1];
+        html += `<span class="spell-circle" data-circle="${c}" title="${c === 0 ? 'All circles' : `Circle ${label}`}" style="cursor:pointer; padding:1px 6px; border-radius:3px; font-size:11px; border:1px solid ${active ? '#FFD700' : '#444'}; color:${active ? '#FFD700' : has ? '#ccc' : '#555'};">${label}</span>`;
+      }
+      html += '</div>';
+      html += '<div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:6px;">';
+      for (const [t, name] of Object.entries(typeNames)) {
+        const on = !this.spellTypesHidden.has(Number(t));
+        const color = typeColors[Number(t)];
+        html += `<span class="spell-type" data-type="${t}" title="Show/hide ${name} spells" style="cursor:pointer; padding:1px 6px; border-radius:3px; font-size:10px; font-weight:bold; border:1px solid ${on ? color : '#333'}; color:${on ? color : '#555'};${on ? '' : ' text-decoration:line-through;'}">${name}</span>`;
+      }
+      html += '</div>';
+    }
+
+    // Group spells by circle (keeping their order inside each circle); "All" shows a heading per circle
+    const groupByCircle = <T extends { spellId: number }>(list: T[]): Array<[number, T[]]> => {
+      const groups = new Map<number, T[]>();
+      for (const s of list) {
+        const c = circleOf(s.spellId);
+        if (!groups.has(c)) groups.set(c, []);
+        groups.get(c)!.push(s);
+      }
+      return [...groups.entries()].sort((a, b) => a[0] - b[0]);
+    };
+    const circleHeading = (c: number) => this.spellCircleFilter !== 0 ? '' :
+      `<div style="grid-column:1/-1; color:#c0a060; font-size:10px; letter-spacing:1px; margin:6px 0 2px; border-bottom:1px solid #333;">CIRCLE ${ROMAN[c - 1]}</div>`;
+    const noMatch = '<div style="color:#888; padding:10px; text-align:center;">No spells match these filters.</div>';
+    const scrollKey = `${this.spellBookTab}-${this.spellCircleFilter}`;
+
     if (this.spellBookTab === 'known') {
       // Known spells tab
+      const visible = this.learnedSpells.filter(passes).sort((a, b) => a.spellId - b.spellId);
       if (this.learnedSpells.length === 0) {
         html += '<div style="color:#888; padding:10px; text-align:center;">No spells learned yet. Open the "Learn Spells" tab to get started.</div>';
+      } else if (visible.length === 0) {
+        html += noMatch;
       } else {
-        html += '<div class="spell-scroll" data-tab="known" style="display:flex; flex-wrap:wrap; gap:6px; overflow-y:auto;">';
-        for (const spell of this.learnedSpells) {
-          const color = typeColors[spell.spellType] || '#fff';
-          const typeName = typeNames[spell.spellType] || '???';
-          const selected = this.selectedSpellId === spell.spellId;
-          const border = selected ? '2px solid #fff' : '1px solid #444';
-          html += `<div class="spell-btn" data-spell="${spell.spellId}" style="cursor:pointer; padding:6px 10px; border:${border}; border-radius:4px; background:#2a2a3e; text-align:center; min-width:70px;">`;
-          html += `<div style="color:${color}; font-weight:bold; font-size:11px;">${spell.name}</div>`;
-          html += `<div style="font-size:9px; color:#aaa;">${typeName} | ${spell.manaCost} MP</div>`;
-          html += `</div>`;
+        html += `<div class="spell-scroll" data-tab="${scrollKey}" style="display:grid; grid-template-columns:1fr 1fr; gap:3px 6px; overflow-y:auto; max-height:200px; align-content:start;">`;
+        for (const [c, spells] of groupByCircle(visible)) {
+          html += circleHeading(c);
+          for (const spell of spells) {
+            const color = typeColors[spell.spellType] || '#fff';
+            const typeName = typeNames[spell.spellType] || '???';
+            const selected = this.selectedSpellId === spell.spellId;
+            html += `<div class="spell-btn" data-spell="${spell.spellId}" title="${spell.name}" style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:6px; padding:3px 6px; border:1px solid ${selected ? '#fff' : '#333'}; border-radius:3px; background:${selected ? '#3a3a5e' : '#2a2a3e'}; min-width:0;">`;
+            html += `<span style="color:${color}; font-weight:bold; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${spell.name}</span>`;
+            html += `<span style="font-size:9px; color:#999; white-space:nowrap;">${typeName} · ${spell.manaCost} MP</span>`;
+            html += `</div>`;
+          }
         }
         html += '</div>';
       }
@@ -4494,12 +4569,17 @@ export class GameScene extends Phaser.Scene {
       const available = this.spellCatalog
         .filter(s => !s.learned)
         .sort((a, b) => a.reqLevel - b.reqLevel || a.reqMag - b.reqMag);
+      const visible = available.filter(passes);
 
       if (available.length === 0) {
         html += '<div style="color:#888; padding:10px; text-align:center;">You have learned all available spells!</div>';
+      } else if (visible.length === 0) {
+        html += noMatch;
       } else {
-        html += '<div class="spell-scroll" data-tab="learn" style="overflow-y:auto; max-height:220px;">';
-        for (const spell of available) {
+        html += `<div class="spell-scroll" data-tab="${scrollKey}" style="overflow-y:auto; max-height:200px;">`;
+        for (const [c, spells] of groupByCircle(visible)) {
+        html += circleHeading(c);
+        for (const spell of spells) {
           const color = typeColors[spell.spellType] || '#fff';
           const typeName = typeNames[spell.spellType] || '???';
           const meetsLevel = this.playerLevel >= spell.reqLevel;
@@ -4523,6 +4603,7 @@ export class GameScene extends Phaser.Scene {
           }
           html += `</div>`;
         }
+        }
         html += '</div>';
       }
     }
@@ -4535,6 +4616,20 @@ export class GameScene extends Phaser.Scene {
     div.querySelector('#spell-close')?.addEventListener('click', () => this.toggleSpellBar());
     div.querySelector('#tab-known')?.addEventListener('click', () => { this.spellBookTab = 'known'; this.renderSpellBarUI(); });
     div.querySelector('#tab-learn')?.addEventListener('click', () => { this.spellBookTab = 'learn'; this.renderSpellBarUI(); });
+    div.querySelectorAll('.spell-circle').forEach(el => {
+      el.addEventListener('click', () => {
+        this.spellCircleFilter = parseInt((el as HTMLElement).dataset.circle || '0');
+        this.renderSpellBarUI();
+      });
+    });
+    div.querySelectorAll('.spell-type').forEach(el => {
+      el.addEventListener('click', () => {
+        const t = parseInt((el as HTMLElement).dataset.type || '0');
+        if (this.spellTypesHidden.has(t)) this.spellTypesHidden.delete(t);
+        else this.spellTypesHidden.add(t);
+        this.renderSpellBarUI();
+      });
+    });
     div.querySelectorAll('.spell-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const spellId = parseInt((btn as HTMLElement).dataset.spell || '0');
