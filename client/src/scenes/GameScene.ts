@@ -3058,6 +3058,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onStatUpdate(data: StatUpdateData): void {
+    const prevReqs = `${this.playerLevel}|${this.playerINT}|${this.playerMAG}`;
     this.playerHP = data.hp;
     this.playerMaxHP = data.maxHp;
     this.playerMP = data.mp;
@@ -3077,6 +3078,12 @@ export class GameScene extends Phaser.Scene {
 
     // Update HUD
     this.updateHUD();
+
+    // Spell unlocks depend on level/INT/MAG: refresh an open Learn tab when they change
+    const reqsChanged = prevReqs !== `${this.playerLevel}|${this.playerINT}|${this.playerMAG}`;
+    if (reqsChanged && this.spellBarOpen && this.spellBookTab === 'learn') {
+      this.renderSpellBarUI();
+    }
   }
 
   private onDeathEvent(data: DeathEventData): void {
