@@ -1,0 +1,51 @@
+// NewEvent: a map only this port has (no original map file). Doors and the
+// fixed-day flag were carried over from the port's earlier hand-typed tables.
+// Format and settings: docs/map-config.md.
+
+[MAP-INFO]
+
+map-location = NewEvent
+
+//-Teleportation-Set----SX-----SY-----DestMapName---------DX-----DY----Dir---;
+teleport-loc = 139  211  middleland     250  250  0
+teleport-loc = 140  211  middleland     250  250  0
+teleport-loc = 141  211  middleland     250  250  0
+teleport-loc = 142  211  middleland     250  250  0
+teleport-loc = 193  211  middleland     250  250  0
+teleport-loc = 194  211  middleland     250  250  0
+teleport-loc = 195  211  middleland     250  250  0
+teleport-loc = 196  211  middleland     250  250  0
+teleport-loc = 139  212  middleland     250  250  0
+teleport-loc = 140  212  middleland     250  250  0
+teleport-loc = 141  212  middleland     250  250  0
+teleport-loc = 142  212  middleland     250  250  0
+teleport-loc = 193  212  middleland     250  250  0
+teleport-loc = 194  212  middleland     250  250  0
+teleport-loc = 195  212  middleland     250  250  0
+teleport-loc = 196  212  middleland     250  250  0
+teleport-loc = 139  213  middleland     250  250  0
+teleport-loc = 140  213  middleland     250  250  0
+teleport-loc = 141  213  middleland     250  250  0
+teleport-loc = 142  213  middleland     250  250  0
+teleport-loc = 193  213  middleland     250  250  0
+teleport-loc = 194  213  middleland     250  250  0
+teleport-loc = 195  213  middleland     250  250  0
+teleport-loc = 196  213  middleland     250  250  0
+teleport-loc = 139  214  middleland     250  250  0
+teleport-loc = 140  214  middleland     250  250  0
+teleport-loc = 141  214  middleland     250  250  0
+teleport-loc = 142  214  middleland     250  250  0
+teleport-loc = 193  214  middleland     250  250  0
+teleport-loc = 194  214  middleland     250  250  0
+teleport-loc = 195  214  middleland     250  250  0
+teleport-loc = 196  214  middleland     250  250  0
+teleport-loc = 139  215  middleland     250  250  0
+teleport-loc = 140  215  middleland     250  250  0
+teleport-loc = 141  215  middleland     250  250  0
+teleport-loc = 142  215  middleland     250  250  0
+teleport-loc = 193  215  middleland     250  250  0
+teleport-loc = 194  215  middleland     250  250  0
+teleport-loc = 195  215  middleland     250  250  0
+teleport-loc = 196  215  middleland     250  250  0
+
+[END-MAP-INFO]

@@ -1,0 +1,16 @@
+// ABarracks: a map only this port has (no original map file). Doors and the
+// fixed-day flag were carried over from the port's earlier hand-typed tables.
+// Format and settings: docs/map-config.md.
+
+[MAP-INFO]
+
+map-location = ABarracks
+fixed-dayornight-mode = 1
+
+//-Teleportation-Set----SX-----SY-----DestMapName---------DX-----DY----Dir---;
+teleport-loc = 38   29   aresden        140  140  0
+teleport-loc = 39   29   aresden        140  140  0
+teleport-loc = 38   30   aresden        140  140  0
+teleport-loc = 39   30   aresden        140  140  0
+
+[END-MAP-INFO]

@@ -91,11 +91,17 @@ func TestBuildTeleportConfig(t *testing.T) {
 		t.Error("Should not find teleport at aresden (0,0)")
 	}
 
-	// Every original door is in the table as the original map files have it
-	// (bsmith_1 33,34 -> aresden 168,197 and so on)
-	for _, d := range originalTeleports {
-		if got := tc[TeleportKey(d.Src, d.X, d.Y)]; got != d.TeleportDest {
-			t.Errorf("%s %d,%d: got %+v, want %+v", d.Src, d.X, d.Y, got, d.TeleportDest)
+	// Every door in the map configs is in the table, unless it leads to a map
+	// the port doesn't have (bsmith_1 33,34 -> aresden 168,197 and so on)
+	cs := Configs()
+	for _, c := range cs {
+		for _, d := range c.Teleports {
+			if cs.Get(d.DestMap) == nil {
+				continue
+			}
+			if _, ok := tc[TeleportKey(c.Name, d.X, d.Y)]; !ok {
+				t.Errorf("%s %d,%d: the door to %s is missing", c.Name, d.X, d.Y, d.DestMap)
+			}
 		}
 	}
 	if got := tc[TeleportKey("bsmith_1", 33, 34)]; got.DestMap != "aresden" || got.DestX != 168 || got.DestY != 197 {
@@ -119,10 +125,9 @@ func TestBuildNoAttackAreas(t *testing.T) {
 		t.Errorf("Expected 7 no-attack areas for aresden, got %d", len(aresAreas))
 	}
 
-	// Test buildings are safe zones
-	_, ok = areas["bsmith_1"]
-	if !ok {
-		t.Fatal("Should have no-attack area for bsmith_1")
+	// The original files mark "none" with a -10 rectangle: left out
+	if got := areas["bsmith_1"]; len(got) != 0 {
+		t.Errorf("bsmith_1 has no real no-attack area, got %v", got)
 	}
 }
 

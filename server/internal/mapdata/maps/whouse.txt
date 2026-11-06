@@ -1,0 +1,20 @@
+// whouse: a map only this port has (no original map file). Doors and the
+// fixed-day flag were carried over from the port's earlier hand-typed tables.
+// Format and settings: docs/map-config.md.
+
+[MAP-INFO]
+
+map-location = whouse
+fixed-dayornight-mode = 1
+
+//-Teleportation-Set----SX-----SY-----DestMapName---------DX-----DY----Dir---;
+teleport-loc = 40   38   aresden        104  186  0
+teleport-loc = 41   38   aresden        104  186  0
+teleport-loc = 52   38   aresden        104  186  0
+teleport-loc = 53   38   aresden        104  186  0
+teleport-loc = 40   39   aresden        104  186  0
+teleport-loc = 41   39   aresden        104  186  0
+teleport-loc = 52   39   aresden        104  186  0
+teleport-loc = 53   39   aresden        104  186  0
+
+[END-MAP-INFO]

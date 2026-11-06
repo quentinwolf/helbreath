@@ -1,0 +1,14 @@
+// market: a map only this port has (no original map file). Doors and the
+// fixed-day flag were carried over from the port's earlier hand-typed tables.
+// Format and settings: docs/map-config.md.
+
+[MAP-INFO]
+
+map-location = market
+fixed-dayornight-mode = 1
+
+//-Teleportation-Set----SX-----SY-----DestMapName---------DX-----DY----Dir---;
+teleport-loc = 106  79   aresden        140  140  0
+teleport-loc = 106  80   aresden        140  140  0
+
+[END-MAP-INFO]

@@ -1,0 +1,58 @@
+// dglv3: from the original server's map file (HB Server Files 3.51,
+// GameServers/Dungeons/MAPDATA/dglv3.txt), converted by server/tools/mapimport.
+// Format and settings: docs/map-config.md.
+
+[MAP-INFO]
+
+map-location  = dglv3
+initial-point = 1  187 212
+level-limit   = 50
+
+
+//-Teleportation-Set----SX-----SY-----DestMapName---------DX-----DY----Dir---;
+teleport-loc     =     189    210     dglv2              226     258    5
+teleport-loc     =     190    210     dglv2              226     258    5
+teleport-loc     =     190    211     dglv2              226     258    5
+
+teleport-loc     =     61     243     dglv4              63      241    5
+teleport-loc     =     60     244     dglv4              63      241    5
+teleport-loc     =     61     244     dglv4              63      241    5
+
+teleport-loc     =     342    192     dglv4              337     232    5
+teleport-loc     =     343    191     dglv4              337     232    5
+teleport-loc     =     343    192     dglv4              337     232    5
+
+teleport-loc     =     193    87      dglv4              206     97     5
+teleport-loc     =     192    87      dglv4              206     97     5
+teleport-loc     =     193    88      dglv4              206     97     5
+
+//-WayPoint-Set---------Num-----X-----Y----;
+waypoint          =     0       107   105
+waypoint          =     1       145   116
+waypoint          =     2       200   146
+waypoint          =     3       184   176
+waypoint          =     4       151   204
+waypoint          =     5       134   137
+waypoint          =     6       37    152
+waypoint          =     7       123   188
+waypoint          =     8       129   126
+waypoint          =     9       113   153
+
+
+//-No-Attack-Area----------Num-----RECT--------------
+no-attack-area           = 1       183  207  195  218
+
+
+fixed-dayornight-mode = 1
+
+maximum-object		= 700
+random-mob-generator	= 1 9
+
+// Port stand-ins for the random-mob-generator (not ported yet), so the map
+// isn't empty: the port's old hand-written spawns (centre +- radius).
+// Remove these once the random mob generator is in.
+spot-mob-generator = 101  1  150 100 250 200  Ogre  8
+spot-mob-generator = 102  1  160 160 240 240  Liche  4
+spot-mob-generator = 103  1  120 120 180 180  Stalker  3
+
+[END-MAP-INFO]

@@ -1,0 +1,42 @@
+// cityhall_1: from the original server's map file (HB Server Files 3.51,
+// GameServers/Aresden/MAPDATA/cityhall_1.txt), converted by server/tools/mapimport.
+// Format and settings: docs/map-config.md.
+
+[MAP-INFO]
+
+map-location  = aresden
+initial-point = 1  50 41
+
+
+//-Teleportation-Set----SX-----SY-----DestMapName---------DX-----DY----Dir---;
+teleport-loc     =      60     43     aresden             149    127    4
+teleport-loc     =      59     42     aresden             149    127    4
+teleport-loc     =      58     42     aresden             149    127    4
+
+// William's waypoints moved from 45 43 to 44 43, and Kennedy added (we have no guild
+// hall map, the original's place for him): both placed by Zac from the game.
+//-WayPoint-Set---------Num-----X-----Y----;
+waypoint          =     1      44     43
+waypoint          =     2      44     43
+waypoint          =     3      44     43
+waypoint          =     4      44     43
+waypoint          =     5      44     43
+waypoint          =     6      44     43
+waypoint          =     7      44     43
+waypoint          =     8      44     43
+waypoint          =     9      44     43
+waypoint          =     10     44     43
+
+
+//-NPC-setting--------Name---------------MoveType----WaypointIndex(10)-------NamePrefix-------;
+npc               =   William            1           1 2 3 4 5 6 7 8 9 10         1
+waypoint          =     11     51    40
+npc               =   Kennedy            1           11 11 11 11 11 11 11 11 11 11   1
+
+
+//-No-Attack-Area----------Num-----RECT-------------
+no-attack-area           = 1       -10 -10 -10 -10
+
+fixed-dayornight-mode = 1
+
+[END-MAP-INFO]

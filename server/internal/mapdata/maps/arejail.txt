@@ -1,0 +1,15 @@
+// arejail: from the original server's map file (HB Server Files 3.51,
+// GameServers/Aresden/MAPDATA/arejail.txt), converted by server/tools/mapimport.
+// Format and settings: docs/map-config.md.
+
+[MAP-INFO]
+
+map-location  = arejail
+initial-point = 1  105 55
+
+//-No-Attack-Area----------Num-----RECT-------------
+no-attack-area           = 1       -10 -10 -10 -10
+
+fixed-dayornight-mode = 1
+
+[END-MAP-INFO]

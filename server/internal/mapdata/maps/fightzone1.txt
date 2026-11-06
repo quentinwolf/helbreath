@@ -1,0 +1,27 @@
+// fightzone1: from the original server's map file (HB Server Files 3.51,
+// GameServers/Neutrals/MAPDATA/fightzone1.txt), converted by server/tools/mapimport.
+// Format and settings: docs/map-config.md.
+
+[MAP-INFO]
+
+map-location  = fightzone1
+initial-point = 1  51 56
+type          = 1
+
+
+//-WayPoint-Set---------Num-----X-----Y----;
+waypoint          =     1      55    39
+waypoint          =     2      50    40
+waypoint          =     3      60    38
+waypoint          =     4      65    40
+waypoint          =     5      63    44
+waypoint          =     6      58    47
+waypoint          =     7      52    48
+waypoint          =     8      49    44
+waypoint          =     9      47    41
+waypoint          =     10     55    41
+
+
+maximum-object = 50
+
+[END-MAP-INFO]

@@ -2,10 +2,11 @@ package game
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
-	"strings"
 	"time"
 
+	"github.com/juanrossi/hbonline/server/internal/mapdata"
 	"github.com/juanrossi/hbonline/server/internal/npc"
 )
 
@@ -86,216 +87,80 @@ func (entry *SpawnEntry) RespawnDelayDuration() time.Duration {
 	return 0
 }
 
-// DefaultSpawnConfig is the hand-written spawns below with each map's monsters
-// replaced by the original server's spawn rectangles (spawns_gen.go) where we
-// have them. Town NPCs (shops, officers) always come from the list below.
+// DefaultSpawnConfig is every map's spawns from its config file
+// (mapdata/maps/<map>.txt): the spot-mob-generator rectangles, each map held to
+// its maximum-object cap, and the town NPCs of its npc lines.
 func DefaultSpawnConfig() *SpawnConfig {
-	cfg := handWrittenSpawns()
-	kept := cfg.Spawns[:0]
-	for _, entry := range cfg.Spawns {
-		m := strings.ToLower(entry.MapName)
-		if originalSpawnMaps[m] && !keepHandSpawns[m] && !npc.IsShopNPC(entry.NpcTypeID) {
-			continue
-		}
-		kept = append(kept, entry)
-	}
-	cfg.Spawns = append(kept, cappedOriginalSpawns()...)
-	return cfg
+	return &SpawnConfig{Spawns: spawnsFromConfigs(mapdata.Configs())}
 }
 
-// cappedOriginalSpawns are the original spawn rectangles with each map held to
-// its maximum-object cap. The original filled the rectangles a mob at a time,
-// at random, until the map was full, so on a map whose rectangles add up to
-// more than the cap (the starter map: 122 against 50) each one gets its share.
-func cappedOriginalSpawns() []SpawnEntry {
-	total := map[string]int{}
-	for _, entry := range originalSpotSpawns {
-		total[strings.ToLower(entry.MapName)] += entry.Count
-	}
-	out := make([]SpawnEntry, len(originalSpotSpawns))
-	copy(out, originalSpotSpawns)
-	for i := range out {
-		m := strings.ToLower(out[i].MapName)
-		if limit := originalMaxObjects[m]; limit > 0 && total[m] > limit {
-			out[i].Count = max(1, out[i].Count*limit/total[m])
-		}
+// spawnsFromConfigs is the spawns of every map in cs.
+func spawnsFromConfigs(cs mapdata.MapConfigs) []SpawnEntry {
+	var out []SpawnEntry
+	for _, name := range cs.Names() {
+		out = append(out, mapSpawns(cs.Get(name))...)
 	}
 	return out
 }
 
-// keepHandSpawns: maps whose original also ran a random-mob-generator (monsters
-// all over the map by level, not ported yet). Their hand-written spawns stand in
-// for it next to the original spots, so the map isn't nearly empty.
-var keepHandSpawns = map[string]bool{"dglv2": true, "dglv4": true, "2ndmiddle": true}
-
-// handWrittenSpawns is the port's own spawn list (positions partly from the
-// Equilibrium 3.82 map files).
-func handWrittenSpawns() *SpawnConfig {
-	return &SpawnConfig{
-		Spawns: []SpawnEntry{
-			// ================================================================
-			// DEFAULT MAP (starter zone) — NPC Type IDs match NPC.cfg
-			// ================================================================
-			{MapName: "default", NpcTypeID: 10, Count: 8, SpawnX: 55, SpawnY: 55, SpawnRadius: 15},  // Slimes
-			{MapName: "default", NpcTypeID: 11, Count: 3, SpawnX: 60, SpawnY: 60, SpawnRadius: 10},  // Skeletons
-			{MapName: "default", NpcTypeID: 14, Count: 2, SpawnX: 65, SpawnY: 50, SpawnRadius: 8},   // Orcs
-			// Shop NPCs
-			{MapName: "default", NpcTypeID: 15, SpawnX: 82, SpawnY: 82}, // ShopKeeper
-			{MapName: "default", NpcTypeID: 15, SpawnX: 84, SpawnY: 82}, // ShopKeeper
-			{MapName: "default", NpcTypeID: 15, SpawnX: 86, SpawnY: 82}, // ShopKeeper
-
-			// ================================================================
-			// ARESDEN (city) — guards + spot mobs from aresden.txt
-			// ================================================================
-			{MapName: "aresden", NpcTypeID: 1013, Count: 6, SpawnX: 240, SpawnY: 150, SpawnRadius: 25}, // Guard-Aresden patrol
-			{MapName: "aresden", NpcTypeID: 1013, Count: 6, SpawnX: 130, SpawnY: 180, SpawnRadius: 30}, // Guard-Aresden patrol
-			{MapName: "aresden", NpcTypeID: 10, Count: 10, SpawnX: 252, SpawnY: 207, SpawnRadius: 12}, // Slime pit 1
-			{MapName: "aresden", NpcTypeID: 10, Count: 10, SpawnX: 139, SpawnY: 242, SpawnRadius: 12}, // Slime pit 2
-			{MapName: "aresden", NpcTypeID: 22, Count: 10, SpawnX: 114, SpawnY: 38, SpawnRadius: 14},  // Amphis pit 1
-			{MapName: "aresden", NpcTypeID: 22, Count: 10, SpawnX: 163, SpawnY: 40, SpawnRadius: 12},  // Amphis pit 2
-			{MapName: "aresden", NpcTypeID: 17, Count: 10, SpawnX: 210, SpawnY: 237, SpawnRadius: 20}, // Scorpion pit
-
-			// ================================================================
-			// ARESDEN BUILDINGS — positions from original MapData .txt files
-			// ================================================================
-			// City Hall: William (City Hall Officer, citizenship) on the left, Kennedy
-			// (Guildhall Officer; we have no guild hall map) top right, both out on the
-			// floor. No original cityhall_*.txt survives; placed by Zac from the game.
-			{MapName: "cityhall_1", NpcTypeID: 25, SpawnX: 44, SpawnY: 43}, // William
-			{MapName: "cityhall_1", NpcTypeID: 26, SpawnX: 51, SpawnY: 40}, // Kennedy
-			{MapName: "bsmith_1", NpcTypeID: 24, SpawnX: 49, SpawnY: 33},    // Tom
-			{MapName: "gshop_1", NpcTypeID: 15, SpawnX: 59, SpawnY: 42},     // ShopKeeper-W
-			{MapName: "gshop_1f", NpcTypeID: 15, SpawnX: 65, SpawnY: 41},    // ShopKeeper-W
-			{MapName: "gshop_1f", NpcTypeID: 26, SpawnX: 43, SpawnY: 37},    // Kennedy
-			{MapName: "gshop_1f", NpcTypeID: 25, SpawnX: 60, SpawnY: 37},    // William
-			{MapName: "wrhus_1", NpcTypeID: 20, SpawnX: 66, SpawnY: 38},     // Howard
-			{MapName: "arewrhus", NpcTypeID: 20, SpawnX: 66, SpawnY: 38},    // Howard
-			{MapName: "wzdtwr_1", NpcTypeID: 19, SpawnX: 49, SpawnY: 33},    // Gandlf
-			{MapName: "cmdhall_1", NpcTypeID: 90, SpawnX: 57, SpawnY: 50},   // Gail
-
-			// ================================================================
-			// ELVINE (city) — guards + spot mobs
-			// ================================================================
-			{MapName: "elvine", NpcTypeID: 1014, Count: 6, SpawnX: 150, SpawnY: 150, SpawnRadius: 30}, // Guard-Elvine
-			{MapName: "elvine", NpcTypeID: 10, Count: 10, SpawnX: 100, SpawnY: 100, SpawnRadius: 20}, // Slimes
-			{MapName: "elvine", NpcTypeID: 22, Count: 10, SpawnX: 200, SpawnY: 200, SpawnRadius: 15}, // Amphis
-
-			// ================================================================
-			// ELVINE BUILDINGS
-			// ================================================================
-			{MapName: "cityhall_2", NpcTypeID: 25, SpawnX: 44, SpawnY: 43}, // William (see cityhall_1)
-			{MapName: "cityhall_2", NpcTypeID: 26, SpawnX: 51, SpawnY: 40}, // Kennedy
-			{MapName: "bsmith_2", NpcTypeID: 24, SpawnX: 49, SpawnY: 33},    // Tom
-			{MapName: "gshop_2", NpcTypeID: 15, SpawnX: 59, SpawnY: 42},     // ShopKeeper-W
-			{MapName: "gshop_2f", NpcTypeID: 15, SpawnX: 65, SpawnY: 41},    // ShopKeeper-W
-			{MapName: "gshop_2f", NpcTypeID: 26, SpawnX: 43, SpawnY: 37},    // Kennedy
-			{MapName: "gshop_2f", NpcTypeID: 25, SpawnX: 60, SpawnY: 37},    // William
-			{MapName: "wrhus_2", NpcTypeID: 20, SpawnX: 66, SpawnY: 38},     // Howard
-			{MapName: "elvwrhus", NpcTypeID: 20, SpawnX: 66, SpawnY: 38},    // Howard
-			{MapName: "wzdtwr_2", NpcTypeID: 19, SpawnX: 49, SpawnY: 33},    // Gandlf
-			{MapName: "cmdhall_2", NpcTypeID: 90, SpawnX: 57, SpawnY: 50},   // Gail
-
-			// ================================================================
-			// MIDDLELAND — spawns ported from middleland.txt (v3.82)
-			// Format: spot-mob-generator = NUM TYPE RECT(x1 y1 x2 y2) MOB_ID COUNT
-			// ================================================================
-
-			// Ogre (29) — 4 zones, 28 total
-			{MapName: "middleland", NpcTypeID: 29, Count: 6, SpawnX: 155, SpawnY: 348, SpawnRadius: 18},  // zone 1
-			{MapName: "middleland", NpcTypeID: 29, Count: 6, SpawnX: 440, SpawnY: 330, SpawnRadius: 25},  // zone 2
-			{MapName: "middleland", NpcTypeID: 29, Count: 10, SpawnX: 67, SpawnY: 76, SpawnRadius: 25},   // zone 3
-			{MapName: "middleland", NpcTypeID: 29, Count: 6, SpawnX: 430, SpawnY: 210, SpawnRadius: 25},  // zone 4
-
-			// Zombie (18) — 2 zones, 40 total
-			{MapName: "middleland", NpcTypeID: 18, Count: 20, SpawnX: 172, SpawnY: 475, SpawnRadius: 15}, // south near Aresden
-			{MapName: "middleland", NpcTypeID: 18, Count: 20, SpawnX: 324, SpawnY: 55, SpawnRadius: 15},  // north near Elvine
-
-			// Scorpion (17) — 2 zones, 40 total
-			{MapName: "middleland", NpcTypeID: 17, Count: 20, SpawnX: 290, SpawnY: 475, SpawnRadius: 15}, // south
-			{MapName: "middleland", NpcTypeID: 17, Count: 20, SpawnX: 95, SpawnY: 120, SpawnRadius: 15},  // north
-
-			// Amphis (22) — 2 zones, 30 total
-			{MapName: "middleland", NpcTypeID: 22, Count: 15, SpawnX: 300, SpawnY: 310, SpawnRadius: 10}, // mid
-			{MapName: "middleland", NpcTypeID: 22, Count: 15, SpawnX: 220, SpawnY: 190, SpawnRadius: 10}, // center
-
-			// Skeleton (11) — 2 zones, 30 total
-			{MapName: "middleland", NpcTypeID: 11, Count: 15, SpawnX: 100, SpawnY: 400, SpawnRadius: 15}, // SW
-			{MapName: "middleland", NpcTypeID: 11, Count: 15, SpawnX: 70, SpawnY: 170, SpawnRadius: 15},  // NW
-
-			// Orc (14) + Orc-Mage (1001) — 2 zones, 40 total
-			{MapName: "middleland", NpcTypeID: 14, Count: 12, SpawnX: 312, SpawnY: 205, SpawnRadius: 20}, // mid-east
-			{MapName: "middleland", NpcTypeID: 1001, Count: 8, SpawnX: 312, SpawnY: 205, SpawnRadius: 15},
-			{MapName: "middleland", NpcTypeID: 14, Count: 12, SpawnX: 407, SpawnY: 372, SpawnRadius: 20}, // SE
-			{MapName: "middleland", NpcTypeID: 1001, Count: 8, SpawnX: 407, SpawnY: 372, SpawnRadius: 15},
-
-			// Giant-Ant (16) — 3 zones, 60 total
-			{MapName: "middleland", NpcTypeID: 16, Count: 15, SpawnX: 210, SpawnY: 105, SpawnRadius: 10}, // north
-			{MapName: "middleland", NpcTypeID: 16, Count: 15, SpawnX: 180, SpawnY: 380, SpawnRadius: 10}, // south
-			{MapName: "middleland", NpcTypeID: 16, Count: 30, SpawnX: 230, SpawnY: 272, SpawnRadius: 30}, // center (big zone)
-
-			// WereWolf (33) — 2 zones, 20 total
-			{MapName: "middleland", NpcTypeID: 33, Count: 10, SpawnX: 345, SpawnY: 445, SpawnRadius: 20}, // SE
-			{MapName: "middleland", NpcTypeID: 33, Count: 10, SpawnX: 385, SpawnY: 125, SpawnRadius: 20}, // NE
-
-			// Cyclops (13) — 2 zones, 16 total
-			{MapName: "middleland", NpcTypeID: 13, Count: 8, SpawnX: 255, SpawnY: 365, SpawnRadius: 20},  // center-south
-			{MapName: "middleland", NpcTypeID: 13, Count: 8, SpawnX: 160, SpawnY: 130, SpawnRadius: 20},  // center-north
-
-			// Stalker (48) — river zone, 18 total
-			{MapName: "middleland", NpcTypeID: 48, Count: 18, SpawnX: 262, SpawnY: 253, SpawnRadius: 60}, // central river
-
-			// Plant (60) — rare quest mob, 2 total
-			{MapName: "middleland", NpcTypeID: 60, Count: 2, SpawnX: 262, SpawnY: 262, SpawnRadius: 150},
-
-			// Hellclaw (49) — rare boss spawns, 6 total
-			{MapName: "middleland", NpcTypeID: 49, Count: 1, SpawnX: 61, SpawnY: 165, SpawnRadius: 25},
-			{MapName: "middleland", NpcTypeID: 49, Count: 1, SpawnX: 450, SpawnY: 130, SpawnRadius: 20},
-			{MapName: "middleland", NpcTypeID: 49, Count: 1, SpawnX: 117, SpawnY: 393, SpawnRadius: 35},
-			{MapName: "middleland", NpcTypeID: 49, Count: 1, SpawnX: 370, SpawnY: 415, SpawnRadius: 40},
-			{MapName: "middleland", NpcTypeID: 49, Count: 1, SpawnX: 194, SpawnY: 277, SpawnRadius: 25},
-			{MapName: "middleland", NpcTypeID: 49, Count: 1, SpawnX: 446, SpawnY: 60, SpawnRadius: 20},
-
-			// ================================================================
-			// HUNT ZONES — dense leveling areas
-			// ================================================================
-			{MapName: "huntzone1", NpcTypeID: 10, Count: 12, SpawnX: 100, SpawnY: 100, SpawnRadius: 30},
-			{MapName: "huntzone1", NpcTypeID: 17, Count: 8, SpawnX: 100, SpawnY: 100, SpawnRadius: 25},
-			{MapName: "huntzone1", NpcTypeID: 14, Count: 4, SpawnX: 120, SpawnY: 80, SpawnRadius: 20},
-			{MapName: "huntzone2", NpcTypeID: 10, Count: 12, SpawnX: 100, SpawnY: 100, SpawnRadius: 30},
-			{MapName: "huntzone2", NpcTypeID: 11, Count: 8, SpawnX: 100, SpawnY: 100, SpawnRadius: 25},
-			{MapName: "huntzone2", NpcTypeID: 14, Count: 4, SpawnX: 80, SpawnY: 120, SpawnRadius: 20},
-			{MapName: "huntzone3", NpcTypeID: 11, Count: 10, SpawnX: 100, SpawnY: 100, SpawnRadius: 30},
-			{MapName: "huntzone3", NpcTypeID: 28, Count: 6, SpawnX: 100, SpawnY: 100, SpawnRadius: 25},
-			{MapName: "huntzone3", NpcTypeID: 29, Count: 3, SpawnX: 100, SpawnY: 100, SpawnRadius: 20},
-			{MapName: "huntzone4", NpcTypeID: 14, Count: 10, SpawnX: 100, SpawnY: 100, SpawnRadius: 30},
-			{MapName: "huntzone4", NpcTypeID: 28, Count: 6, SpawnX: 100, SpawnY: 100, SpawnRadius: 25},
-
-			// ================================================================
-			// DUNGEONS
-			// ================================================================
-			{MapName: "aresdend1", NpcTypeID: 11, Count: 8, SpawnX: 70, SpawnY: 70, SpawnRadius: 25},
-			{MapName: "aresdend1", NpcTypeID: 14, Count: 5, SpawnX: 100, SpawnY: 100, SpawnRadius: 20},
-			{MapName: "aresdend1", NpcTypeID: 28, Count: 2, SpawnX: 95, SpawnY: 50, SpawnRadius: 15},
-			{MapName: "elvined1", NpcTypeID: 11, Count: 8, SpawnX: 90, SpawnY: 90, SpawnRadius: 25},
-			{MapName: "elvined1", NpcTypeID: 14, Count: 5, SpawnX: 100, SpawnY: 130, SpawnRadius: 20},
-			{MapName: "elvined1", NpcTypeID: 28, Count: 2, SpawnX: 100, SpawnY: 50, SpawnRadius: 15},
-			// Deep dungeons — higher tier monsters
-			{MapName: "dglv2", NpcTypeID: 28, Count: 10, SpawnX: 200, SpawnY: 200, SpawnRadius: 80},
-			{MapName: "dglv2", NpcTypeID: 29, Count: 5, SpawnX: 300, SpawnY: 300, SpawnRadius: 60},
-			{MapName: "dglv2", NpcTypeID: 48, Count: 3, SpawnX: 250, SpawnY: 250, SpawnRadius: 40},
-			{MapName: "dglv3", NpcTypeID: 29, Count: 8, SpawnX: 200, SpawnY: 150, SpawnRadius: 50},
-			{MapName: "dglv3", NpcTypeID: 30, Count: 4, SpawnX: 200, SpawnY: 200, SpawnRadius: 40},
-			{MapName: "dglv3", NpcTypeID: 48, Count: 3, SpawnX: 150, SpawnY: 150, SpawnRadius: 30},
-			{MapName: "dglv4", NpcTypeID: 30, Count: 5, SpawnX: 200, SpawnY: 200, SpawnRadius: 50},
-			{MapName: "dglv4", NpcTypeID: 59, Count: 3, SpawnX: 250, SpawnY: 250, SpawnRadius: 40},
-			{MapName: "dglv4", NpcTypeID: 31, Count: 2, SpawnX: 200, SpawnY: 200, SpawnRadius: 30},
-
-			// ================================================================
-			// 2NDMIDDLE (secondary continent)
-			// ================================================================
-			{MapName: "2ndmiddle", NpcTypeID: 14, Count: 8, SpawnX: 130, SpawnY: 130, SpawnRadius: 25},
-			{MapName: "2ndmiddle", NpcTypeID: 28, Count: 4, SpawnX: 140, SpawnY: 110, SpawnRadius: 20},
-			{MapName: "2ndmiddle", NpcTypeID: 29, Count: 3, SpawnX: 120, SpawnY: 100, SpawnRadius: 20},
-		},
+// mapSpawns is one map's spawns. A name that isn't an NPC type is skipped
+// here; checkConfigNames refuses such a file when it is loaded.
+func mapSpawns(c *mapdata.MapConfig) []SpawnEntry {
+	var out []SpawnEntry
+	total := 0
+	for _, s := range c.SpotMobs {
+		if s.Type == 1 && s.Max > 0 {
+			total += s.Max
+		}
 	}
+	for _, s := range c.SpotMobs {
+		if s.Type != 1 || s.Max <= 0 {
+			continue // type 2 (walk between waypoints) isn't ported
+		}
+		id, err := npc.TypeForConfigName(s.Monster)
+		if err != nil {
+			continue
+		}
+		count := s.Max
+		// The original filled the rectangles a monster at a time, at random,
+		// until the map held maximum-object: when they add up to more than
+		// that (the starter map: 122 against 50), each one gets its share.
+		if c.MaxObjects > 0 && total > c.MaxObjects {
+			count = max(1, s.Max*c.MaxObjects/total)
+		}
+		out = append(out, SpawnEntry{MapName: c.Name, NpcTypeID: id, Count: count,
+			AreaX1: s.Area.X1, AreaY1: s.Area.Y1, AreaX2: s.Area.X2, AreaY2: s.Area.Y2})
+	}
+	for _, n := range c.NPCs {
+		id, err := npc.TypeForConfigName(n.Name)
+		if err != nil {
+			continue
+		}
+		at, err := c.NpcPosition(n)
+		if err != nil {
+			continue
+		}
+		out = append(out, SpawnEntry{MapName: c.Name, NpcTypeID: id, SpawnX: at.X, SpawnY: at.Y})
+	}
+	return out
+}
+
+func init() {
+	mapdata.SetConfigChecker(checkConfigNames)
+}
+
+// checkConfigNames finds monster and NPC names in a map config that aren't NPC types.
+func checkConfigNames(c *mapdata.MapConfig) []error {
+	var errs []error
+	for _, s := range c.SpotMobs {
+		if _, err := npc.TypeForConfigName(s.Monster); err != nil {
+			errs = append(errs, fmt.Errorf("%s.txt line %d: spot-mob-generator %d: %w", c.Name, s.Line, s.Num, err))
+		}
+	}
+	for _, n := range c.NPCs {
+		if _, err := npc.TypeForConfigName(n.Name); err != nil {
+			errs = append(errs, fmt.Errorf("%s.txt line %d: npc: %w", c.Name, n.Line, err))
+		}
+	}
+	return errs
 }

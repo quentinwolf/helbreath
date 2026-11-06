@@ -67,8 +67,8 @@ flag, door, and arrivals.
 
 ## How doors work on the server
 
-Built-in doors come from the original server's map files (`teleports_gen.go`, from
-`teleport-loc` lines) plus hand-typed ones (`teleport.go`). On those maps, a tile works
+Built-in doors are the `teleport-loc` lines of each map's config file
+(`server/internal/mapdata/maps/<map>.txt`, see [map-config.md](map-config.md)). On those maps, a tile works
 as a door only if **both** of these are true:
 
 1. the server's `.amd` file has the teleport flag on that tile, and
@@ -164,8 +164,8 @@ and NPCs standing on a door tile.
 
 Like doors, editing a map's spawns saves **all** of that map's spawns to
 `server/internal/mapdata/spawns.json`. That list then replaces the map's built-in spawns
-(the original spawn rectangles in `spawns_gen.go` plus `handWrittenSpawns` in
-`spawn_config.go`). Other maps keep the built-in list.
+(the `spot-mob-generator` and `npc` lines of the map's config file, see
+[map-config.md](map-config.md)). Other maps keep the built-in list.
 
 ```json
 {

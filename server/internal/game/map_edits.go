@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -16,9 +17,10 @@ import (
 	pb "github.com/juanrossi/hbonline/server/pkg/proto"
 )
 
-// The map editor's files (teleports.json, walkable.json, spawns.json; docs/map-editor.md) are
-// read from a folder on disk and reloaded within a second of being saved, so door
-// and walkability edits take effect without restarting the server.
+// The map configs (maps/<map>.txt; docs/map-config.md) and the map editor's
+// files (teleports.json, walkable.json, spawns.json; docs/map-editor.md) are read
+// from a folder on disk and reloaded within a second of being saved, so door,
+// walkability and spawn edits take effect without restarting the server.
 
 // mapEditsWatch remembers which version of each file is loaded.
 type mapEditsWatch struct {
@@ -26,11 +28,18 @@ type mapEditsWatch struct {
 	lastCheck time.Time
 	// per file: the stamp now loaded, and the last stamp that failed to load
 	loaded, failed map[string]string
-	// baseSpawns: the spawn list before spawns.json (nil until SpawnNPCs).
-	// spawnSig: per map (lower case), its spawns.json entries as loaded ("" = none).
-	baseSpawns *SpawnConfig
-	spawnSig   map[string]string
+	// baseSpawns: the spawn list before spawns.json (nil until SpawnNPCs);
+	// baseFromConfigs: it came from the map configs, so it's rebuilt when they change.
+	// spawnEdits: spawns.json as loaded.
+	// spawnSig: per map (lower case), its spawns as running ("" = none).
+	baseSpawns      *SpawnConfig
+	baseFromConfigs bool
+	spawnEdits      SpawnOverrides
+	spawnSig        map[string]string
 }
+
+// mapConfigsKey is the loaded/failed key for the maps/ folder.
+const mapConfigsKey = mapdata.MapConfigDir + "/"
 
 // SetMapEditsDir sets the folder holding teleports.json and walkable.json. With
 // "" (or a folder that doesn't exist) the copies built into the server are used
@@ -49,9 +58,10 @@ func (e *Engine) SetMapEditsDir(dir string) {
 func (e *Engine) loadMapEdits() {
 	e.initMapEdits()
 	if e.mapEdits.dir != "" {
-		log.Printf("Map edits: reading %s, %s and %s from %s (reloaded when they change)",
-			mapdata.TeleportsFile, mapdata.WalkableFile, mapdata.SpawnsFile, e.mapEdits.dir)
+		log.Printf("Map edits: reading %s*.txt, %s, %s and %s from %s (reloaded when they change)",
+			mapConfigsKey, mapdata.TeleportsFile, mapdata.WalkableFile, mapdata.SpawnsFile, e.mapEdits.dir)
 	}
+	e.reloadMapConfigs(false)
 	e.reloadMapEdit(mapdata.TeleportsFile, false)
 	e.reloadMapEdit(mapdata.WalkableFile, false)
 }
@@ -75,19 +85,26 @@ func (e *Engine) loadSpawnEdits(base *SpawnConfig) *SpawnConfig {
 		return base
 	}
 	e.mapEdits.loaded[mapdata.SpawnsFile] = stamp
-	e.mapEdits.spawnSig = spawnSignatures(o)
+	e.mapEdits.spawnEdits = o
 	if len(o.Maps) > 0 {
 		log.Printf("Map edits: %s: %s with edited spawns", mapdata.SpawnsFile, plural(len(o.Maps), "map"))
 	}
-	return o.Apply(base)
+	cfg := o.Apply(base)
+	e.mapEdits.spawnSig = spawnSignatures(cfg)
+	return cfg
 }
 
-// spawnSignatures is each listed map's entries as JSON, to see which maps changed.
-func spawnSignatures(o SpawnOverrides) map[string]string {
+// spawnSignatures is each map's spawn entries as JSON, to see which maps changed.
+func spawnSignatures(cfg *SpawnConfig) map[string]string {
+	byMap := map[string][]SpawnEntry{}
+	for _, e := range cfg.Spawns {
+		m := strings.ToLower(e.MapName)
+		byMap[m] = append(byMap[m], e)
+	}
 	sig := map[string]string{}
-	for m, spots := range o.Maps {
-		b, _ := json.Marshal(spots)
-		sig[strings.ToLower(m)] = string(b)
+	for m, entries := range byMap {
+		b, _ := json.Marshal(entries)
+		sig[m] = string(b)
 	}
 	return sig
 }
@@ -100,6 +117,9 @@ func (e *Engine) checkMapEdits() {
 	files := []string{mapdata.TeleportsFile, mapdata.WalkableFile}
 	if e.mapEdits.baseSpawns != nil {
 		files = append(files, mapdata.SpawnsFile)
+	}
+	if stamp := mapdata.ConfigStamp(e.mapEdits.dir); stamp != e.mapEdits.loaded[mapConfigsKey] {
+		e.reloadMapConfigs(true)
 	}
 	for _, name := range files {
 		stamp := mapdata.EditFileStamp(e.mapEdits.dir, name)
@@ -146,7 +166,8 @@ func (e *Engine) reloadMapEdit(name string, live bool) {
 		var o SpawnOverrides
 		o, err = LoadSpawnOverridesFrom(dir)
 		if err == nil && e.mapEdits.baseSpawns != nil {
-			summary = e.applySpawnEdits(o)
+			e.mapEdits.spawnEdits = o
+			summary = e.applySpawns()
 		}
 	}
 	if err != nil {
@@ -176,10 +197,46 @@ func (e *Engine) doorAt(gm *mapdata.GameMap, mapName string, x, y int) (mapdata.
 	return t.DoorAt(gm, mapName, x, y)
 }
 
-// applySpawnEdits respawns every map whose spawns.json entries changed.
-func (e *Engine) applySpawnEdits(o SpawnOverrides) string {
-	sig := spawnSignatures(o)
-	cfg := o.Apply(e.mapEdits.baseSpawns)
+// reloadMapConfigs reads maps/*.txt. A file with an error keeps the version
+// loaded before (the built-in one at startup) and the error is reported. live:
+// the server is running, so the doors and spawns are rebuilt and the admins told.
+func (e *Engine) reloadMapConfigs(live bool) {
+	dir := e.mapEdits.dir
+	stamp := mapdata.ConfigStamp(dir)
+	var prev mapdata.MapConfigs
+	if live {
+		prev = mapdata.Configs()
+	}
+	cs, errs := mapdata.LoadMapConfigs(dir, prev)
+	mapdata.SetConfigs(cs)
+	e.mapEdits.loaded[mapConfigsKey] = stamp
+	for _, err := range errs {
+		log.Printf("WARNING: map configs: %v (keeping that map's previous config)", err)
+		if live {
+			e.tellAdmins("Map configs: error, not loaded: "+err.Error(), 2)
+		}
+	}
+	if !live {
+		if dir != "" && stamp != "" {
+			log.Printf("Map configs: %s from %s", plural(len(cs), "map"), filepath.Join(dir, mapdata.MapConfigDir))
+		}
+		return
+	}
+	// Doors: rebuilt with teleports.json on top
+	e.reloadMapEdit(mapdata.TeleportsFile, false)
+	summary := "doors rebuilt"
+	if e.mapEdits.baseSpawns != nil && e.mapEdits.baseFromConfigs {
+		e.mapEdits.baseSpawns = DefaultSpawnConfig()
+		summary += "; " + e.applySpawns()
+	}
+	log.Printf("Map configs: reloaded: %s", summary)
+	e.tellAdmins("Map configs: reloaded: "+summary, 1)
+}
+
+// applySpawns respawns every map whose spawns (base + spawns.json) changed.
+func (e *Engine) applySpawns() string {
+	cfg := e.mapEdits.spawnEdits.Apply(e.mapEdits.baseSpawns)
+	sig := spawnSignatures(cfg)
 	var changed []string
 	for _, gm := range e.maps {
 		lower := strings.ToLower(gm.Name)

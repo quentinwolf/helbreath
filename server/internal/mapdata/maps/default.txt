@@ -1,0 +1,68 @@
+// default: from the original server's map file (HB Server Files 3.51,
+// GameServers/Neutrals/MAPDATA/default.txt), converted by server/tools/mapimport.
+// Format and settings: docs/map-config.md.
+
+[MAP-INFO]
+
+map-location  = default
+initial-point = 1  134 37
+upper-level-limit = 20
+
+//-Teleportation-Set----SX-----SY-----DestMapName---------DX-----DY----Dir---;
+teleport-loc     =      127    78     elvfarm             -1    -1     5
+teleport-loc     =      128    78     elvfarm             -1    -1     5
+teleport-loc     =      129    78     elvfarm             -1    -1     5
+teleport-loc     =      127    79     elvfarm             -1    -1     5
+teleport-loc     =      128    79     elvfarm             -1    -1     5
+teleport-loc     =      129    79     elvfarm             -1    -1     5
+
+teleport-loc     =      80     75     arefarm             -1    -1     5
+teleport-loc     =      81     75     arefarm             -1    -1     5
+teleport-loc     =      82     75     arefarm             -1    -1     5
+teleport-loc     =      80     76     arefarm             -1    -1     5
+teleport-loc     =      81     76     arefarm             -1    -1     5
+teleport-loc     =      82     76     arefarm             -1    -1     5
+
+
+//-No-Attack-Area---------Num-----RECT-------------
+no-attack-area          = 1       131 35 138 40
+
+
+maximum-object		= 50
+
+//------------------------Num-Type-waypoints--------------Mob-MobNum
+spot-mob-generator	= 1   1    81  72  82  73         Guard-Neutral  1
+spot-mob-generator	= 2   1    129 74  130 75         Guard-Neutral  1
+
+spot-mob-generator	= 3   1    100 80  109 87         Slime  20
+spot-mob-generator	= 4   1    105 119 119 127        Slime  20
+spot-mob-generator	= 5   1    118 114 130 127        Slime  20
+spot-mob-generator	= 6   1    86  89  97  96         Slime  20
+spot-mob-generator	= 7   1    61  86  71  93         Slime  20
+spot-mob-generator	= 8   1    68  94  76  102        Slime  20
+
+// Port addition: three shopkeepers in the starter area (the original has none here).
+waypoint          =     101    82    82
+waypoint          =     102    84    82
+waypoint          =     103    86    82
+npc               =   ShopKeeper-W       1           101 101 101 101 101 101 101 101 101 101   1
+npc               =   ShopKeeper-W       1           102 102 102 102 102 102 102 102 102 102   1
+npc               =   ShopKeeper-W       1           103 103 103 103 103 103 103 103 103 103   1
+
+// Port stand-ins: the exits above lead to the farms (elvfarm, arefarm), which the
+// port doesn't have yet, so until it does they go straight to town. Delete these
+// lines once the farms are added (the lines above then take over).
+teleport-loc     =      127    78     elvine              170   146    0
+teleport-loc     =      128    78     elvine              170   146    0
+teleport-loc     =      129    78     elvine              170   146    0
+teleport-loc     =      127    79     elvine              170   146    0
+teleport-loc     =      128    79     elvine              170   146    0
+teleport-loc     =      129    79     elvine              170   146    0
+teleport-loc     =      80     75     aresden             170   146    0
+teleport-loc     =      81     75     aresden             170   146    0
+teleport-loc     =      82     75     aresden             170   146    0
+teleport-loc     =      80     76     aresden             170   146    0
+teleport-loc     =      81     76     aresden             170   146    0
+teleport-loc     =      82     76     aresden             170   146    0
+
+[END-MAP-INFO]

@@ -1,5 +1,8 @@
 # Helbreath Online - Web MMORPG Rewrite: Complete Specification
 
+> The original author's starting spec, kept as written. For what's actually done, missing or
+> changed, see [docs/STATUS.md](docs/STATUS.md).
+
 ## Context
 
 Rewriting the classic Helbreath MMORPG (C++/DirectDraw/WinSock) as a web game. Original source in `ep_client_final/sources_ep_client/` (client) and `ep_client_final/sources_ep_gserver/` (server). Game assets in `assets/` folder (446 sprite .pak/.apk files, 83 .amd maps, 231 sound WAVs, 11 music WAVs, 7 font files).

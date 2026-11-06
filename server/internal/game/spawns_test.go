@@ -38,14 +38,18 @@ func TestOriginalSpawnsReplaceHandWrittenMonsters(t *testing.T) {
 }
 
 func TestMapCapSharesOutTheSpawns(t *testing.T) {
+	c := mapdata.Configs().Get("default")
+	if c == nil || c.MaxObjects == 0 {
+		t.Fatal("default.txt should have a maximum-object")
+	}
 	total := 0
-	for _, s := range cappedOriginalSpawns() {
-		if strings.EqualFold(s.MapName, "default") {
+	for _, s := range mapSpawns(c) {
+		if !npc.IsShopNPC(s.NpcTypeID) {
 			total += s.Count
 		}
 	}
-	if total > originalMaxObjects["default"] || total < originalMaxObjects["default"]/2 {
-		t.Errorf("the starter map should hold close to its cap of %d, got %d", originalMaxObjects["default"], total)
+	if total > c.MaxObjects || total < c.MaxObjects/2 {
+		t.Errorf("the starter map should hold close to its cap of %d, got %d", c.MaxObjects, total)
 	}
 }
 

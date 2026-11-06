@@ -9,7 +9,7 @@ import (
 
 // teleports.json is written by the map editor (client/map-editor.html, see
 // docs/map-editor.md). Every map listed in it replaces that map's built-in doors
-// (teleport.go, teleports_gen.go). On those maps a door works on exactly the
+// (the teleport-loc lines of its maps/<map>.txt). On those maps a door works on exactly the
 // tiles listed: the .amd teleport flag and the nearby-tile fallback are ignored.
 //
 //go:embed teleports.json

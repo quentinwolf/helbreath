@@ -1,0 +1,23 @@
+// WorldMap: a map only this port has (no original map file). Doors and the
+// fixed-day flag were carried over from the port's earlier hand-typed tables.
+// Format and settings: docs/map-config.md.
+
+[MAP-INFO]
+
+map-location = WorldMap
+
+//-Teleportation-Set----SX-----SY-----DestMapName---------DX-----DY----Dir---;
+teleport-loc = 34   116  aresden        140  140  0
+teleport-loc = 35   116  aresden        140  140  0
+teleport-loc = 36   116  aresden        140  140  0
+teleport-loc = 71   116  elvine         140  140  0
+teleport-loc = 72   116  elvine         140  140  0
+teleport-loc = 73   116  elvine         140  140  0
+teleport-loc = 34   117  aresden        140  140  0
+teleport-loc = 35   117  aresden        140  140  0
+teleport-loc = 36   117  aresden        140  140  0
+teleport-loc = 71   117  elvine         140  140  0
+teleport-loc = 72   117  elvine         140  140  0
+teleport-loc = 73   117  elvine         140  140  0
+
+[END-MAP-INFO]

@@ -374,6 +374,7 @@ func (e *Engine) SpawnNPCsWithConfigPath(configPath string) {
 		log.Printf("Warning: failed to load spawn config from %s: %v (using defaults)", configPath, err)
 		cfg = nil
 	}
+	fromConfigs := cfg == nil
 	if cfg == nil {
 		cfg = DefaultSpawnConfig()
 		log.Printf("Using default spawn configuration (%d entries)", len(cfg.Spawns))
@@ -382,6 +383,7 @@ func (e *Engine) SpawnNPCsWithConfigPath(configPath string) {
 	}
 	// The map editor's spawns.json replaces the maps it lists (reloaded live, map_edits.go)
 	e.mapEdits.baseSpawns = cfg
+	e.mapEdits.baseFromConfigs = fromConfigs
 	cfg = e.loadSpawnEdits(cfg)
 	e.SpawnNPCsWithConfig(cfg)
 }

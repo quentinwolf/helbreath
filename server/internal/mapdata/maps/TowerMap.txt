@@ -1,0 +1,9 @@
+// TowerMap: a map only this port has (no original map file). Doors and the
+// fixed-day flag were carried over from the port's earlier hand-typed tables.
+// Format and settings: docs/map-config.md.
+
+[MAP-INFO]
+
+map-location = TowerMap
+
+[END-MAP-INFO]

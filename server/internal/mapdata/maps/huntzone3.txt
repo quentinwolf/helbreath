@@ -1,0 +1,45 @@
+// huntzone3: from the original server's map file (HB Server Files 3.51,
+// GameServers/Huntzones/MAPDATA/huntzone3.txt), converted by server/tools/mapimport.
+// Format and settings: docs/map-config.md.
+
+[MAP-INFO]
+
+map-location  = elvine
+initial-point = 1  47 165
+level-limit   = 30
+
+//-Teleportation-Set----SX-----SY-----DestMapName---------DX-----DY----Dir---;
+
+
+teleport-loc     =      45     168    huntzone1           174    23    5
+teleport-loc     =      46     168    huntzone1           174    23    5
+teleport-loc     =      47     168    huntzone1           174    23    5
+teleport-loc     =      48     168    huntzone1           174    23    5
+teleport-loc     =      49     168    huntzone1           174    23    5
+teleport-loc     =      50     168    huntzone1           174    23    5
+
+
+
+//-WayPoint-Set---------Num-----X-----Y----;
+waypoint          =     0       55    94
+waypoint          =     1       113   76
+waypoint          =     2       156   104
+waypoint          =     3       187   140
+waypoint          =     4       161   164
+waypoint          =     5       135   169
+waypoint          =     6       109   191
+waypoint          =     7       98    162
+waypoint          =     8       64    137
+waypoint          =     9       198   105
+
+maximum-object		= 350
+random-mob-generator	= 1 6
+
+// Port stand-ins for the random-mob-generator (not ported yet), so the map
+// isn't empty: the port's old hand-written spawns (centre +- radius).
+// Remove these once the random mob generator is in.
+spot-mob-generator = 101  1  70 70 130 130  Skeleton  10
+spot-mob-generator = 102  1  75 75 125 125  Troll  6
+spot-mob-generator = 103  1  80 80 120 120  Ogre  3
+
+[END-MAP-INFO]
