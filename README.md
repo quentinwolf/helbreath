@@ -4,7 +4,7 @@ A web-based rewrite of the classic Helbreath MMORPG (2001). Play in your browser
 
 **Tech Stack**: Go server, Phaser 3 + TypeScript client, PostgreSQL, WebSocket + Protobuf.
 
-**Live**: [https://www.helbreath.xyz](https://www.helbreath.xyz)
+~**Live**: https://www.helbreath.xyz~
 
 ## Prerequisites
 
@@ -52,7 +52,7 @@ cd server
 go run ./cmd/gameserver
 ```
 
-If you wish to start the client with memdb but still allow saving to json use
+If you wish to start the client with memdb but still allow saving to json during testing/development use
 
 ```bash
 cd server
@@ -68,6 +68,10 @@ npm run dev
 ```
 
 Open **http://localhost:3000** to play.
+
+### 4b. Map Editor
+
+Open **http://localhost:3000/map-editor.html** to access map editor. (Changes made will live-reload on the server which do not require restarting the server after any changes.)
 
 ### 5. Play
 
