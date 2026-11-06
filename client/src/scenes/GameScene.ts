@@ -59,6 +59,7 @@ import { WeatherManager } from '../game/effects/WeatherManager';
 import { Effect } from '../game/effects/Effect';
 import { playSpellEffect, spellEffectSprites } from '../game/spells/SpellEffects';
 import { clearSpellUpdates } from '../game/spells/SceneUpdate';
+import { spellImpactMs } from '../game/spells/SpellTiming';
 import { CameraShake } from '../utils/CameraShake';
 import { EFFECT_SOUND_FILES } from '../constants/EffectSounds';
 import { SPELL_GOLD_COST } from '../constants/SpellCosts';
@@ -543,6 +544,9 @@ export class GameScene extends Phaser.Scene {
     this.loadingMonsterSounds.clear();
     this.spriteWaiters.clear();
     this.morphs.clear(); // their sprites went down with the old scene
+    this.spellHolds.clear(); // a spell in the air on the old map
+    this.heldTargets.clear();
+    this.heldEvents = [];
     this.berserkGlows.clear();
     this.suppressedLayers.clear();
     // Their sprites and labels went down with the old scene. An NPC that moved
@@ -896,6 +900,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    // Spell hits, deaths and loot whose effect has now landed
+    this.releaseHeldEvents();
+
     // NPCs still drawn as a placeholder circle: retry their sprite once a second
     if (time - this.lastFallbackSweep > 1000) {
       this.lastFallbackSweep = time;
@@ -1550,15 +1557,23 @@ export class GameScene extends Phaser.Scene {
     this.msgHandler.on(Proto.MSG_PLAYER_DISAPPEAR, (data: any) => this.removeRemotePlayer(data.objectId));
     this.msgHandler.on(Proto.MSG_CHAT_MESSAGE, (data: ChatMessageData) => this.onChatMessage(data));
     this.msgHandler.on(Proto.MSG_NPC_APPEAR, (data: NpcAppearData) => this.addNPC(data));
-    this.msgHandler.on(Proto.MSG_NPC_DISAPPEAR, (data: any) => this.removeNPC(data.objectId));
+    this.msgHandler.on(Proto.MSG_NPC_DISAPPEAR, (data: any) => {
+      if (!this.holdForSpell(0, data.objectId, () => this.removeNPC(data.objectId))) this.removeNPC(data.objectId);
+    });
     this.msgHandler.on(Proto.MSG_NPC_MOTION, (data: NpcMotionData) => this.onNpcMotion(data));
-    this.msgHandler.on(Proto.MSG_DAMAGE_EVENT, (data: DamageEventData) => this.onDamageEvent(data));
+    this.msgHandler.on(Proto.MSG_DAMAGE_EVENT, (data: DamageEventData) => {
+      if (!this.holdForSpell(data.attackerId, data.targetId, () => this.onDamageEvent(data))) this.onDamageEvent(data);
+    });
     this.msgHandler.on(Proto.MSG_STAT_UPDATE, (data: StatUpdateData) => this.onStatUpdate(data));
-    this.msgHandler.on(Proto.MSG_DEATH_EVENT, (data: DeathEventData) => this.onDeathEvent(data));
+    this.msgHandler.on(Proto.MSG_DEATH_EVENT, (data: DeathEventData) => {
+      if (!this.holdForSpell(0, data.objectId, () => this.onDeathEvent(data))) this.onDeathEvent(data);
+    });
     this.msgHandler.on(Proto.MSG_RESPAWN_EVENT, (data: RespawnEventData) => this.onRespawnEvent(data));
     this.msgHandler.on(Proto.MSG_NOTIFICATION, (data: any) => this.onNotification(data));
     this.msgHandler.on(Proto.MSG_INVENTORY_UPDATE, (data: InventoryUpdateData) => this.onInventoryUpdate(data));
-    this.msgHandler.on(Proto.MSG_GROUND_ITEM_APPEAR, (data: GroundItemAppearData) => this.onGroundItemAppear(data));
+    this.msgHandler.on(Proto.MSG_GROUND_ITEM_APPEAR, (data: GroundItemAppearData) => {
+      if (!this.holdForSpell(0, 0, () => this.onGroundItemAppear(data))) this.onGroundItemAppear(data);
+    });
     this.msgHandler.on(Proto.MSG_GROUND_ITEM_DISAPPEAR, (data: GroundItemDisappearData) => this.onGroundItemDisappear(data));
     this.msgHandler.on(Proto.MSG_SHOP_OPEN, (data: ShopOpenData) => this.onShopOpen(data));
     this.msgHandler.on(Proto.MSG_SHOP_RESPONSE, (data: ShopResponseData) => this.onShopResponse(data));
@@ -5194,10 +5209,67 @@ export class GameScene extends Phaser.Scene {
     return simple ? [simple.file] : [];
   }
 
+  // --- Spell hit timing (SpellTiming.ts) ---
+  // A damage spell's hits, the deaths they cause and the loot that drops arrive
+  // together right after its SpellEffect; they're held and played when the
+  // effect lands. Class fields survive scene restarts, so create() clears these.
+  private spellHolds = new Map<number, { until: number; openUntil: number }>(); // by caster
+  private heldTargets = new Map<number, number>(); // object id -> time its hit plays
+  private heldEvents: { at: number; fn: () => void }[] = [];
+
+  private openSpellHold(data: SpellEffectData): void {
+    if (!data.casterId) return;
+    const tx = data.targetPosition?.x ?? 0;
+    const ty = data.targetPosition?.y ?? 0;
+    const ms = spellImpactMs(data.spellId, data.casterPosition?.x ?? tx, data.casterPosition?.y ?? ty, tx, ty);
+    if (ms <= 0) return;
+    const now = this.time.now;
+    // The burst follows within a tick; anything later belongs to something else
+    this.spellHolds.set(data.casterId, { until: now + ms, openUntil: now + 250 });
+  }
+
+  /**
+   * Holds an event that belongs to a spell still in the air: a DamageEvent from
+   * a caster whose cast is open, or a death / disappear of a target already
+   * held, or loot dropped while a cast is open. Returns false to handle it now.
+   */
+  private holdForSpell(attackerId: number, objectId: number, fn: () => void): boolean {
+    const now = this.time.now;
+    let at = 0;
+    const hold = attackerId ? this.spellHolds.get(attackerId) : undefined;
+    if (hold && now <= hold.openUntil && hold.until > now) {
+      at = hold.until;
+      if (objectId) this.heldTargets.set(objectId, Math.max(this.heldTargets.get(objectId) ?? 0, at));
+    } else if (objectId && (this.heldTargets.get(objectId) ?? 0) > now) {
+      at = this.heldTargets.get(objectId)!;
+    } else if (!attackerId && !objectId) {
+      for (const h of this.spellHolds.values()) {
+        if (now <= h.openUntil && h.until > now) at = Math.max(at, h.until);
+      }
+    }
+    if (!at) return false;
+    this.heldEvents.push({ at, fn });
+    return true;
+  }
+
+  /** Plays held events whose spell has landed, in the order they arrived. */
+  private releaseHeldEvents(): void {
+    if (!this.heldEvents.length) return;
+    const now = this.time.now;
+    const due = this.heldEvents.filter((e) => e.at <= now);
+    if (!due.length) return;
+    this.heldEvents = this.heldEvents.filter((e) => e.at > now);
+    for (const e of due) {
+      try { e.fn(); } catch (err) { console.warn('[spell timing] held event failed', err); }
+    }
+    for (const [id, at] of this.heldTargets) if (at <= now) this.heldTargets.delete(id);
+  }
+
   private onSpellEffect(data: SpellEffectData): void {
     // Damage from this cast arrives as DamageEvents right after; remember the
     // caster so those don't also play a melee swing on them.
     if (data.casterId) this.lastSpellCastAt.set(data.casterId, this.time.now);
+    this.openSpellHold(data);
 
     const tx = data.targetPosition?.x ?? 0;
     const ty = data.targetPosition?.y ?? 0;

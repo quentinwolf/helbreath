@@ -312,13 +312,9 @@ func (e *Engine) castDamageSpell(p *player.Player, spell *magic.SpellDef, tx, ty
 	// One effect for the whole cast; each victim's number comes with its DamageEvent
 	e.broadcastSpellEffect(p, spell, 0, p.X, p.Y, tx, ty, 0, 0, false, gm)
 
-	// The hit lands when the effect does (spell_timing.go), on whoever stands
-	// in the footprint then.
-	e.after(spellImpactDelay(spell.ID, p.X, p.Y, tx, ty), func() {
-		if p.MapName == gm.Name && p.HP > 0 {
-			e.landDamageSpell(p, spell, hits, tx, ty, gm)
-		}
-	})
+	// Damage is applied now, as the original did; the client holds the hits
+	// back until its effect lands (client/src/game/spells/SpellTiming.ts).
+	e.landDamageSpell(p, spell, hits, tx, ty, gm)
 }
 
 // landDamageSpell hits every monster and enemy player in a damage spell's footprint.

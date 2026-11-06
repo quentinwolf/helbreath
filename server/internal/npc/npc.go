@@ -467,6 +467,9 @@ func (n *NPC) Respawn() {
 	n.State = StateIdle
 	n.TargetID = 0
 	n.Action = 0
+	// A new life: spells on the old one (Polymorph, Hold) are gone
+	n.PolymorphUntil = time.Time{}
+	n.HeldUntil = time.Time{}
 }
 
 // ReadyToRespawn returns true if enough time has passed since death.

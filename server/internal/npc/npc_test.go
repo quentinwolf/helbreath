@@ -250,3 +250,13 @@ func TestNPCStatusBitsCarryTheSide(t *testing.T) {
 		t.Error("an Elvine citizen's summon should show as Elvine")
 	}
 }
+
+func TestRespawnClearsSpells(t *testing.T) {
+	n := NewNPC(1, NpcTypes[10], "test", 5, 5)
+	n.PolymorphUntil = time.Now().Add(time.Minute)
+	n.HeldUntil = time.Now().Add(time.Minute)
+	n.Respawn()
+	if n.IsPolymorphed(time.Now()) || !n.HeldUntil.IsZero() {
+		t.Error("a respawned NPC should not still be polymorphed or held")
+	}
+}
