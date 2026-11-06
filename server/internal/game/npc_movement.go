@@ -15,7 +15,7 @@ import (
 // makes it follow a wall round to the end instead of stepping up, down, up
 // beside it. It reports whether it moved.
 func (e *Engine) npcStepToward(n *npc.NPC, gm *mapdata.GameMap, tx, ty int) bool {
-	if tx == n.X && ty == n.Y {
+	if (tx == n.X && ty == n.Y) || time.Now().Before(n.HeldUntil) {
 		return false
 	}
 	dir := n.DirectionTo(tx, ty)

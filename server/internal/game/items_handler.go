@@ -114,21 +114,25 @@ func (e *Engine) handleItemPickup(client *network.Client, req *pb.ItemPickupRequ
 		e.sendNotification(p, "Too far to pick up", 2)
 		return
 	}
+	e.takeGroundItem(p, req.GroundId, gi)
+}
 
+// takeGroundItem moves a ground item into the player's bag (pickup, Possession).
+func (e *Engine) takeGroundItem(p *player.Player, groundID int32, gi *items.GroundItem) bool {
 	// Add to inventory
 	slot := p.Inventory.AddItem(gi.Item)
 	if slot < 0 {
 		e.sendNotification(p, "Inventory full", 2)
-		return
+		return false
 	}
 
 	// Remove from ground
-	e.groundItems.Delete(req.GroundId)
+	e.groundItems.Delete(groundID)
 
 	// Notify all nearby players
 	gm, ok := e.maps[p.MapName]
 	if ok {
-		disappear := &pb.GroundItemDisappear{GroundId: req.GroundId}
+		disappear := &pb.GroundItemDisappear{GroundId: groundID}
 		e.broadcastToNearby(gm, gi.X, gi.Y, -1, network.MsgGroundItemDisappear, disappear)
 	}
 
@@ -141,6 +145,7 @@ func (e *Engine) handleItemPickup(client *network.Client, req *pb.ItemPickupRequ
 		name = def.Name
 	}
 	log.Printf("Player %s picked up %s x%d", p.Name, name, gi.Item.Count)
+	return true
 }
 
 // handleItemUse uses a consumable item (potion).

@@ -19,6 +19,15 @@ const (
 	EffectInhibition                 // Silence: cannot cast spells
 	EffectPolymorph                  // Visual change (future)
 	EffectHeroArmor                  // Hero equipment bonus (future)
+	EffectHold                       // Hold Person (1) / Paralyze (2): can't walk or run; spell damage breaks it
+)
+
+// Confusion levels: the original's DEF_MAGICTYPE_CONFUSE sValue4.
+const (
+	ConfuseLanguage         = 1 // your chat comes out scrambled
+	ConfuseAllegiance       = 2 // Confusion: you can't tell friend from foe
+	ConfuseIllusion         = 3 // Illusion: every other player looks like the caster
+	ConfuseIllusionMovement = 4 // Illusion Movement: you walk the opposite way
 )
 
 // EffectEventType describes what happened during a tick.

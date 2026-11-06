@@ -422,7 +422,7 @@ func mapApplyEffect(s rawSpell) (effectName string, level int) {
 		if level <= 0 {
 			level = 1
 		}
-		return "EffectIce", level // Hold = frozen in place
+		return "EffectHold", level // 1 = Hold Person, 2 = Paralyze: can't move
 	case 13: // Eff1 (the original's sValue4): 1 = Invisibility, 2 = Detect Invisibility
 		if s.Eff1 == 1 {
 			return "EffectInvisibility", 1
@@ -671,16 +671,6 @@ func generate(spells []rawSpell) {
 				}
 			}
 		}
-		if spType == "SpellTypeDebuff" {
-			switch s.CfgType {
-			case 12: // Hold/Paralyze
-				buffStat = 3 // DEX
-				buffAmount = -s.Eff1 * 5
-				if buffAmount == 0 {
-					buffAmount = -10
-				}
-			}
-		}
 
 		// Cost to learn: -1 means not purchasable (quest/special)
 		learnCost := s.Cost
@@ -760,6 +750,15 @@ func generate(spells []rawSpell) {
 		}
 		if duration > 0 {
 			p("\t\tDuration: %d,\n", duration)
+		}
+		switch s.CfgType {
+		case 16: // CONFUSE: everyone in the Range1 x Range2 box around the tile
+			p("\t\tAreaX: %d, AreaY: %d,\n", s.Range1, s.Range2)
+		case 5: // SPDOWN_AREA (Staminar Drain): group 1 off the clicked player's
+			// stamina, group 2 off everyone in the box (them included)
+			p("\t\tAreaX: %d, AreaY: %d,\n", s.Range1, s.Range2)
+			p("\t\tSPDice: %s,\n", (dice{s.Eff1, s.Eff2, s.Eff3}).goLiteral())
+			p("\t\tAreaSPDice: %s,\n", (dice{s.Eff4, s.Eff5, s.Eff6}).goLiteral())
 		}
 		if s.CfgType == 14 {
 			// sValue10 = DEF_DYNAMICOBJECT_* kind, sValue11 = layout,

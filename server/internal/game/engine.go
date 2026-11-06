@@ -747,6 +747,9 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 }
 
 func (e *Engine) moveNPC(n *npc.NPC, gm *mapdata.GameMap, newX, newY, dir int) {
+	if time.Now().Before(n.HeldUntil) {
+		return // Hold Person / Paralyze
+	}
 	gm.ClearOwner(n.X, n.Y)
 	n.X = newX
 	n.Y = newY
@@ -923,7 +926,14 @@ func (e *Engine) handlePlayerDeath(p *player.Player, killerID int32, killerName 
 
 	// Clear all magic effects and buffs on death
 	if p.Effects != nil {
+		held, confused := p.Effects.HasEffect(magic.EffectHold), p.Effects.HasEffect(magic.EffectConfusion)
 		p.Effects.ClearAll()
+		if held {
+			e.sendStatusOff(p, magic.EffectHold)
+		}
+		if confused {
+			e.sendStatusOff(p, magic.EffectConfusion)
+		}
 	}
 	if p.Buffs != nil {
 		p.Buffs.ClearAll()
@@ -1551,6 +1561,11 @@ func (e *Engine) handleMotion(client *network.Client, req *pb.MotionRequest) {
 	}
 
 	if action == 1 || action == 2 { // walk or run
+		// Hold Person / Paralyze: no walking or running at all (attacks and casts still work)
+		if p.Effects != nil && p.Effects.HasEffect(magic.EffectHold) {
+			e.sendMotionCorrection(p, gm)
+			return
+		}
 		// Anti-speed-hack: check time since last move
 		now := time.Now()
 		minInterval := 250 * time.Millisecond // run speed (relaxed for latency)
@@ -1838,6 +1853,7 @@ func (e *Engine) handleChat(client *network.Client, req *pb.ChatRequest) {
 		e.sendNotification(p, "You are muted", 2)
 		return
 	}
+	msg = confusedSpeech(p, msg) // Confuse Language
 
 	chatMsg := &pb.ChatMessage{
 		ObjectId:   p.ObjectID,

@@ -354,6 +354,8 @@ type NPC struct {
 	SummonExpires time.Time
 	// Polymorph: drawn as a Zombie until then.
 	PolymorphUntil time.Time
+	// Hold Person / Paralyze: can't move until then (still fights whoever is next to it).
+	HeldUntil time.Time
 
 	// Flee tracking
 	FleeStartX int // X position when flee began (to measure flee distance)

@@ -91,6 +91,11 @@ type SpellDef struct {
 	HealDice     Dice
 	AreaHealDice Dice
 
+	// Staminar Drain (CfgType 5): SPDice off the clicked player's stamina,
+	// AreaSPDice off everyone in the AreaX/AreaY box (them included).
+	SPDice     Dice
+	AreaSPDice Dice
+
 	// Status effect fields (for spells that apply effects)
 	ApplyEffect    EffectType // which status effect to apply (0 = none)
 	EffectLevel    int        // intensity of the effect (1-3)
@@ -103,6 +108,15 @@ type SpellDef struct {
 	// is in or next to them for Duration seconds.
 	Field FieldSpec
 }
+
+// Original DEF_MAGICTYPE_* numbers (SpellDef.CfgType) for the debuffs handled
+// in game/debuff_spells.go.
+const (
+	CfgTypeSPDownArea = 5  // Staminar Drain
+	CfgTypeHold       = 12 // Hold Person, Paralyze
+	CfgTypePossession = 15 // Possession: pick up an item from afar
+	CfgTypeConfuse    = 16 // Confuse Language, Confusion, Illusion, Illusion Movement (+ Mass)
+)
 
 // FieldKind is the original's DEF_DYNAMICOBJECT_* number (Magic.cfg sValue10).
 type FieldKind int
@@ -181,7 +195,9 @@ func (s *SpellDef) DealsDamage() bool {
 // empty ground.
 func (s *SpellDef) NeedsTarget() bool {
 	if s.Type == SpellTypeDebuff {
-		return true
+		// Area debuffs (Confusion, Staminar Drain...) can land on empty ground,
+		// and Possession is cast on an item lying on an empty tile.
+		return s.AreaX == 0 && s.AreaY == 0 && s.CfgType != CfgTypePossession
 	}
 	return s.DealsDamage() && !s.Line && s.AreaX == 0 && s.AreaY == 0
 }

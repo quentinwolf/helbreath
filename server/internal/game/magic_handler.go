@@ -87,6 +87,8 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 		e.handleHealSpell(p, spellDef, tx, ty, targetID, gm)
 	case spellDef.Type == magic.SpellTypeBuff:
 		e.handleBuffSpell(p, spellDef, gm)
+	case e.castOriginalDebuff(p, spellDef, tx, ty, targetID, gm):
+		// Staminar Drain, Hold Person, Paralyze, Possession, Confuse/Illusion family
 	case spellDef.Type == magic.SpellTypeDebuff:
 		e.handleDebuffSpell(p, spellDef, targetID, gm)
 	}
@@ -356,6 +358,7 @@ func (e *Engine) castDamageSpell(p *player.Player, spell *magic.SpellDef, tx, ty
 // turns on the caster, and loot/exp if it dies.
 func (e *Engine) spellHurtNPC(p *player.Player, n *npc.NPC, dmg int, gm *mapdata.GameMap) {
 	killed := n.TakeDamage(dmg)
+	n.HeldUntil = time.Time{} // spell damage breaks Hold Person / Paralyze
 	e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgDamageEvent, &pb.DamageEvent{
 		AttackerId:  p.ObjectID,
 		TargetId:    n.ObjectID,
@@ -390,6 +393,11 @@ func (e *Engine) spellHurtPlayer(p, t *player.Player, dmg int, freeze time.Durat
 		TargetMaxHp: int32(t.MaxHP),
 	})
 	e.cancelLogoutOnDamage(t)
+	// Spell damage breaks Hold Person / Paralyze (melee doesn't, as in the original)
+	if t.Effects != nil && t.Effects.HasEffect(magic.EffectHold) {
+		t.Effects.RemoveEffect(magic.EffectHold)
+		e.sendStatusOff(t, magic.EffectHold)
+	}
 	if !killed && freeze > 0 && t.Effects != nil {
 		t.Effects.AddEffect(&magic.ActiveEffect{
 			Type:      magic.EffectIce,
@@ -904,6 +912,7 @@ func (e *Engine) processEffectTicks(now time.Time) {
 				if evt.EffectType == magic.EffectInvisibility || evt.EffectType == magic.EffectPolymorph {
 					e.refreshPlayerAppearance(p)
 				}
+				e.sendStatusOff(p, evt.EffectType)
 			}
 		}
 		return true
@@ -929,6 +938,10 @@ func effectTypeName(t magic.EffectType) string {
 		return "Defense Shield"
 	case magic.EffectMagicProtection:
 		return "Magic Protection"
+	case magic.EffectHold:
+		return "Hold"
+	case magic.EffectConfusion:
+		return "Confusion"
 	default:
 		return "Status Effect"
 	}

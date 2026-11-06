@@ -83,6 +83,14 @@ const STATUS_DEAD = 0x1000;
 const NOTIFY_RESURRECT_OFFER = 11;
 /** Notification type: open a town officer's menu ("cityhall:<side>" or "guildhall"). */
 const NOTIFY_OPEN_MENU = 12;
+/** Notification type: a status of ours started or ended ("hold:1", "confuse:3:<caster id>", "hold-off"...). */
+const NOTIFY_STATUS = 13;
+/** Confuse family levels (server magic.Confuse*). */
+const CONFUSE_ALLEGIANCE = 2;
+const CONFUSE_ILLUSION = 3;
+const CONFUSE_ILLUSION_MOVEMENT = 4;
+/** The second line under Confusion / Illusion: you can't tell who is on which side. */
+const TAG_UNKNOWN = '#969696';
 /** NPC status bits from the server (npc.NpcStatus*). */
 const NPC_STATUS_HOSTILE = 0x01000000;
 const NPC_STATUS_CITIZEN = 0x02000000;
@@ -136,6 +144,8 @@ interface RemotePlayer {
   hairStyle: number;
   hairColor: number;
   underwearColor: number;
+  /** Their own outfit (assets.gear is the caster's while we're under Illusion). */
+  realGear?: GearConfig;
   /** Status bits (STATUS_*), faction and PK count: decide how we see them when invisible. */
   status: number;
   side: number;
@@ -533,6 +543,13 @@ export class GameScene extends Phaser.Scene {
   private suppressedLayers = new Set<number>();
   /** Zombie sprites standing in for polymorphed players, by object ID. */
   private morphs = new Map<number, { asset: GameAsset; sheet: number }>();
+  /** Hold Person / Paralyze: we can't walk or run (the original client's m_bParalyze). */
+  private held = false;
+  /** Confuse family on us (0 = none, else CONFUSE_*; 1 = Confuse Language, nothing to draw). */
+  private confuseLevel = 0;
+  /** Illusion: the caster whose look every other player takes, and that look. */
+  private illusionCasterId = 0;
+  private illusionGear: GearConfig | null = null;
   /** Callbacks waiting for a deferred sprite to finish loading (reset each create()). */
   private spriteWaiters = new Map<string, Array<() => void>>();
   private spellCircleFilter = 0; // 0 = all circles, 1-10 = Circle I-X
@@ -1569,9 +1586,14 @@ export class GameScene extends Phaser.Scene {
 
     const spriteDir = Math.max(0, rp.direction - 1);
     const status = info.status ?? 0;
-    const layers = this.createPlayerLayers(gear, spriteDir,
+    const shown = this.shownGear(rp.objectId, gear);
+    const layers = this.createPlayerLayers(shown, spriteDir,
       (status & STATUS_DEAD) !== 0 ? PlayerState.Die : PlayerState.IdlePeace);
-    rp.assets = { layers, gear, equipLayerMap: this._lastEquipLayerMap };
+    rp.assets = { layers, gear: shown, equipLayerMap: this._lastEquipLayerMap };
+    rp.realGear = gear;
+    if (rp.objectId === this.illusionCasterId && this.confuseLevel === CONFUSE_ILLUSION) {
+      this.setIllusion(rp.objectId); // the caster changed clothes: so does everyone else
+    }
     rp.gender = gender;
     rp.skinColor = skinColor;
     rp.hairStyle = hairStyle;
@@ -1883,6 +1905,7 @@ export class GameScene extends Phaser.Scene {
   private canMove(): boolean {
     if (this.isMoving) return false;
     if (this.isDead) return false;
+    if (this.held) return false; // Hold Person / Paralyze
     if (this.knockbackActive) return false;
     if (this.isStunlocked()) return false;
 
@@ -1963,11 +1986,18 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Calculate 8-direction from angle
-    const dir = this.angleToDirection(dx, dy);
+    let dir = this.angleToDirection(dx, dy);
     if (dir === 0) return;
 
-    const step = this.pickStepDirection(dir,
-      Math.floor(worldPoint.x / TILE_SIZE), Math.floor(worldPoint.y / TILE_SIZE));
+    let aimX = Math.floor(worldPoint.x / TILE_SIZE);
+    let aimY = Math.floor(worldPoint.y / TILE_SIZE);
+    if (this.confuseLevel === CONFUSE_ILLUSION_MOVEMENT) {
+      // Illusion Movement: your feet go the opposite way (the original's cGetNextMoveDir bMIM)
+      dir = ((dir + 3) % 8) + 1;
+      aimX = 2 * this.tileX - aimX;
+      aimY = 2 * this.tileY - aimY;
+    }
+    const step = this.pickStepDirection(dir, aimX, aimY);
     if (step !== 0) this.tryMove(step, now);
   }
 
@@ -2433,8 +2463,9 @@ export class GameScene extends Phaser.Scene {
 
     let assets: PlayerAssets | null = null;
     try {
-      const layers = this.createPlayerLayers(gear, dir, state);
-      assets = { layers, gear, equipLayerMap: this._lastEquipLayerMap };
+      const shown = this.shownGear(info.objectId, gear);
+      const layers = this.createPlayerLayers(shown, dir, state);
+      assets = { layers, gear: shown, equipLayerMap: this._lastEquipLayerMap };
     } catch (err) {
       console.warn(`Failed to create sprites for remote player ${info.name}:`, err);
     }
@@ -2465,6 +2496,7 @@ export class GameScene extends Phaser.Scene {
       moveStartY: worldY,
       isMoving: false,
       gender, skinColor, hairStyle, hairColor, underwearColor,
+      realGear: gear,
       status: info.status ?? 0,
       side: info.side ?? 0,
       pkCount: info.pkCount ?? 0,
@@ -2477,6 +2509,10 @@ export class GameScene extends Phaser.Scene {
 
     this.remotePlayers.set(info.objectId, rp);
     this.refreshPlayerTag(rp);
+    // Under an Illusion whose caster we hadn't seen yet: now we know what everyone looks like
+    if (rp.objectId === this.illusionCasterId && this.confuseLevel === CONFUSE_ILLUSION && !this.illusionGear) {
+      this.setIllusion(rp.objectId);
+    }
   }
 
   private removeRemotePlayer(objectId: number): void {
@@ -2942,10 +2978,76 @@ export class GameScene extends Phaser.Scene {
 
   /** The NPC's second line: "(Enemy)", "Neutral" or "(Friendly)" (the original's DrawNpcName). */
   private refreshNpcTag(n: GameNPC): void {
+    if (this.allegianceHidden) {
+      n.nameText.setTag('(Unknown)', TAG_UNKNOWN); // the original's DrawNpcName under Confusion
+      return;
+    }
     const colour = this.npcNameColour(n);
     if (colour === NAME_ENEMY) n.nameText.setTag('(Enemy)', TAG_ENEMY);
     else if (colour === NAME_FRIENDLY) n.nameText.setTag('(Friendly)', TAG_FRIENDLY);
     else n.nameText.setTag('Neutral', TAG_NEUTRAL);
+  }
+
+  /**
+   * A status of ours from the server (NOTIFY_STATUS), applied here as the original
+   * client did: Hold/Paralyze stop our walking, Confusion hides whose side anyone is
+   * on, Illusion dresses every other player as the caster, Illusion Movement makes us
+   * walk the opposite way. (Confuse Language is done by the server, on our chat.)
+   */
+  private onStatusNotify(msg: string): void {
+    const [kind, level, caster] = msg.split(':');
+    if (kind === 'hold') {
+      this.held = true;
+    } else if (kind === 'hold-off') {
+      this.held = false;
+    } else if (kind === 'confuse') {
+      if (this.confuseLevel === CONFUSE_ILLUSION) this.setIllusion(0);
+      this.confuseLevel = Number(level) || 0;
+      if (this.confuseLevel === CONFUSE_ILLUSION) this.setIllusion(Number(caster) || 0);
+      this.refreshNpcNameColours();
+    } else if (kind === 'confuse-off') {
+      if (this.confuseLevel === CONFUSE_ILLUSION) this.setIllusion(0);
+      this.confuseLevel = 0;
+      this.refreshNpcNameColours();
+    }
+  }
+
+  /** Can we tell who is on which side? Not under Confusion or Illusion. */
+  private get allegianceHidden(): boolean {
+    return this.confuseLevel === CONFUSE_ALLEGIANCE || this.confuseLevel === CONFUSE_ILLUSION;
+  }
+
+  /**
+   * Starts (casterId > 0) or ends Illusion: every other player is redrawn in the
+   * caster's outfit (the original's _SetIlusionEffect), or back in their own.
+   */
+  private setIllusion(casterId: number): void {
+    this.illusionCasterId = casterId;
+    const caster = casterId ? this.remotePlayers.get(casterId) : undefined;
+    this.illusionGear = caster ? (caster.realGear ?? caster.assets?.gear ?? null) : null;
+    for (const rp of this.remotePlayers.values()) {
+      const real = rp.realGear ?? rp.assets?.gear;
+      if (real) this.rebuildRemoteLayers(rp, this.shownGear(rp.objectId, real));
+    }
+  }
+
+  /** The outfit we draw a player in: the Illusion caster's while it lasts, else their own. */
+  private shownGear(objectId: number, real: GearConfig): GearConfig {
+    if (this.illusionGear && this.confuseLevel === CONFUSE_ILLUSION && objectId !== this.illusionCasterId) {
+      return this.illusionGear;
+    }
+    return real;
+  }
+
+  private rebuildRemoteLayers(rp: RemotePlayer, gear: GearConfig): void {
+    if (!rp.assets) return;
+    try {
+      this.destroyPlayerAssets(rp.assets);
+      const state = (rp.status & STATUS_DEAD) !== 0 ? PlayerState.Die : PlayerState.IdlePeace;
+      const layers = this.createPlayerLayers(gear, Math.max(0, rp.direction - 1), state);
+      rp.assets = { layers, gear, equipLayerMap: this._lastEquipLayerMap };
+      this.setPlayerAssetsPosition(rp.assets, rp.visualX, rp.visualY, rp.tileY);
+    } catch { /* sprites not ready: they'll be rebuilt when they load */ }
   }
 
   /** "Traveller", "Aresden Combatant", "Elvine Criminal"... as the original's DrawObjectName. */
@@ -2963,6 +3065,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private refreshPlayerTag(rp: RemotePlayer): void {
+    // Illusion hides who everyone is ("?????" in the original), Confusion whose side they're on
+    rp.nameText.setName(this.confuseLevel === CONFUSE_ILLUSION ? '?????' : (rp.name || '???'));
+    if (this.allegianceHidden) {
+      rp.nameText.setTag('(Unknown)', TAG_UNKNOWN);
+      return;
+    }
     rp.nameText.setTag(this.playerTagText(rp.side, rp.pkCount), this.playerTagColour(rp.side, rp.pkCount));
   }
 
@@ -3764,6 +3872,11 @@ export class GameScene extends Phaser.Scene {
 
     if (data.type === NOTIFY_RESURRECT_OFFER && typeof data.message === 'string') {
       this.onResurrectOffer(data.message);
+      return;
+    }
+
+    if (data.type === NOTIFY_STATUS && typeof data.message === 'string') {
+      this.onStatusNotify(data.message);
       return;
     }
 
@@ -5056,6 +5169,9 @@ export class GameScene extends Phaser.Scene {
     65: { file: 'effect7', sheet: 8 },   // Absolute Magic Protection (EffectSpr[53])
     76: { file: 'effect11', sheet: 1 },  // Cancellation (EffectSpr[90])
     80: { file: 'effect8', sheet: 2 },   // Illusion (EffectSpr[59])
+    90: { file: 'effect8', sheet: 2 },   // Mass Illusion (as Illusion)
+    77: { file: 'effect8', sheet: 2 },   // Illusion Movement (as Illusion)
+    95: { file: 'effect8', sheet: 2 },   // Mass Illusion Movement (as Illusion)
     82: { file: 'effect8', sheet: 1 },   // Warrior Spirit (approx)
     97: { file: 'effect3', sheet: 1 },   // Explosion (fire)
   };

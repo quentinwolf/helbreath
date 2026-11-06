@@ -105,7 +105,10 @@ func init() {
 		Type: SpellTypeDebuff, Element: ElementNone,
 		ManaCost: 14, CastTime: 500, Cooldown: 500, Range: MaxCastRange,
 		Duration: 30,
-		ReqLevel: 0, ReqMAG: 0, ReqINT: 22,
+		AreaX:    3, AreaY: 3,
+		SPDice:     Dice{Count: 4, Sides: 6, Bonus: 20},
+		AreaSPDice: Dice{Count: 2, Sides: 6, Bonus: 15},
+		ReqLevel:   0, ReqMAG: 0, ReqINT: 22,
 		GoldCost: 200,
 		SpriteID: 11, SoundID: 1,
 	}
@@ -136,7 +139,10 @@ func init() {
 		Type: SpellTypeDebuff, Element: ElementNone,
 		ManaCost: 20, CastTime: 500, Cooldown: 500, Range: MaxCastRange,
 		Duration: 30,
-		ReqLevel: 0, ReqMAG: 0, ReqINT: 25,
+		AreaX:    1, AreaY: 1,
+		SPDice:     Dice{Count: 0, Sides: 0, Bonus: 0},
+		AreaSPDice: Dice{Count: 0, Sides: 0, Bonus: 0},
+		ReqLevel:   0, ReqMAG: 0, ReqINT: 25,
 		GoldCost: 400,
 		SpriteID: 14, SoundID: 1,
 	}
@@ -239,11 +245,10 @@ func init() {
 		Type: SpellTypeDebuff, Element: ElementNone,
 		ManaCost: 24, CastTime: 700, Cooldown: 700, Range: MaxCastRange,
 		Duration: 30,
-		BuffStat: 3, BuffAmount: -5,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 26,
 		GoldCost: 500,
 		SpriteID: 25, SoundID: 1,
-		ApplyEffect: EffectIce, EffectLevel: 1,
+		ApplyEffect: EffectHold, EffectLevel: 1,
 	}
 
 	SpellDB[26] = &SpellDef{
@@ -340,11 +345,10 @@ func init() {
 		Type: SpellTypeDebuff, Element: ElementNone,
 		ManaCost: 35, CastTime: 700, Cooldown: 700, Range: MaxCastRange,
 		Duration: 50,
-		BuffStat: 3, BuffAmount: -10,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 36,
 		GoldCost: 1000,
 		SpriteID: 35, SoundID: 1,
-		ApplyEffect: EffectIce, EffectLevel: 2,
+		ApplyEffect: EffectHold, EffectLevel: 2,
 	}
 
 	SpellDB[36] = &SpellDef{
@@ -405,6 +409,7 @@ func init() {
 		Type: SpellTypeDebuff, Element: ElementNone,
 		ManaCost: 40, CastTime: 700, Cooldown: 700, Range: MaxCastRange,
 		Duration: 120,
+		AreaX:    1, AreaY: 1,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 42,
 		GoldCost: 1300,
 		SpriteID: 42, SoundID: 1,
@@ -620,6 +625,7 @@ func init() {
 		Type: SpellTypeDebuff, Element: ElementNone,
 		ManaCost: 78, CastTime: 1100, Cooldown: 1100, Range: MaxCastRange,
 		Duration: 45,
+		AreaX:    2, AreaY: 2,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 75,
 		GoldCost: 7500,
 		SpriteID: 62, SoundID: 1,
@@ -718,6 +724,7 @@ func init() {
 		Type: SpellTypeDebuff, Element: ElementNone,
 		ManaCost: 125, CastTime: 1300, Cooldown: 1300, Range: MaxCastRange,
 		Duration: 90,
+		AreaX:    3, AreaY: 3,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 130,
 		GoldCost: 15000,
 		SpriteID: 71, SoundID: 1,
@@ -788,6 +795,7 @@ func init() {
 		Type: SpellTypeDebuff, Element: ElementLight,
 		ManaCost: 130, CastTime: 1300, Cooldown: 1300, Range: MaxCastRange,
 		Duration: 30,
+		AreaX:    2, AreaY: 2,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 160,
 		GoldCost: 28000,
 		SpriteID: 77, SoundID: 5,
@@ -812,6 +820,7 @@ func init() {
 		Type: SpellTypeDebuff, Element: ElementNone,
 		ManaCost: 143, CastTime: 1300, Cooldown: 1300, Range: MaxCastRange,
 		Duration: 30,
+		AreaX:    2, AreaY: 2,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 150,
 		GoldCost: 27000,
 		SpriteID: 80, SoundID: 1,
@@ -905,11 +914,10 @@ func init() {
 		Type: SpellTypeDebuff, Element: ElementNone,
 		ManaCost: 120, CastTime: 1300, Cooldown: 1300, Range: MaxCastRange,
 		Duration: 75,
-		BuffStat: 3, BuffAmount: -45,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 10,
 		GoldCost: -1,
 		SpriteID: 88, SoundID: 1,
-		ApplyEffect: EffectIce, EffectLevel: 9,
+		ApplyEffect: EffectHold, EffectLevel: 9,
 	}
 
 	SpellDB[90] = &SpellDef{
@@ -917,6 +925,7 @@ func init() {
 		Type: SpellTypeDebuff, Element: ElementNone,
 		ManaCost: 200, CastTime: 1500, Cooldown: 1500, Range: MaxCastRange,
 		Duration: 60,
+		AreaX:    3, AreaY: 3,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 180,
 		GoldCost: 35000,
 		SpriteID: 90, SoundID: 1,
@@ -977,6 +986,7 @@ func init() {
 		Type: SpellTypeDebuff, Element: ElementNone,
 		ManaCost: 220, CastTime: 1500, Cooldown: 1500, Range: MaxCastRange,
 		Duration: 60,
+		AreaX:    3, AreaY: 3,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 200,
 		GoldCost: 38000,
 		SpriteID: 95, SoundID: 1,
@@ -1014,11 +1024,10 @@ func init() {
 		Type: SpellTypeDebuff, Element: ElementNone,
 		ManaCost: 120, CastTime: 1300, Cooldown: 1300, Range: MaxCastRange,
 		Duration: 180,
-		BuffStat: 3, BuffAmount: -100,
 		ReqLevel: 0, ReqMAG: 0, ReqINT: 235,
 		GoldCost: -1,
 		SpriteID: 98, SoundID: 1,
-		ApplyEffect: EffectIce, EffectLevel: 20,
+		ApplyEffect: EffectHold, EffectLevel: 20,
 	}
 
 }

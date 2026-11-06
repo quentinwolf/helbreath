@@ -148,7 +148,12 @@ func TestStatusEffectSpells(t *testing.T) {
 		{44, EffectDefenseShield, 2},   // Great Defense Shield
 		{33, EffectMagicProtection, 1}, // Protection From Magic
 		{65, EffectMagicProtection, 3}, // Absolute Magic Protection
-		{25, EffectIce, 1},             // Hold Person
+		{25, EffectHold, 1},            // Hold Person
+		{35, EffectHold, 2},            // Paralyze
+		{42, EffectConfusion, 1},       // Confuse Language
+		{62, EffectConfusion, 2},       // Confusion
+		{80, EffectConfusion, 3},       // Illusion
+		{95, EffectConfusion, 4},       // Mass Illusion Movement
 		{27, EffectPoison, 1},          // Poison
 		{32, EffectInvisibility, 1},    // Invisibility
 		{50, EffectBerserk, 1},         // Berserk
