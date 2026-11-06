@@ -3,11 +3,12 @@ import { WEATHER_MAX_PARTICLES } from '../../Config';
 import type { SoundManager } from '../../audio/SoundManager';
 import { RAIN_SOUND } from '../../audio/SoundFileNames';
 import { OriginalRain, RAIN_SPRITE } from './OriginalRain';
+import { OriginalSnow, SNOW_SPRITE } from './OriginalSnow';
 
 /** Loads deferred .spr files, then runs fn (GameScene.whenSpritesLoaded). */
 export type SpriteLoader = (spriteNames: string[], fn: () => void) => void;
 
-export type WeatherType = 'clear' | 'rain' | 'fog';
+export type WeatherType = 'clear' | 'rain' | 'snow' | 'fog';
 export type WeatherIntensity = 'light' | 'medium' | 'heavy';
 export type TimeOfDay = 'day' | 'dusk' | 'night' | 'dawn';
 
@@ -32,6 +33,7 @@ export class WeatherManager {
     private ambientOverlay: Phaser.GameObjects.Rectangle | null = null;
     private rainSoundId: number = -1;
     private rain: OriginalRain | null = null;
+    private snow: OriginalSnow | null = null;
     private readonly loadSprites: SpriteLoader | null;
     /** Bumped on every weather change, so a sprite load that finishes late is ignored. */
     private weatherGeneration = 0;
@@ -60,6 +62,9 @@ export class WeatherManager {
                 this.startRain(maxParticles);
                 this.startRainSound();
                 break;
+            case 'snow':
+                this.startSnow(maxParticles);
+                break;
             case 'fog':
                 this.startFog();
                 break;
@@ -77,6 +82,7 @@ export class WeatherManager {
 
     update(delta: number): void {
         this.rain?.update(delta);
+        this.snow?.update(delta);
         if (this.fogOverlay && this.currentWeather === 'fog') {
             this.fogPulseTime += delta * 0.001;
             this.fogOverlay.setAlpha(0.35 + Math.sin(this.fogPulseTime * 0.5) * 0.08);
@@ -97,6 +103,8 @@ export class WeatherManager {
         this.fogOverlay = null;
         this.rain?.destroy();
         this.rain = null;
+        this.snow?.destroy();
+        this.snow = null;
         this.weatherGeneration++;
         this.stopRainSound();
         this.currentWeather = 'clear';
@@ -123,6 +131,17 @@ export class WeatherManager {
         ));
         overlay.setScrollFactor(0);
         overlay.setDepth(999980);
+    }
+
+    /** Original snow (no sound and no darkening: the original had neither). */
+    private startSnow(flakeCount: number): void {
+        const generation = this.weatherGeneration;
+        const begin = () => {
+            if (generation !== this.weatherGeneration || this.currentWeather !== 'snow') return;
+            this.snow = new OriginalSnow(this.scene, flakeCount);
+        };
+        if (this.loadSprites) this.loadSprites([SNOW_SPRITE], begin);
+        else begin();
     }
 
     private startFog(): void {

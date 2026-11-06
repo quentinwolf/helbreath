@@ -117,14 +117,24 @@ func (ws *WorldState) SetWeather(weather int, duration time.Duration) {
 	ws.weatherEnd = time.Now().Add(duration)
 }
 
+// IsSnowSeason reports whether it can snow at t: December and January only.
+// The rest of the year rain falls instead (GMs can still /weather snow).
+func IsSnowSeason(t time.Time) bool {
+	return t.Month() == time.December || t.Month() == time.January
+}
+
 // RandomWeather randomly changes weather with a probability.
 // Call this periodically (e.g., every minute).
 func (ws *WorldState) RandomWeather() bool {
+	return ws.randomWeatherAt(time.Now())
+}
+
+func (ws *WorldState) randomWeatherAt(now time.Time) bool {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 
 	// If weather is active, don't change
-	if time.Now().Before(ws.weatherEnd) {
+	if now.Before(ws.weatherEnd) {
 		return false
 	}
 
@@ -133,13 +143,21 @@ func (ws *WorldState) RandomWeather() bool {
 		return false
 	}
 
-	// Pick random weather
-	weathers := []int{WeatherRain, WeatherSnow, WeatherFog}
-	ws.weather = weathers[rand.Intn(len(weathers))]
+	ws.weather = pickWeather(now, rand.Intn)
 	// Duration: 3-8 minutes
 	duration := time.Duration(3+rand.Intn(6)) * time.Minute
-	ws.weatherEnd = time.Now().Add(duration)
+	ws.weatherEnd = now.Add(duration)
 	return true
+}
+
+// pickWeather picks rain or fog, with snow in place of rain in the snow season.
+func pickWeather(now time.Time, intn func(int) int) int {
+	fall := WeatherRain
+	if IsSnowSeason(now) {
+		fall = WeatherSnow
+	}
+	weathers := []int{fall, WeatherFog}
+	return weathers[intn(len(weathers))]
 }
 
 // IsNight returns true if it's currently night time.

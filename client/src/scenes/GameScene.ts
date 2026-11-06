@@ -3888,7 +3888,7 @@ export class GameScene extends Phaser.Scene {
     if (['day', 'dusk', 'night', 'dawn'].includes(this.timeOfDay)) {
       this.weatherManager.setTimeOfDay(this.timeOfDay as any);
     }
-    if (['clear', 'rain', 'fog'].includes(this.weather)) {
+    if (['clear', 'rain', 'snow', 'fog'].includes(this.weather)) {
       // No weather effects indoors
       this.weatherManager.setWeather(GameScene.INDOOR_MAPS.has(this.currentMapName) ? 'clear' : this.weather as any);
     }

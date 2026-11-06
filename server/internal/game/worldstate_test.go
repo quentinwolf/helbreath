@@ -21,4 +21,10 @@ func TestWorldStateIndoorsIsClearDay(t *testing.T) {
 	if e.weatherOn("dglv2") != world.WeatherClear || e.weatherOn("aresden") != world.WeatherFog {
 		t.Errorf("weatherOn should be clear indoors and the world weather outdoors")
 	}
+	if got := e.worldStateFor("icebound"); got[len(got)-4:] != "snow" {
+		t.Errorf("icebound world state = %q, want snow all year", got)
+	}
+	if e.weatherOn("icebound") != world.WeatherSnow {
+		t.Errorf("weatherOn(icebound) should be snow")
+	}
 }

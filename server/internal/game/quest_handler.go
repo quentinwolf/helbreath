@@ -194,15 +194,24 @@ func (e *Engine) worldStateFor(mapName string) string {
 	if mapdata.IsFixedDayMap(mapName) {
 		return "time:day|weather:clear"
 	}
-	return "time:" + worldPhaseToString(e.worldState.GetTimeOfDay()) + "|weather:" + weatherToString(e.worldState.GetWeather())
+	return "time:" + worldPhaseToString(e.worldState.GetTimeOfDay()) + "|weather:" + weatherToString(mapWeather(mapName, e.worldState.GetWeather()))
 }
 
 // weatherOn is the weather on a map: always clear on indoor maps.
 func (e *Engine) weatherOn(mapName string) int {
-	if mapdata.IsFixedDayMap(mapName) {
+	return mapWeather(mapName, e.CurrentWeather)
+}
+
+// mapWeather is the world weather as seen on mapName: clear indoors, and
+// always snowing on Icebound (the original server forced snow there all year).
+func mapWeather(mapName string, worldWeather int) int {
+	switch {
+	case mapdata.IsFixedDayMap(mapName):
 		return world.WeatherClear
+	case mapdata.IsSnowMap(mapName):
+		return world.WeatherSnow
 	}
-	return e.CurrentWeather
+	return worldWeather
 }
 
 func (e *Engine) broadcastWorldState() {

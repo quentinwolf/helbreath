@@ -211,3 +211,22 @@ func TestArenaClose(t *testing.T) {
 		t.Fatal("expected 0 players after close")
 	}
 }
+
+func TestSnowOnlyInDecemberAndJanuary(t *testing.T) {
+	for m := time.January; m <= time.December; m++ {
+		at := time.Date(2026, m, 15, 12, 0, 0, 0, time.UTC)
+		want := m == time.December || m == time.January
+		if IsSnowSeason(at) != want {
+			t.Errorf("IsSnowSeason(%s) = %v, want %v", m, !want, want)
+		}
+		for roll := 0; roll < 2; roll++ {
+			w := pickWeather(at, func(int) int { return roll })
+			if w == WeatherSnow && !want {
+				t.Errorf("%s: picked snow outside the snow season", m)
+			}
+			if w == WeatherRain && want {
+				t.Errorf("%s: picked rain in the snow season", m)
+			}
+		}
+	}
+}
