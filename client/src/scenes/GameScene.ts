@@ -358,8 +358,6 @@ export class GameScene extends Phaser.Scene {
   // Stunlock
   private stunlockEndTime = 0;
 
-  // Ghost trail (single persistent sprite, repositioned each frame)
-  private ghostSprite: Phaser.GameObjects.Sprite | null = null;
 
   // Custom cursor sprite (from interface spritesheet)
   private cursorSprite: Phaser.GameObjects.Sprite | null = null;
@@ -923,7 +921,6 @@ export class GameScene extends Phaser.Scene {
     // Update entity positions
     this.updateLocalPlayerPosition();
     this.updatePlayerHealthBar();
-    this.updateGhostTrail();
     for (const rp of this.remotePlayers.values()) {
       this.updateRemoteMovement(rp, time);
       this.updateRemotePlayerPosition(rp);
@@ -2211,56 +2208,6 @@ export class GameScene extends Phaser.Scene {
     this.playerHealthBar.strokeRect(barX, barY, PLAYER_HEALTH_BAR_WIDTH, PLAYER_HEALTH_BAR_HEIGHT);
 
     this.playerHealthBar.setDepth(HIGH_DEPTH);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Ghost Trail
-  // ---------------------------------------------------------------------------
-
-  private updateGhostTrail(): void {
-    // Only show ghost trail during movement
-    if (!this.isMoving || !this.playerAssets || this.playerAssets.layers.length === 0) {
-      if (this.ghostSprite) {
-        this.ghostSprite.setVisible(false);
-      }
-      return;
-    }
-
-    const elapsed = this.time.now - this.moveStartTime;
-    const progress = Math.min(elapsed / this.moveDuration, 1);
-    const ghostDistance = 16 * (1 - progress);
-    if (ghostDistance < 1) {
-      if (this.ghostSprite) this.ghostSprite.setVisible(false);
-      return;
-    }
-
-    // Calculate ghost position (behind the player)
-    const dir = this.playerDirection;
-    const ghostX = this.visualX - DIR_DX[dir] * ghostDistance;
-    const ghostY = this.visualY - DIR_DY[dir] * ghostDistance;
-
-    const bodyLayer = this.playerAssets.layers[0];
-    if (!bodyLayer?.sprite?.texture) return;
-
-    try {
-      // Reuse or create the ghost sprite
-      if (!this.ghostSprite) {
-        this.ghostSprite = this.add.sprite(0, 0, bodyLayer.sprite.texture.key, bodyLayer.sprite.frame.name);
-        this.ghostSprite.setOrigin(0, 0);
-        this.ghostSprite.setAlpha(0.3);
-      }
-
-      // Update texture/frame to match current body sprite
-      this.ghostSprite.setTexture(bodyLayer.sprite.texture.key, bodyLayer.sprite.frame.name);
-      this.ghostSprite.setPosition(
-        ghostX + (bodyLayer.sprite.x - this.visualX),
-        ghostY + (bodyLayer.sprite.y - this.visualY),
-      );
-      this.ghostSprite.setDepth(this.tileY * DEPTH_MULTIPLIER - 1);
-      this.ghostSprite.setVisible(true);
-    } catch {
-      // Ignore errors updating ghost sprite
-    }
   }
 
   // ---------------------------------------------------------------------------

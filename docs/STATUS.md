@@ -61,6 +61,7 @@ Legend: **Done** = works like the original. **Partial** = works, with listed gap
 | Invisibility | Changed | Anyone may cast (original: citizens only) |
 | Confuse Language | Changed | The confused reader sees others' chat scrambled |
 | Learn spells at Gandalf | Changed | Pay the Magic.cfg price near Gandalf; GMs learn anywhere |
+| Haste | Missing | Not in our Magic.cfg. The 3.82 client draws a hasted player (status 0x40000) with 5 faded copies trailing behind (Client.cpp ~15945); the port had a fake one-copy trail on every step, now removed |
 | Peace (16) | Missing | No known behaviour in the original server |
 | Knockback, magic resistance on all spells, Protection From Arrow | Missing | |
 
