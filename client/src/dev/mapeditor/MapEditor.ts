@@ -32,12 +32,11 @@ const DEPTH = {
     arrivals: HIGH_DEPTH + 6,
     hover: HIGH_DEPTH + 7,
 };
-// The original client draws a map tile's ground centred on the tile's point and stands
-// buildings and characters on that point (DrawBackground: ix - 16, iy - 16). Our
-// HBMap draws the ground from the point, and the game draws objects on the point, so
-// objects sit on a cell's top-left corner. The editor's cells (overlays, tile numbers)
-// follow the ground, so objects and NPCs are drawn half a tile further on, in the
-// middle of their cell, where the player sees them stand.
+// The original client (and the game, see HBMap.renderMapTiles) draws each tile's ground
+// centred on the tile's point and stands buildings and characters on that point
+// (DrawBackground: ix - 16, iy - 16). The editor's cells (overlays, tile numbers) run
+// from x*32 to x*32+32, so it puts the ground layer at 0,0 and draws objects and NPCs
+// half a tile further on, in the middle of their cell: the same picture, shifted.
 const OBJECT_SHIFT = TILE_SIZE / 2;
 const PALETTE = [0x4fc3f7, 0xffb74d, 0x81c784, 0xf06292, 0xba68c8, 0xfff176, 0x4db6ac, 0xff8a65, 0x9fa8da, 0xaed581];
 const css = (c: number) => `#${c.toString(16).padStart(6, '0')}`;

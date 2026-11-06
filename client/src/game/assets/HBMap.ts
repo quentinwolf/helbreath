@@ -458,8 +458,10 @@ export class HBMap {
             throw new Error('Failed to add tileset to tilemap');
         }
 
-        // Create a layer using the tileset
-        const layer = tilemap.createLayer(0, tileset, 0, 0);
+        // Create a layer using the tileset. The original client draws each ground tile
+        // centred on its tile's point (DrawBackground: ix - 16, iy - 16), the point where
+        // characters, objects and effects stand, so the layer starts half a tile up-left.
+        const layer = tilemap.createLayer(0, tileset, -TILE_SIZE / 2, -TILE_SIZE / 2);
 
         if (!layer) {
             throw new Error('Failed to create tilemap layer');

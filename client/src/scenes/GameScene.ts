@@ -192,6 +192,14 @@ interface GameNPC {
 
 
 // Fallback colors if sprite fails to load
+/**
+ * The tile under a world pixel. Each tile is centred on its point (tile * TILE_SIZE),
+ * where characters and objects stand, as the original client draws the ground.
+ */
+function worldToTile(v: number): number {
+  return Math.floor((v + TILE_SIZE / 2) / TILE_SIZE);
+}
+
 const NPC_COLORS: Record<number, number> = {
   // Monsters
   10: 0x44ff44,  // Slime - green
@@ -980,8 +988,8 @@ export class GameScene extends Phaser.Scene {
     // Check if hovering over an NPC (potential attack target)
     const worldX = pointer.worldX;
     const worldY = pointer.worldY;
-    const hoverTileX = Math.floor(worldX / TILE_SIZE);
-    const hoverTileY = Math.floor(worldY / TILE_SIZE);
+    const hoverTileX = worldToTile(worldX);
+    const hoverTileY = worldToTile(worldY);
 
     for (const npc of this.npcs.values()) {
       if (npc.tileX === hoverTileX && npc.tileY === hoverTileY) {
@@ -1888,9 +1896,9 @@ export class GameScene extends Phaser.Scene {
     // Get mouse world position
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
 
-    // Calculate direction from player center to mouse
-    const playerCenterX = this.visualX + TILE_SIZE / 2;
-    const playerCenterY = this.visualY + TILE_SIZE / 2;
+    // Calculate direction from the middle of the player's tile (its point) to the mouse
+    const playerCenterX = this.visualX;
+    const playerCenterY = this.visualY;
     const dx = worldPoint.x - playerCenterX;
     const dy = worldPoint.y - playerCenterY;
 
@@ -1914,8 +1922,8 @@ export class GameScene extends Phaser.Scene {
     let dir = this.angleToDirection(dx, dy);
     if (dir === 0) return;
 
-    let aimX = Math.floor(worldPoint.x / TILE_SIZE);
-    let aimY = Math.floor(worldPoint.y / TILE_SIZE);
+    let aimX = worldToTile(worldPoint.x);
+    let aimY = worldToTile(worldPoint.y);
     if (this.confuseLevel === CONFUSE_ILLUSION_MOVEMENT) {
       // Illusion Movement: your feet go the opposite way (the original's cGetNextMoveDir bMIM)
       dir = ((dir + 3) % 8) + 1;
@@ -2276,8 +2284,8 @@ export class GameScene extends Phaser.Scene {
 
     const pointer = this.input.activePointer;
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-    const hoverTileX = Math.floor(worldPoint.x / TILE_SIZE);
-    const hoverTileY = Math.floor(worldPoint.y / TILE_SIZE);
+    const hoverTileX = worldToTile(worldPoint.x);
+    const hoverTileY = worldToTile(worldPoint.y);
     const walkable = this.isWalkable(hoverTileX, hoverTileY);
     const occupied = this.isTileOccupied(hoverTileX, hoverTileY);
 
@@ -2311,7 +2319,7 @@ export class GameScene extends Phaser.Scene {
           if (x < 0 || y < 0) continue;
           if (!this.isWalkable(x, y)) {
             this.debugBlockedGraphics.fillStyle(0xff0000, 0.25);
-            this.debugBlockedGraphics.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            this.debugBlockedGraphics.fillRect(x * TILE_SIZE - TILE_SIZE / 2, y * TILE_SIZE - TILE_SIZE / 2, TILE_SIZE, TILE_SIZE);
           }
         }
       }
@@ -2341,8 +2349,9 @@ export class GameScene extends Phaser.Scene {
       this.debugGridGraphics.lineStyle(0.5, 0x444444, 0.3);
 
       // Draw grid for visible area
-      const camX = Math.floor(this.cameras.main.scrollX / TILE_SIZE) * TILE_SIZE;
-      const camY = Math.floor(this.cameras.main.scrollY / TILE_SIZE) * TILE_SIZE;
+      // Tile edges are half a tile before each tile's point (see worldToTile)
+      const camX = Math.floor(this.cameras.main.scrollX / TILE_SIZE) * TILE_SIZE - TILE_SIZE / 2;
+      const camY = Math.floor(this.cameras.main.scrollY / TILE_SIZE) * TILE_SIZE - TILE_SIZE / 2;
       const endX = camX + this.cameras.main.width + TILE_SIZE;
       const endY = camY + this.cameras.main.height + TILE_SIZE;
 
@@ -2738,8 +2747,8 @@ export class GameScene extends Phaser.Scene {
   private updateNameHover(): void {
     const pointer = this.input.activePointer;
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-    const hoverTileX = Math.floor(worldPoint.x / TILE_SIZE);
-    const hoverTileY = Math.floor(worldPoint.y / TILE_SIZE);
+    const hoverTileX = worldToTile(worldPoint.x);
+    const hoverTileY = worldToTile(worldPoint.y);
     const HOVER_RANGE = 1; // tiles
 
     const near = (x: number, y: number) =>
@@ -3320,8 +3329,8 @@ export class GameScene extends Phaser.Scene {
 
   private tryAttackNPCAtPointer(pointer: Phaser.Input.Pointer): boolean {
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-    const clickTileX = Math.floor(worldPoint.x / TILE_SIZE);
-    const clickTileY = Math.floor(worldPoint.y / TILE_SIZE);
+    const clickTileX = worldToTile(worldPoint.x);
+    const clickTileY = worldToTile(worldPoint.y);
 
     // Find NPC at or near the clicked tile (within 1 tile of click), closest first
     for (const npcEntity of this.npcsNearestTo(clickTileX, clickTileY)) {
@@ -4726,8 +4735,9 @@ export class GameScene extends Phaser.Scene {
   private onGroundItemAppear(data: GroundItemAppearData): void {
     if (this.groundItems.has(data.groundId)) return;
 
-    const worldX = data.position.x * TILE_SIZE + TILE_SIZE / 2;
-    const worldY = data.position.y * TILE_SIZE + TILE_SIZE / 2;
+    // The middle of the tile is its point (the ground is drawn centred on it)
+    const worldX = data.position.x * TILE_SIZE;
+    const worldY = data.position.y * TILE_SIZE;
     const depthBase = data.position.y * DEPTH_MULTIPLIER + 1;
 
     // Try to render using item-ground atlas sprite
@@ -5499,8 +5509,8 @@ export class GameScene extends Phaser.Scene {
     if (this.selectedSpellId < 0) return;
 
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
-    const clickTileX = Math.floor(worldPoint.x / TILE_SIZE);
-    const clickTileY = Math.floor(worldPoint.y / TILE_SIZE);
+    const clickTileX = worldToTile(worldPoint.x);
+    const clickTileY = worldToTile(worldPoint.y);
 
     // Players at or next to the clicked tile, closest first
     let targetPlayer: RemotePlayer | null = null;

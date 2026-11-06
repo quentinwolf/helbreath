@@ -193,12 +193,12 @@ touched. The log and admins in game see `respawned gshop_2 (1 NPCs out, 1 in)`.
 
 ## Good to know
 
-- **Half-tile drawing offset.** The original client draws each tile's ground centred on the
-  tile's point, and buildings and characters stand on that point (`DrawBackground`,
-  `ix - 16, iy - 16`). Our client draws the ground from the point instead, so in game,
-  buildings and characters sit on the top-left corner of their tile rather than in the
-  middle. The editor draws buildings and NPCs half a tile further on, in the middle of their
-  tile, so a highlighted tile is where a character standing on it appears.
+- **Tiles are centred on their point.** As in the original client (`DrawBackground`,
+  `ix - 16, iy - 16`), each tile's ground is drawn centred on the tile's point, the spot
+  where characters, buildings and effects stand. The game does this in
+  `HBMap.renderMapTiles` and turns mouse positions into tiles with `worldToTile` in
+  `GameScene`. The editor shows the same picture shifted by half a tile, so its cells run
+  from x*32 to x*32+32.
 - **Two copies of each map.** The picture comes from the client's copy
   (`client/public/assets/maps`). Walkability, flags and problems come from the server's
   copy (`assets/MAPDATA`), which is what the game uses for movement. About 20 maps differ
