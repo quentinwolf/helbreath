@@ -92,6 +92,9 @@ const (
 	MsgWorldState            byte = 0xAB
 	MsgLogoutResponse        byte = 0xAC
 	MsgSpellCatalog          byte = 0xAD
+	// MsgMapCollisionUpdate carries a pb.MapInfo: the map's new collision grid
+	// after the map editor's walkable.json changed (no proto change needed).
+	MsgMapCollisionUpdate byte = 0xAE
 )
 
 // Encode wraps a protobuf message with a type byte prefix.

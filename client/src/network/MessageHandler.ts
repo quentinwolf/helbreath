@@ -486,6 +486,7 @@ const decoderMap: Record<number, { decode: (reader: Uint8Array) => any }> = {
   [Proto.MSG_QUEST_REWARD]: hbonline.QuestRewardNotification,
   [Proto.MSG_LOGOUT_RESPONSE]: hbonline.LogoutResponse,
   [Proto.MSG_SPELL_CATALOG]: hbonline.SpellCatalog,
+  [Proto.MSG_MAP_COLLISION_UPDATE]: hbonline.MapInfo,
 };
 
 // Map from client message type to pre-compiled protobuf encoder

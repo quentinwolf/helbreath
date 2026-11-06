@@ -346,6 +346,10 @@ type NPC struct {
 	DeathTime      time.Time // when the NPC died (for respawn timer)
 	RespawnDelay   time.Duration
 	Summoned       bool // spawned by /summon: removed on death instead of respawning
+	// FromSpawnList: created from the spawn list (respawned when the map editor
+	// changes its map's spawns). SpawnDir: the way it faces on (re)spawn, 0 = default.
+	FromSpawnList bool
+	SpawnDir      int
 	Mana           int  // spent on spells by casters (Type.MaxMana > 0)
 
 	// Summon Creature: the player this NPC follows and fights for, and when it vanishes.
@@ -456,6 +460,9 @@ func (n *NPC) Respawn() {
 	n.X = n.SpawnX
 	n.Y = n.SpawnY
 	n.Direction = spawnDirection(n.Type)
+	if n.SpawnDir > 0 {
+		n.Direction = n.SpawnDir
+	}
 	n.State = StateIdle
 	n.TargetID = 0
 	n.Action = 0

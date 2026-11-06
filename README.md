@@ -233,6 +233,8 @@ In `-memdb` mode, all new characters start as admin level 4.
 - Dungeons: aresdend1 → dglv2 → dglv3 → dglv4
 - Hunt zones, Tower of Helbreath, Icebound, event maps
 - No-attack areas at city gates and building interiors
+- Map editor for doors, teleports, walkable tiles and NPC/monster spawns: `cd client && npm run dev`, then open
+  http://localhost:3000/map-editor.html (see [docs/map-editor.md](docs/map-editor.md))
 
 ### Equipment Rendering
 - Gender-specific sprites (male/female variants)

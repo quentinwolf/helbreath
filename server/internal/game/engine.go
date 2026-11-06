@@ -88,7 +88,9 @@ type Engine struct {
 	lastAutosave time.Time
 
 	// Teleport config
-	teleports mapdata.TeleportConfig
+	// Doors, swapped whole when the map editor's teleports.json changes (map_edits.go)
+	teleports   atomic.Pointer[mapdata.TeleportTable]
+	mapEdits    mapEditsWatch
 
 	// Graceful shutdown
 	shutdownChan chan struct{}
@@ -115,9 +117,11 @@ func NewEngine(store db.DataStore, jwtManager *auth.JWTManager) *Engine {
 		lastWeatherCheck: now,
 		lastPKDecayCheck: now,
 		lastAutosave:     now,
-		teleports:        mapdata.BuildTeleportConfig(),
 		shutdownChan:     make(chan struct{}),
 	}
+	// Built-in doors until LoadMaps reads the map editor's files.
+	teleports, _ := mapdata.BuildTeleportTable()
+	e.teleports.Store(&teleports)
 	e.nextObjID.Store(1000) // start IDs above reserved range
 	return e
 }
@@ -165,6 +169,7 @@ func (e *Engine) LoadMaps(dir string) error {
 	}
 
 	log.Printf("Loaded %d maps", len(e.maps))
+	e.loadMapEdits()
 	return nil
 }
 
@@ -214,6 +219,12 @@ func (e *Engine) processTick() {
 	}
 
 	// Lasting spell fields burn once a second, as the original's DynamicObjectEffectProcessor
+	// The map editor's teleports.json / walkable.json, reloaded when saved
+	if now.Sub(e.mapEdits.lastCheck) >= 1*time.Second {
+		e.mapEdits.lastCheck = now
+		e.checkMapEdits()
+	}
+
 	if now.Sub(e.lastFieldTick) >= 1*time.Second {
 		e.lastFieldTick = now
 		e.processFields(now)
@@ -369,13 +380,24 @@ func (e *Engine) SpawnNPCsWithConfigPath(configPath string) {
 	} else {
 		log.Printf("Loaded spawn configuration from %s (%d entries)", configPath, len(cfg.Spawns))
 	}
+	// The map editor's spawns.json replaces the maps it lists (reloaded live, map_edits.go)
+	e.mapEdits.baseSpawns = cfg
+	cfg = e.loadSpawnEdits(cfg)
 	e.SpawnNPCsWithConfig(cfg)
 }
 
 // SpawnNPCsWithConfig creates the NPCs a spawn configuration lists.
 func (e *Engine) SpawnNPCsWithConfig(cfg *SpawnConfig) {
 	for i := range cfg.Spawns {
-		entry := &cfg.Spawns[i]
+		e.spawnEntry(&cfg.Spawns[i], false)
+	}
+}
+
+// spawnEntry creates one spawn entry's NPCs. broadcast: tell nearby players
+// (the server is running). Returns how many were created.
+func (e *Engine) spawnEntry(entry *SpawnEntry, broadcast bool) int {
+	created := 0
+	{
 		count := entry.Count
 		if count <= 0 {
 			count = 1
@@ -384,12 +406,12 @@ func (e *Engine) SpawnNPCsWithConfig(cfg *SpawnConfig) {
 		npcType, ok := npc.NpcTypes[entry.NpcTypeID]
 		if !ok {
 			log.Printf("Warning: unknown NPC type %d in spawn config, skipping", entry.NpcTypeID)
-			continue
+			return 0
 		}
 
 		gm, ok := e.mapNamed(entry.MapName)
 		if !ok {
-			continue // skip spawns for maps not loaded
+			return 0 // skip spawns for maps not loaded
 		}
 		area := npc.Rect{X1: entry.AreaX1, Y1: entry.AreaY1, X2: entry.AreaX2, Y2: entry.AreaY2, Set: entry.HasArea()}
 
@@ -420,14 +442,25 @@ func (e *Engine) SpawnNPCsWithConfig(cfg *SpawnConfig) {
 			if overrideDelay > 0 {
 				n.RespawnDelay = overrideDelay
 			}
+			n.FromSpawnList = true
+			if entry.Dir > 0 {
+				n.SpawnDir = entry.Dir
+				n.Direction = entry.Dir
+			}
 
 			e.npcs.Store(objectID, n)
 			// Take the tile, so the next NPC spawned on the same spot (Howard and
 			// William shared one) moves to a free tile instead of standing on it
 			gm.SetOwner(x, y, objectID)
-			log.Printf("Spawned NPC %s (ID: %d) at %s (%d,%d)", npcType.Name, objectID, entry.MapName, x, y)
+			created++
+			if broadcast {
+				e.broadcastToNearby(gm, x, y, -1, network.MsgNpcAppear, n.ToNpcAppear())
+			} else {
+				log.Printf("Spawned NPC %s (ID: %d) at %s (%d,%d)", npcType.Name, objectID, entry.MapName, x, y)
+			}
 		}
 	}
+	return created
 }
 
 // giveStartingItems equips a new character with basic starter gear.
@@ -1599,11 +1632,9 @@ func (e *Engine) handleMotion(client *network.Client, req *pb.MotionRequest) {
 		}
 
 		// Check for teleport
-		if gm.IsTeleport(newX, newY) {
-			if dest, ok := e.teleportAt(p.MapName, newX, newY); ok {
-				e.handleTeleport(p, gm, dest)
-				return
-			}
+		if dest, ok := e.doorAt(gm, p.MapName, newX, newY); ok {
+			e.handleTeleport(p, gm, dest)
+			return
 		}
 
 		// Update position

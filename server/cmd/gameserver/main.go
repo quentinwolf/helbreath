@@ -27,6 +27,7 @@ func main() {
 	addr := flag.String("addr", envOrDefault("ADDR", ":8080"), "Server listen address")
 	dbURL := flag.String("db", envOrDefault("DATABASE_URL", "postgres://hbonline:hbonline@localhost:5432/hbonline?sslmode=disable"), "PostgreSQL connection URL")
 	mapDir := flag.String("maps", envOrDefault("MAP_DIR", "assets/MAPDATA"), "Directory containing AMD map files")
+	mapEditsDir := flag.String("mapedits", envOrDefault("MAP_EDITS_DIR", "server/internal/mapdata"), "Folder with the map editor's teleports.json and walkable.json (reloaded when they change; built-in copies if missing)")
 	memDB := flag.Bool("memdb", envOrDefault("MEMDB", "false") == "true", "Use in-memory store (development)")
 	saveFile := flag.String("savefile", envOrDefault("SAVE_FILE", ""), "With -memdb: keep accounts and characters in this JSON file between runs")
 	jwtSecret := flag.String("jwt-secret", envOrDefault("JWT_SECRET", "helbreath-xyz-secret-change-me"), "Secret key for JWT signing")
@@ -75,6 +76,7 @@ func main() {
 	engine := game.NewEngine(store, jwtManager)
 
 	// Load maps
+	engine.SetMapEditsDir(*mapEditsDir)
 	if err := engine.LoadMaps(*mapDir); err != nil {
 		log.Fatalf("Failed to load maps: %v", err)
 	}

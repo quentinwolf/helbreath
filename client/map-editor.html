@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>HB Map Editor</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body { display: flex; background: #15171c; color: #d8dbe2; font: 13px/1.4 system-ui, sans-serif; }
+    #panel { width: 390px; flex: none; display: flex; flex-direction: column; border-right: 1px solid #2c3039; }
+    #panelTop { flex: none; padding: 10px 12px 6px; border-bottom: 1px solid #2c3039; }
+    #panelScroll { flex: 1; min-height: 0; overflow-y: auto; padding: 0 12px 12px; }
+    details.section { border-bottom: 1px solid #23262e; }
+    details.section > summary { cursor: pointer; list-style: none; padding: 9px 0 7px; font-size: 12px; text-transform: uppercase;
+      letter-spacing: .05em; color: #8a90a0; user-select: none; display: flex; align-items: center; gap: 6px; }
+    details.section > summary::-webkit-details-marker { display: none; }
+    details.section > summary::before { content: '▸'; font-size: 14px; width: 12px; color: #aab; }
+    details.section[open] > summary::before { content: '▾'; }
+    details.section > summary:hover { color: #c8ccd6; }
+    details.section > summary .sumNote { text-transform: none; letter-spacing: 0; margin-left: auto; font-size: 11px; color: #6f7584; }
+    details.section > .body { padding-bottom: 10px; }
+    #view { flex: 1; position: relative; min-width: 0; }
+    #game { position: absolute; inset: 0 0 26px 0; }
+    #game canvas { display: block; }
+    #status { position: absolute; left: 0; right: 0; bottom: 0; height: 26px; padding: 4px 10px; background: #1d2027;
+      border-top: 1px solid #2c3039; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #aab; }
+    #mode { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: #3b2f0b; color: #ffd76a;
+      border: 1px solid #806418; padding: 6px 12px; border-radius: 4px; display: none; pointer-events: none; }
+    #loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: #15171c;
+      font-size: 15px; color: #99a; }
+    h1 { font-size: 15px; margin: 0 0 8px; }
+    h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #8a90a0; margin: 16px 0 6px; }
+    select, input, button { font: inherit; color: inherit; background: #222631; border: 1px solid #3a3f4c; border-radius: 3px; padding: 3px 6px; }
+    button { cursor: pointer; }
+    button:hover:not(:disabled) { background: #2d3342; }
+    button:disabled { opacity: .45; cursor: default; }
+    button.primary { background: #1f4f8f; border-color: #2c66b0; }
+    button.primary:hover:not(:disabled) { background: #275ea8; }
+    button.danger { border-color: #7a3434; }
+    button.on { background: #6a5413; border-color: #a68420; }
+    .row { display: flex; gap: 6px; align-items: center; margin: 4px 0; flex-wrap: wrap; }
+    .row label { color: #9aa0ad; }
+    .grow { flex: 1; min-width: 0; }
+    .layers label { margin-right: 10px; white-space: nowrap; }
+    .note { color: #8a90a0; font-size: 12px; margin: 4px 0; }
+    .banner { background: #4a1d1d; border: 1px solid #8a3434; padding: 6px 8px; border-radius: 3px; margin: 6px 0; }
+    .list { margin: 0; padding: 0; list-style: none; }
+    .list li { padding: 3px 6px; border-radius: 3px; cursor: pointer; display: flex; gap: 6px; align-items: baseline; }
+    .list li:hover { background: #222631; }
+    .list li.sel { background: #2a3550; }
+    .sw { width: 10px; height: 10px; border-radius: 2px; flex: none; align-self: center; }
+    .count { color: #8a90a0; margin-left: auto; white-space: nowrap; }
+    .sev-error { color: #ff8a80; } .sev-warn { color: #ffd27a; } .sev-info { color: #9ab; }
+    .tag { font-size: 11px; padding: 0 5px; border-radius: 8px; background: #2c3039; color: #aab; }
+    .tag.json { background: #23452c; color: #9be3a8; } .tag.dirty { background: #5a4510; color: #ffd76a; }
+    #doorEditor, .editorBox { background: #1b1e25; border: 1px solid #2c3039; border-radius: 4px; padding: 6px 8px; margin: 4px 0; }
+    #doorEditor input[type=number] { width: 64px; }
+    #spawnEditor input[type=number] { width: 58px; }
+    #spawnList { max-height: 260px; overflow-y: auto; }
+    #saveBar { flex: none; background: #15171c; padding: 8px 12px; border-top: 1px solid #2c3039; }
+    #saveStatus:empty { display: none; }
+    kbd { background: #2c3039; border-radius: 3px; padding: 0 4px; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <aside id="panel">
+    <div id="panelTop">
+      <h1>HB Map Editor <span class="note">doors, walkability &amp; spawns</span></h1>
+      <div id="banner"></div>
+      <div class="row">
+        <select id="mapSelect" class="grow" title="Map"></select>
+        <button id="backBtn" title="Back to the previous view">Back</button>
+      </div>
+      <div id="mapInfo" class="note"></div>
+      <div class="row layers" id="layers"></div>
+      <div class="row">
+        <button id="undoBtn" title="Undo the last change, on any map (Ctrl+Z)">Undo</button>
+        <button id="redoBtn" title="Redo (Ctrl+Y or Ctrl+Shift+Z)">Redo</button>
+        <span id="undoNote" class="note"></span>
+      </div>
+    </div>
+
+    <div id="panelScroll">
+      <details class="section" data-section="walk" open>
+        <summary>Walkability <span class="sumNote" id="walkSummary"></span></summary>
+        <div class="body">
+          <div class="row">
+            <button id="walkBtn" title="Paint tiles blocked or walkable">Edit walkability</button>
+            <label>Brush</label>
+            <select id="brushSize" title="Brush size ([ and ])"><option value="1">1×1</option><option value="2">2×2</option><option value="3">3×3</option><option value="5">5×5</option></select>
+          </div>
+          <div class="row" id="walkPaint">
+            <button data-paint="block" title="Paint tiles blocked (B)"><span class="sw" style="background:#ff8c00;display:inline-block"></span> Block</button>
+            <button data-paint="open" title="Paint tiles walkable (O)"><span class="sw" style="background:#28e65a;display:inline-block"></span> Walkable</button>
+            <button data-paint="restore" title="Put tiles back as the .amd has them (R)">Restore</button>
+          </div>
+          <div id="walkInfo" class="note"></div>
+          <div class="row"><button id="walkResetBtn" class="danger" title="Put every tile on this map back as the .amd has it">Reset this map's walkability</button></div>
+        </div>
+      </details>
+
+      <details class="section" data-section="doors" open>
+        <summary>Doors <span class="sumNote" id="doorsSummary"></span></summary>
+        <div class="body">
+          <h2>Selected door</h2>
+          <div id="doorEditor"></div>
+          <h2>Doors on this map <button id="newDoorBtn" style="float:right">+ New door</button></h2>
+          <ul class="list" id="doorList"></ul>
+          <h2>Doors that lead here</h2>
+          <ul class="list" id="arrivalList"></ul>
+        </div>
+      </details>
+
+
+      <details class="section" data-section="spawns" open>
+        <summary>Spawns &amp; NPCs <span class="sumNote" id="spawnsSummary"></span></summary>
+        <div class="body">
+          <div class="row">
+            <button id="spawnBtn" title="Drag NPCs and spawn areas to move them">Edit spawns</button>
+            <button id="newSpawnBtn" title="Click on the map to place a new spawn">+ New spawn</button>
+            <button id="spawnRevertBtn" class="danger" title="Throw away this map's spawn edits and use the built-in spawns">Revert spawns</button>
+          </div>
+          <div id="spawnInfo" class="note"></div>
+          <div id="spawnEditor" class="editorBox"></div>
+          <ul class="list" id="spawnList"></ul>
+        </div>
+      </details>
+
+      <details class="section" data-section="problems" open>
+        <summary>Problems <span class="sumNote" id="problemsSummary"></span></summary>
+        <div class="body"><ul class="list" id="problemList"></ul></div>
+      </details>
+
+      <details class="section" data-section="controls">
+        <summary>Controls</summary>
+        <div class="body note">
+          Click a door or NPC to select it. Drag (any button) to pan, wheel to zoom, <kbd>Esc</kbd> cancels, <kbd>Ctrl+S</kbd> saves.
+          In <b>Edit tiles</b>, click or drag to add or remove tiles (right-drag pans).
+          In <b>Edit walkability</b>, click or drag to paint and Shift+drag for a rectangle (right-drag pans).
+          Blocked tiles: red as in the map file, orange newly blocked, green newly walkable.
+          In <b>Edit spawns</b>, drag an NPC or a spawn area to move it, and press Delete to remove the selected spawn.
+          Spawn colours: blue town NPCs, green guards, purple other standing NPCs, orange monsters.
+          <kbd>Ctrl+Z</kbd> undoes your last change on any map. Circles are arrival spots, with an arrow for the way you face.
+          Click a section's title to fold it away.
+        </div>
+      </details>
+    </div>
+
+    <div id="saveBar">
+      <div class="row">
+        <button id="saveBtn" class="primary" title="Writes teleports.json, walkable.json and spawns.json (Ctrl+S)">Save</button>
+        <button id="revertBtn" class="danger" title="Throw away this map's door edits and use the built-in doors">Revert doors</button>
+      </div>
+      <div id="saveStatus" class="note"></div>
+    </div>
+  </aside>
+  <main id="view">
+    <div id="game"></div>
+    <div id="mode"></div>
+    <div id="status">Loading…</div>
+    <div id="loading">Loading map sprites…</div>
+  </main>
+  <script type="module" src="/src/dev/mapeditor/MapEditor.ts"></script>
+</body>
+</html>

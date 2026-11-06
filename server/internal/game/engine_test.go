@@ -54,7 +54,7 @@ func makeTestGameMap(w, h int) *mapdata.GameMap {
 	for y := 0; y < h; y++ {
 		gm.Tiles[y] = make([]mapdata.Tile, w)
 		for x := 0; x < w; x++ {
-			gm.Tiles[y][x] = mapdata.Tile{Walkable: true}
+			gm.Tiles[y][x] = mapdata.Tile{Walkable: true, BaseWalkable: true}
 		}
 	}
 	sectorsX := (w + mapdata.SectorSize - 1) / mapdata.SectorSize

@@ -641,6 +641,11 @@ export class GameAsset {
      * @param x - The new x coordinate (in pixel coordinates)
      * @param y - The new y coordinate (in pixel coordinates)
      */
+    /** The position the asset was placed at (before its sprite pivot offset). */
+    public getBasePosition(): { x: number; y: number } {
+        return { x: this.baseX, y: this.baseY };
+    }
+
     public setPosition(x: number, y: number): void {
         this.baseX = x;
         this.baseY = y;

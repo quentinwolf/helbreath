@@ -60,8 +60,7 @@ func TestMapNamedIgnoresCase(t *testing.T) {
 }
 
 func TestTownBuildingDoors(t *testing.T) {
-	e := makeTestEngine()
-	e.teleports = mapdata.BuildTeleportConfig()
+	doors := mapdata.BuildTeleportConfig() // built-in doors, without teleports.json
 	// Both towns' shop, blacksmith and both warehouses, as the original map files
 	for _, c := range []struct {
 		town string
@@ -73,13 +72,13 @@ func TestTownBuildingDoors(t *testing.T) {
 		{"elvine", 197, 127, "wrhus_2"}, {"elvine", 87, 174, "elvwrhus"},
 		{"elvine", 239, 107, "bsmith_2"}, {"elvine", 225, 151, "gshop_2"},
 	} {
-		dest, ok := e.teleportAt(c.town, c.x, c.y)
+		dest, ok := doors.Nearest(c.town, c.x, c.y)
 		if !ok || !strings.EqualFold(dest.DestMap, c.dest) {
 			t.Errorf("%s %d,%d should lead into %s, got %+v", c.town, c.x, c.y, c.dest, dest)
 		}
 	}
 	// A doorway tile next to a listed one still works
-	if dest, ok := e.teleportAt("cityhall_1", 58, 41); !ok || dest.DestMap != "aresden" {
+	if dest, ok := doors.Nearest("cityhall_1", 58, 41); !ok || dest.DestMap != "aresden" {
 		t.Errorf("cityhall_1 58,41 should use the door next to it, got %+v", dest)
 	}
 }

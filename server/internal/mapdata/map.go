@@ -18,6 +18,8 @@ type Tile struct {
 	ObjectSprite      int16
 	ObjectSpriteFrame int16
 	Walkable          bool
+	// BaseWalkable is Walkable as the .amd file has it (before walkable.json).
+	BaseWalkable      bool
 	Teleport          bool
 	Farm              bool
 	Water             bool
@@ -93,6 +95,7 @@ func LoadAMD(path string) (*GameMap, error) {
 				ObjectSprite:      int16(binary.LittleEndian.Uint16(td[4:6])),
 				ObjectSpriteFrame: int16(binary.LittleEndian.Uint16(td[6:8])),
 				Walkable:          (td[8] & 0x80) == 0,
+				BaseWalkable:      (td[8] & 0x80) == 0,
 				Teleport:          (td[8] & 0x40) != 0,
 				Farm:              (td[8] & 0x20) != 0,
 			}

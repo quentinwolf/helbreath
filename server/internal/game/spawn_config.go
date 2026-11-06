@@ -18,6 +18,7 @@ type SpawnEntry struct {
 	SpawnY       int    `json:"spawn_y"`
 	SpawnRadius  int    `json:"spawn_radius"`  // random offset radius from SpawnX/SpawnY (0 = exact position)
 	RespawnDelay int    `json:"respawn_delay"` // override respawn delay in seconds (0 = use NpcType default)
+	Dir          int    `json:"dir,omitempty"` // facing on (re)spawn, 1-8 (0 = the NPC type's default)
 
 	// An original spot-mob-generator rectangle (all four 0 = none): NPCs spawn,
 	// respawn and wander anywhere inside it, like DEF_MOVETYPE_RANDOMAREA.

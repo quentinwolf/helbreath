@@ -82,3 +82,5 @@ export const MSG_QUEST_PROGRESS = 0xa9;
 export const MSG_QUEST_REWARD = 0xaa;
 export const MSG_LOGOUT_RESPONSE = 0xac;
 export const MSG_SPELL_CATALOG = 0xad;
+/** A map's new collision grid (MapInfo) after the map editor changed its walkability. */
+export const MSG_MAP_COLLISION_UPDATE = 0xae;
