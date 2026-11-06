@@ -34,20 +34,12 @@ maximum-object		= 50
 spot-mob-generator	= 1   1    81  72  82  73         Guard-Neutral  1
 spot-mob-generator	= 2   1    129 74  130 75         Guard-Neutral  1
 
-spot-mob-generator	= 3   1    100 80  109 87         Slime  20
-spot-mob-generator	= 4   1    105 119 119 127        Slime  20
-spot-mob-generator	= 5   1    118 114 130 127        Slime  20
-spot-mob-generator	= 6   1    86  89  97  96         Slime  20
-spot-mob-generator	= 7   1    61  86  71  93         Slime  20
-spot-mob-generator	= 8   1    68  94  76  102        Slime  20
-
-// Port addition: three shopkeepers in the starter area (the original has none here).
-waypoint          =     101    82    82
-waypoint          =     102    84    82
-waypoint          =     103    86    82
-npc               =   ShopKeeper-W       1           101 101 101 101 101 101 101 101 101 101   1
-npc               =   ShopKeeper-W       1           102 102 102 102 102 102 102 102 102 102   1
-npc               =   ShopKeeper-W       1           103 103 103 103 103 103 103 103 103 103   1
+spot-mob-generator = 3   1   100 80 109 87   Slime 8
+spot-mob-generator = 4   1   105 119 119 127   Slime 8
+spot-mob-generator = 5   1   118 114 130 127   Slime 8
+spot-mob-generator = 6   1   86 89 97 96   Slime 8
+spot-mob-generator = 7   1   61 86 71 93   Slime 8
+spot-mob-generator = 8   1   68 94 76 102   Slime 8
 
 // Port stand-ins: the exits above lead to the farms (elvfarm, arefarm), which the
 // port doesn't have yet, so until it does they go straight to town. Delete these

@@ -1,5 +1,6 @@
-// Door data for the map editor: grouping door tiles into doors, the teleports.json
-// format, and the checks behind the Problems list. No Phaser or DOM in here.
+// Door data for the map editor: grouping door tiles into doors, the save format
+// (written into the map's maps/<map>.txt by the dev server), and the checks behind
+// the Problems list. No Phaser or DOM in here.
 
 import type { SpawnSpot } from './spawns';
 
@@ -17,6 +18,28 @@ export interface ExportTile {
     y: number;
     to: { map: string; x: number; y: number; dir?: number };
     borrowed?: boolean;
+    /** The teleport-loc line's comment (a door's name). */
+    note?: string;
+}
+
+/** A map config's settings and points, as the Go export lists them. */
+export interface MapSettings {
+    location?: string;
+    fixedDay?: boolean;
+    maxObjects?: number;
+    /** Random mob generator level, 0 / missing = off. */
+    randomMobs?: number;
+    levelLimit?: number;
+    upperLevelLimit?: number;
+    /** num, x, y */
+    initialPoints: [number, number, number][];
+    waypoints: [number, number, number][];
+    fishPoints: [number, number, number][];
+    mineralPoints: [number, number, number][];
+    strikePoints: [number, number, number][];
+    /** num, x1, y1, x2, y2 */
+    noAttack: [number, number, number, number, number][];
+    npcAvoid: [number, number, number, number, number][];
 }
 
 /** One server map from the Go export. */
@@ -25,12 +48,17 @@ export interface ServerMapInfo {
     file: string;
     width: number;
     height: number;
-    /** Tiles that work as doors today with the built-in doors. */
+    /** The map's config file (maps/<config>), missing if it has none. */
+    config?: string;
+    /** exact-doors = 1: a door works on exactly its tiles (maps saved by the editor). */
+    exact?: boolean;
+    /** Tiles that work as doors today. */
     doors: ExportTile[];
-    /** Built-in door entries on tiles without the teleport flag (they never fire). */
+    /** Door entries on tiles without the teleport flag (they never fire; not on exact maps). */
     unflagged: ExportTile[];
-    /** The built-in spawn list for this map. */
+    /** The map's spawns (spot-mob-generator and npc lines). */
     spawns: SpawnSpot[];
+    settings?: MapSettings;
 }
 
 export interface OverrideDoor {
@@ -73,9 +101,11 @@ const destKey = (d: Dest): string => `${d.map.toLowerCase()}|${d.x}|${d.y}|${d.d
  * Groups door tiles into doors: tiles with the same destination up to 2 tiles
  * apart (one doorway, even with gaps) are one door.
  */
-export function groupTiles(tiles: { x: number; y: number; to: Dest }[]): Door[] {
+export function groupTiles(tiles: { x: number; y: number; to: Dest; note?: string }[]): Door[] {
     const byDest = new Map<string, { to: Dest; keys: Set<string> }>();
+    const notes = new Map<string, string>();
     for (const t of tiles) {
+        if (t.note) notes.set(tileKey(t.x, t.y), t.note);
         const k = destKey(t.to);
         if (!byDest.has(k)) byDest.set(k, { to: t.to, keys: new Set() });
         byDest.get(k)!.keys.add(tileKey(t.x, t.y));
@@ -101,7 +131,8 @@ export function groupTiles(tiles: { x: number; y: number; to: Dest }[]): Door[] 
                     }
                 }
             }
-            doors.push({ id: newDoorId(), name: '', tiles: group, to: { ...to } });
+            const name = [...group].map((k) => notes.get(k)).find((n) => n) ?? '';
+            doors.push({ id: newDoorId(), name, tiles: group, to: { ...to } });
         }
     }
     return sortDoors(doors);
@@ -125,7 +156,7 @@ export function sortDoors(doors: Door[]): Door[] {
 }
 
 export function builtinDoors(info: ServerMapInfo): Door[] {
-    return groupTiles(info.doors.map((t) => ({ x: t.x, y: t.y, to: destOf(t.to) })));
+    return groupTiles(info.doors.map((t) => ({ x: t.x, y: t.y, to: destOf(t.to), note: t.note })));
 }
 
 /** Built-in doors plus the unflagged entries, as if those worked too. */
@@ -273,7 +304,7 @@ export interface ProblemContext {
     mapName: string;
     doors: Door[];
     flags: TileFlags;
-    /** true: the map's doors come from teleports.json (exact tiles, flags ignored). */
+    /** true: the map has exact doors (exact-doors = 1: exact tiles, flags ignored). */
     edited: boolean;
     info: ServerMapInfo;
     /** Server map name by lower-case name. */

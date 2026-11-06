@@ -64,7 +64,7 @@ func TestMapNamedIgnoresCase(t *testing.T) {
 }
 
 func TestTownBuildingDoors(t *testing.T) {
-	doors := mapdata.BuildTeleportConfig() // built-in doors, without teleports.json
+	doors := mapdata.BuildTeleportConfig() // the map configs' doors
 	// Both towns' shop, blacksmith and both warehouses, as the original map files
 	for _, c := range []struct {
 		town string

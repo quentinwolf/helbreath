@@ -88,7 +88,7 @@ type Engine struct {
 	lastAutosave time.Time
 
 	// Teleport config
-	// Doors, swapped whole when the map editor's teleports.json changes (map_edits.go)
+	// Doors, swapped whole when the map configs change (map_edits.go)
 	teleports   atomic.Pointer[mapdata.TeleportTable]
 	mapEdits    mapEditsWatch
 
@@ -120,7 +120,7 @@ func NewEngine(store db.DataStore, jwtManager *auth.JWTManager) *Engine {
 		shutdownChan:     make(chan struct{}),
 	}
 	// Built-in doors until LoadMaps reads the map editor's files.
-	teleports, _ := mapdata.BuildTeleportTable()
+	teleports := mapdata.BuildTeleportTable()
 	e.teleports.Store(&teleports)
 	e.nextObjID.Store(1000) // start IDs above reserved range
 	return e
@@ -219,7 +219,7 @@ func (e *Engine) processTick() {
 	}
 
 	// Lasting spell fields burn once a second, as the original's DynamicObjectEffectProcessor
-	// The map editor's teleports.json / walkable.json, reloaded when saved
+	// The map configs and walkable.json, reloaded when saved
 	if now.Sub(e.mapEdits.lastCheck) >= 1*time.Second {
 		e.mapEdits.lastCheck = now
 		e.checkMapEdits()
@@ -381,10 +381,9 @@ func (e *Engine) SpawnNPCsWithConfigPath(configPath string) {
 	} else {
 		log.Printf("Loaded spawn configuration from %s (%d entries)", configPath, len(cfg.Spawns))
 	}
-	// The map editor's spawns.json replaces the maps it lists (reloaded live, map_edits.go)
-	e.mapEdits.baseSpawns = cfg
+	// Remembered so map config edits respawn the maps they change (map_edits.go)
 	e.mapEdits.baseFromConfigs = fromConfigs
-	cfg = e.loadSpawnEdits(cfg)
+	cfg = e.trackSpawns(cfg)
 	e.SpawnNPCsWithConfig(cfg)
 }
 

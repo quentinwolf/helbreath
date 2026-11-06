@@ -17,7 +17,11 @@ func TestMapEditsReloadWhileRunning(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	write(mapdata.TeleportsFile, `{"version": 1, "maps": {}}`)
+	defer mapdata.SetConfigs(mapdata.BuiltinConfigs())
+	if err := os.MkdirAll(filepath.Join(dir, mapdata.MapConfigDir), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write(filepath.Join(mapdata.MapConfigDir, "test.txt"), "map-location = test\n")
 	write(mapdata.WalkableFile, `{"version": 1, "maps": {}}`)
 
 	e := makeTestEngine()
@@ -36,7 +40,7 @@ func TestMapEditsReloadWhileRunning(t *testing.T) {
 
 	// The editor saves both files; the next check picks them up.
 	time.Sleep(10 * time.Millisecond) // a new modified time on coarse clocks
-	write(mapdata.TeleportsFile, `{"version": 1, "maps": {"test": [{"tiles": [[5,5]], "to": {"map": "test", "x": 1, "y": 1}}]}}`)
+	write(filepath.Join(mapdata.MapConfigDir, "test.txt"), "exact-doors = 1\nteleport-loc = 5 5 test 1 1 0\n")
 	write(mapdata.WalkableFile, `{"version": 1, "maps": {"test": {"block": [[3,3]]}}}`)
 	e.checkMapEdits()
 	if _, ok := e.doorAt(gm, "test", 5, 5); !ok {

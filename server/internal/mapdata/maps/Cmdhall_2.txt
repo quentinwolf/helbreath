@@ -5,18 +5,21 @@
 [MAP-INFO]
 
 map-location  = elvine
+// Port setting: doors work on exactly the tiles listed (set by the map editor)
+exact-doors = 1
 initial-point = 1  40 52
 
 
 //-Teleportation-Set----SX-----SY-----DestMapName---------DX-----DY----Dir---;
-teleport-loc     =      38     49     elvine              216    89   4
-teleport-loc     =      39     49     elvine              216    89   4
-teleport-loc     =      39     50     elvine              216    89   4
-teleport-loc     =      40     50     elvine              216    89   4
-teleport-loc     =      49     48     elvine              216    89   4
-teleport-loc     =      50     48     elvine              216    89   4
-teleport-loc     =      50     47     elvine              216    89   4
-teleport-loc     =      51     47     elvine              216    89   4
+teleport-loc     =     38     49     elvine              221    90     4
+teleport-loc     =     39     49     elvine              221    90     4
+teleport-loc     =     39     50     elvine              221    90     4
+teleport-loc     =     40     50     elvine              221    90     4
+teleport-loc     =     49     48     elvine              216    91     4
+teleport-loc     =     50     48     elvine              216    91     4
+teleport-loc     =     50     47     elvine              216    91     4
+teleport-loc     =     51     47     elvine              216    91     4
+teleport-loc     =     49     49     elvine              216    91     4
 
 
 //-WayPoint-Set---------Num-----X-----Y----;

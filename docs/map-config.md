@@ -11,8 +11,10 @@ admins in game get a notice. A file with an error isn't loaded: the server logs 
 line and problem, tells the admins, and keeps that map's previous version. The files are
 also built into the server binary as the fallback.
 
-The map editor's `teleports.json` and `spawns.json` still apply on top: a map listed there
-uses those doors / spawns instead of the ones in its `.txt`.
+The map editor ([map-editor.md](map-editor.md)) saves doors and spawns into these files,
+rewriting only the lines that change: comments, blank lines and settings it doesn't edit stay
+as they are. `walkable.json` (tile walkability patches over the `.amd`) is the one editor file
+that isn't part of the map configs.
 
 ## Syntax
 
@@ -32,6 +34,9 @@ spot-mob-generator = 1  1  106 43 123 55  Slime  20
   share (`Guard`, `Soldier`) is refused with a hint. The original's spot-mob-generator used
   mob codes from a table inside its server instead; `mapimport` converts them.
 - Tiles are map tile coordinates; rectangles are `left top right bottom`, corners included.
+- Port options at the end of a `spot-mob-generator` or `npc` line: `dir=N` (facing on spawn, 1 =
+  north clockwise to 8) and `respawn=N` (seconds; default the NPC type's). Example:
+  `npc = ShopKeeper-W 2 1 2 3 4 5 6 7 8 9 10 1 dir=4`.
 
 ## Settings
 
@@ -43,6 +48,7 @@ spot-mob-generator = 1  1  106 43 123 55  Slime  20
 | `map-location` | town side (`aresden`, `elvine`) or the map's own name | Kept |
 | `initial-point` | num x y: where you arrive on the map / respawn | Kept (doors to `-1 -1` still use the map centre) |
 | `teleport-loc` | x y dest-map dest-x dest-y dir: a door tile. dest `-1 -1` = the dest map's arrival point | **Used** |
+| `exact-doors` | 1: doors work on exactly the tiles listed (port setting, set when the editor saves a map's doors). Without it a tile needs the `.amd` teleport flag and borrows a door entry up to 2 tiles away | **Used** |
 | `waypoint` | num x y | **Used** (positions for `npc` lines) |
 | `npc` | name move-type wp1 … wp10 prefix: a town NPC on its waypoints (move type 1 in order, 2 random) | **Used** (stands on wp1; walking between waypoints not ported) |
 | `spot-mob-generator` | num type left top right bottom monster max | **Used** for type 1: up to *max* alive, spawning and wandering in the rectangle. Type 2 (waypoint routes) not ported |

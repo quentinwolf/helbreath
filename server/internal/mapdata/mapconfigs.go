@@ -115,10 +115,7 @@ func readMapConfigs(fsys fs.FS, root string, fallback MapConfigs) (MapConfigs, [
 		}
 		c, perrs := ParseMapConfig(name, data)
 		if len(perrs) == 0 {
-			perrs = c.check()
-		}
-		if len(perrs) == 0 && configChecker != nil {
-			perrs = configChecker(c)
+			perrs = CheckConfig(c)
 		}
 		if len(perrs) > 0 {
 			errs = append(errs, perrs...)
@@ -130,6 +127,17 @@ func readMapConfigs(fsys fs.FS, root string, fallback MapConfigs) (MapConfigs, [
 		out[lower] = c
 	}
 	return out, errs
+}
+
+// CheckConfig is every check a config must pass to be loaded (after parsing).
+func CheckConfig(c *MapConfig) []error {
+	if errs := c.check(); len(errs) > 0 {
+		return errs
+	}
+	if configChecker != nil {
+		return configChecker(c)
+	}
+	return nil
 }
 
 // check finds problems that span lines.

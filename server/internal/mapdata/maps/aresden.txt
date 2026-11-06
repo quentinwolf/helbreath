@@ -5,6 +5,8 @@
 [MAP-INFO]
 
 map-location  = aresden
+// Port setting: doors work on exactly the tiles listed (set by the map editor)
+exact-doors = 1
 initial-point = 1  140 49
 initial-point = 2  68 125
 initial-point = 3  170 145
@@ -19,13 +21,8 @@ teleport-loc     =     137    128     cityhall_1          55     44    6
 teleport-loc	 =     145    122     cityhall_1	  55     44    6
 teleport-loc     =     144    123     cityhall_1          55     44    6
 teleport-loc     =     145    123     cityhall_1          55     44    6
-teleport-loc     =     146    123     cityhall_1          55     44    6
 teleport-loc     =     146    122     cityhall_1          55     44    6
 
-teleport-loc     =     185    93      cath_1              40     40    4
-teleport-loc     =     186    93      cath_1              40     40    4
-teleport-loc     =     186    92      cath_1              40     40    4
-teleport-loc     =     187    92      cath_1              40     40    4
 
 teleport-loc     =     167    195     bsmith_1            34     37    4
 teleport-loc     =     168    195     bsmith_1            34     37    4
@@ -36,15 +33,9 @@ teleport-loc     =     157    200     bsmith_1            43     32    5
 teleport-loc     =     157    201     bsmith_1            43     32    5
 teleport-loc     =     158    201     bsmith_1            43     32    5
 
-teleport-loc     =     101    183     wrhus_1             56     36    4
 teleport-loc     =     102    184     wrhus_1             56     36    4
-teleport-loc     =     103    185     wrhus_1             56     36    4
 teleport-loc     =     107    185     wrhus_1             56     36    4
 
-teleport-loc     =     217    132     arewrhus            56     36    4
-teleport-loc     =     218    133     arewrhus            56     36    4
-teleport-loc     =     219    134     arewrhus            56     36    4
-teleport-loc     =     223    134     arewrhus            56     36    4
 
 
 teleport-loc     =     112    97      gldhall_1           54     41    6
@@ -56,11 +47,6 @@ teleport-loc     =     55     118     wzdtwr_1            43     34    4
 teleport-loc     =     56     118     wzdtwr_1            43     34    4
 teleport-loc     =     57     117     wzdtwr_1            43     34    4
 
-teleport-loc     =     126    166     gshop_1             50     39    4
-teleport-loc     =     126    167     gshop_1             50     39    4
-teleport-loc     =     127    167     gshop_1             50     39    4
-teleport-loc     =     130    167     gshop_1             50     39    4
-teleport-loc     =     131    166     gshop_1             50     39    4
 
 teleport-loc     =     27     20      middleland          152    500   1
 teleport-loc     =     28     20      middleland          152    500   1
@@ -112,12 +98,26 @@ teleport-loc     =     279    208     arefarm             23     27    5
 teleport-loc     =     279    209     arefarm             23     27    5
 teleport-loc     =     279    210     arefarm             23     27    5
 
-teleport-loc     =     94    161     CmdHall_1             51    50    5
-teleport-loc     =     95    161     CmdHall_1             51    50    5
-teleport-loc     =     95    160     CmdHall_1             51    50    5
-teleport-loc     =     101    159     CmdHall_1             40     52    5
-teleport-loc     =     102    159     CmdHall_1             40     52    5
-teleport-loc     =     103    159     CmdHall_1             40     52    5
+teleport-loc     =     94     161    Cmdhall_1           52     50     0
+teleport-loc     =     95     161    Cmdhall_1           52     50     0
+teleport-loc     =     95     160    Cmdhall_1           52     50     0
+teleport-loc     =     93     162    Cmdhall_1           52     50     0
+teleport-loc     =     94     162    Cmdhall_1           52     50     0
+teleport-loc     =     101    159    Cmdhall_1           40     52     0
+teleport-loc     =     102    159    Cmdhall_1           40     52     0
+teleport-loc     =     103    159    Cmdhall_1           40     52     0
+teleport-loc     =     218    132    arewrhus            56     36     4
+teleport-loc     =     219    132    arewrhus            56     36     4
+teleport-loc     =     219    133    arewrhus            56     36     4
+teleport-loc     =     223    133    arewrhus            56     36     4
+teleport-loc     =     224    133    arewrhus            56     36     4
+teleport-loc     =     224    134    arewrhus            56     36     4
+teleport-loc     =     127    165    gshop_1             50     39     4
+teleport-loc     =     130    165    gshop_1             50     39     4
+teleport-loc     =     127    166    gshop_1             50     39     4
+teleport-loc     =     128    166    gshop_1             50     39     4
+teleport-loc     =     129    166    gshop_1             50     39     4
+teleport-loc     =     130    166    gshop_1             50     39     4
 
 
 //-WayPoint-Set---------Num-----X-----Y----;

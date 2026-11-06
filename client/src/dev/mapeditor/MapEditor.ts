@@ -1,7 +1,9 @@
 // Dev-only map editor (client/map-editor.html, served by `npm run dev`; see docs/map-editor.md).
-// Shows a map as the game draws it, with its doors, arrival spots and the server's
-// walk/teleport flags and its spawns. Edits doors into server/internal/mapdata/teleports.json,
-// walkability into walkable.json and spawns (monsters and town NPCs) into spawns.json.
+// Shows a map as the game draws it, with its doors, arrival spots, the server's
+// walk/teleport flags, its spot mob generators and town NPCs, and the map config's
+// other settings (no-attack areas, waypoints, fish/mineral points). Saves doors and
+// spawns into the map's config, server/internal/mapdata/maps/<map>.txt, and
+// walkability into server/internal/mapdata/walkable.json.
 import Phaser from 'phaser';
 import { ASSET_BASE } from '../../env';
 import { TILE_SIZE, HIGH_DEPTH } from '../../Config';
@@ -11,13 +13,13 @@ import { AssetType, getAssetByKey, getAssetsByType } from '../../constants/Asset
 import { NPC_SPRITE_MAP } from '../../constants/NpcSprites';
 import { GameAsset } from '../../game/objects/GameAsset';
 import {
-    DIR_DX, DIR_DY, DIR_NAMES, Door, Overrides, Problem, ServerMapInfo, TileFlags, WalkOverrides,
-    applyWalkEdit, builtinDoors, builtinDoorsWithUnflagged, doorLabel, doorsFromOverride, doorsToOverride,
+    DIR_DX, DIR_DY, DIR_NAMES, Door, OverrideDoor, Problem, ServerMapInfo, TileFlags, WalkOverrides,
+    applyWalkEdit, builtinDoors, builtinDoorsWithUnflagged, doorLabel, doorsToOverride,
     findProblems, isBlocked, lineTiles, newDoorId, parseAmdFlags, parseTileKey, sortDoors, tileKey,
     walkEditCount, walkEditOf,
 } from './doors';
 import {
-    KIND_COLOUR, NpcTypeInfo, Spawn, SpawnOverrides, cloneSpawns, findSpawnProblems, newSpawnId,
+    KIND_COLOUR, NpcTypeInfo, Spawn, SpawnSpot, cloneSpawns, findSpawnProblems, newSpawnId,
     spawnAnchor, spawnCount, spawnFromSpot, spawnKind, spawnLabel, spawnToSpot,
 } from './spawns';
 
@@ -26,6 +28,7 @@ const T = TILE_SIZE;
 const DEPTH = {
     blocked: HIGH_DEPTH + 1,
     flags: HIGH_DEPTH + 2,
+    rules: HIGH_DEPTH + 2.5,
     spawnAreas: HIGH_DEPTH + 3,
     doors: HIGH_DEPTH + 4,
     spawns: HIGH_DEPTH + 5,
@@ -49,27 +52,37 @@ const UNDO_LIMIT = 100;
 
 interface ExportState {
     maps: ServerMapInfo[];
-    overrideError?: string;
     walkError?: string;
-    overrides: Overrides;
+    /** Map config files the server can't read (it keeps their built-in copies). */
+    configErrors?: string[];
     walkable: WalkOverrides;
-    spawnError?: string;
-    spawns: SpawnOverrides;
     npcTypes: NpcTypeInfo[];
     clientMaps: string[];
 }
 
+interface SaveResult {
+    ok: boolean;
+    errors: string[];
+    written: string[];
+    walkError?: string;
+    maps?: ServerMapInfo[];
+}
+
 type Mode = 'select' | 'paint' | 'pick' | 'walk' | 'spawn' | 'place' | 'area';
 type WalkPaint = 'block' | 'open' | 'restore';
-type Layer = 'picture' | 'blocked' | 'flags' | 'doors' | 'arrivals' | 'spawns';
+type Layer = 'picture' | 'blocked' | 'flags' | 'doors' | 'arrivals' | 'spawns' | 'rules' | 'points';
 const LAYER_LABELS: Record<Layer, string> = {
     picture: 'Map picture',
     blocked: 'Blocked tiles',
     flags: 'Teleport flags (.amd)',
     doors: 'Doors',
     arrivals: 'Arrivals',
-    spawns: 'Spawns & NPCs',
+    spawns: 'Spot mob generators & NPCs',
+    rules: 'No-attack & no-spawn areas',
+    points: 'Waypoints, fish, mineral & start points',
 };
+// Colours for the map config layers
+const RULE_COLOUR = { noAttack: 0x4fc3f7, npcAvoid: 0xffd54f, waypoint: 0xb0bec5, fish: 0x29b6f6, mineral: 0xbcaaa4, initial: 0x66bb6a, strike: 0xef5350 };
 
 /** One map's editable state, saved before each change for undo. */
 interface Snapshot {
@@ -102,7 +115,6 @@ class MapEditorScene extends Phaser.Scene {
     // --- data ---
     private infos = new Map<string, ServerMapInfo>(); // by lower-case name
     private mapNames = new Map<string, string>(); // lower -> server spelling
-    private overrides: Overrides = { version: 1, maps: {} };
     private walkable: WalkOverrides = { version: 1, maps: {} };
     private clientFiles = new Map<string, string>(); // lower name -> client .amd file
     private doors = new Map<string, Door[]>(); // working copies, by lower-case map
@@ -112,7 +124,6 @@ class MapEditorScene extends Phaser.Scene {
     private flagsCache = new Map<string, TileFlags>();
     private flagsLoading = new Map<string, Promise<TileFlags | undefined>>();
     private npcTypes = new Map<number, NpcTypeInfo>();
-    private spawnOverrides: SpawnOverrides = { version: 1, maps: {} };
     private spawns = new Map<string, Spawn[]>(); // working copies, by lower-case map
     private spawnSource = new Map<string, 'builtin' | 'json'>();
     private spawnDirty = new Set<string>();
@@ -132,7 +143,7 @@ class MapEditorScene extends Phaser.Scene {
     private walkPaint: WalkPaint = 'block';
     private brush = 1;
     private history: { map: string; x: number; y: number; zoom: number }[] = [];
-    private layers: Record<Layer, boolean> = { picture: true, blocked: false, flags: false, doors: true, arrivals: true, spawns: true };
+    private layers: Record<Layer, boolean> = { picture: true, blocked: false, flags: false, doors: true, arrivals: true, spawns: true, rules: true, points: false };
     private overlayImages: Phaser.GameObjects.Image[] = [];
     private blockedTex?: Phaser.Textures.CanvasTexture;
     private blockedPixels?: ImageData;
@@ -141,6 +152,8 @@ class MapEditorScene extends Phaser.Scene {
     private hoverGfx!: Phaser.GameObjects.Graphics;
     private labels: Phaser.GameObjects.Text[] = [];
     private spawnGfx!: Phaser.GameObjects.Graphics;
+    private rulesGfx!: Phaser.GameObjects.Graphics;
+    private ruleLabels: Phaser.GameObjects.Text[] = [];
     private spawnObjects: { destroy(): void }[] = [];
     private npcSpritesLoading = new Set<string>();
     private problems: Problem[] = [];
@@ -183,6 +196,7 @@ class MapEditorScene extends Phaser.Scene {
         }
 
         this.spawnGfx = this.add.graphics().setDepth(DEPTH.spawnAreas);
+        this.rulesGfx = this.add.graphics().setDepth(DEPTH.rules);
         this.doorGfx = this.add.graphics().setDepth(DEPTH.doors);
         this.arrivalGfx = this.add.graphics().setDepth(DEPTH.arrivals);
         this.hoverGfx = this.add.graphics().setDepth(DEPTH.hover);
@@ -190,7 +204,7 @@ class MapEditorScene extends Phaser.Scene {
         this.setupInput();
         this.setupPanel();
 
-        $('loading').textContent = 'Reading doors from the server code (go run)…';
+        $('loading').textContent = 'Reading the map configs (go run)…';
         try {
             await this.loadState(false);
         } catch (err) {
@@ -221,9 +235,7 @@ class MapEditorScene extends Phaser.Scene {
         }
         this.clientFiles.clear();
         for (const f of s.clientMaps) this.clientFiles.set(f.replace(/\.amd$/i, '').toLowerCase(), f);
-        this.overrides = s.overrides;
         this.walkable = s.walkable ?? { version: 1, maps: {} };
-        this.spawnOverrides = s.spawns ?? { version: 1, maps: {} };
         this.npcTypes.clear();
         for (const t of s.npcTypes ?? []) this.npcTypes.set(t.id, t);
         this.spawns.clear();
@@ -238,12 +250,12 @@ class MapEditorScene extends Phaser.Scene {
         this.flagsLoading.clear();
 
         const banners: string[] = [];
-        if (s.overrideError) banners.push(`The server can't read teleports.json: ${esc(s.overrideError)}. It is using the built-in doors.`);
         if (s.walkError) banners.push(`The server can't read walkable.json: ${esc(s.walkError)}. It is using the .amd walkability.`);
-        if (s.spawnError) banners.push(`The server can't read spawns.json: ${esc(s.spawnError)}. It is using the built-in spawns.`);
-        const unknown = [...Object.keys(s.overrides.maps), ...Object.keys(this.walkable.maps), ...Object.keys(this.spawnOverrides.maps)]
-            .filter((m) => !this.infos.has(m.toLowerCase()));
-        if (unknown.length) banners.push(`teleports.json / walkable.json / spawns.json list maps the server doesn't have: ${[...new Set(unknown)].map(esc).join(', ')} (kept as they are).`);
+        for (const e of s.configErrors ?? []) {
+            banners.push(`Map config error: ${esc(e)}. The server keeps that map's previous config; fix the file (the editor shows what the server uses).`);
+        }
+        const unknown = Object.keys(this.walkable.maps).filter((m) => !this.infos.has(m.toLowerCase()));
+        if (unknown.length) banners.push(`walkable.json lists maps the server doesn't have: ${[...new Set(unknown)].map(esc).join(', ')} (kept as they are).`);
         $('banner').innerHTML = banners.map((b) => `<div class="banner">${b}</div>`).join('');
 
         const select = $<HTMLSelectElement>('mapSelect');
@@ -251,37 +263,23 @@ class MapEditorScene extends Phaser.Scene {
         this.refreshMapSelect();
     }
 
-    private overrideKey(lower: string): string | undefined {
-        return Object.keys(this.overrides.maps).find((k) => k.toLowerCase() === lower);
-    }
-
     private walkKey(lower: string): string | undefined {
         return Object.keys(this.walkable.maps).find((k) => k.toLowerCase() === lower);
     }
 
-    private spawnKey(lower: string): string | undefined {
-        return Object.keys(this.spawnOverrides.maps).find((k) => k.toLowerCase() === lower);
-    }
-
-    /** The working copy of a map's spawns (from spawns.json or the built-in list). */
+    /** The working copy of a map's spawns (from its map config). */
     private spawnsOf(map: string): Spawn[] {
         const lower = map.toLowerCase();
         let list = this.spawns.get(lower);
         if (!list) {
-            const key = this.spawnKey(lower);
-            if (key) {
-                list = this.spawnOverrides.maps[key].map(spawnFromSpot);
-                this.spawnSource.set(lower, 'json');
-            } else {
-                list = (this.infos.get(lower)?.spawns ?? []).map(spawnFromSpot);
-                this.spawnSource.set(lower, 'builtin');
-            }
+            list = (this.infos.get(lower)?.spawns ?? []).map(spawnFromSpot);
+            this.spawnSource.set(lower, 'builtin');
             this.spawns.set(lower, list);
         }
         return list;
     }
 
-    /** A change to a map's spawns: from now on they are saved to spawns.json. */
+    /** A change to a map's spawns: saved into its map config. */
     private spawnsTouched(map: string): void {
         const lower = map.toLowerCase();
         this.spawnsOf(map);
@@ -296,20 +294,18 @@ class MapEditorScene extends Phaser.Scene {
         this.refreshUndoButtons();
     }
 
-    /** The working copy of a map's doors (created from teleports.json or the built-in doors). */
+    /**
+     * The working copy of a map's doors (from its map config). Source 'json' means
+     * exact doors (exact-doors = 1: each door works on exactly its tiles), the way
+     * every map the editor saves works; 'builtin' means the .amd flag rule.
+     */
     private doorsOf(map: string): Door[] {
         const lower = map.toLowerCase();
         let list = this.doors.get(lower);
         if (!list) {
-            const key = this.overrideKey(lower);
             const info = this.infos.get(lower);
-            if (key) {
-                list = doorsFromOverride(this.overrides.maps[key]);
-                this.source.set(lower, 'json');
-            } else {
-                list = info ? builtinDoors(info) : [];
-                this.source.set(lower, 'builtin');
-            }
+            list = info ? builtinDoors(info) : [];
+            this.source.set(lower, info?.exact ? 'json' : 'builtin');
             this.doors.set(lower, list);
         }
         return list;
@@ -320,7 +316,7 @@ class MapEditorScene extends Phaser.Scene {
         return this.source.get(map.toLowerCase()) === 'json';
     }
 
-    /** A change to a map's doors: from now on its doors are saved to teleports.json. */
+    /** A change to a map's doors: saved into its map config as exact doors. */
     private touched(map: string): void {
         const lower = map.toLowerCase();
         this.doorsOf(map);
@@ -547,6 +543,9 @@ class MapEditorScene extends Phaser.Scene {
         this.blockedTex = undefined;
         this.blockedPixels = undefined;
         this.clearSpawnObjects();
+        this.rulesGfx.clear();
+        for (const t of this.ruleLabels) t.destroy();
+        this.ruleLabels = [];
         for (const key of ['editor-overlay-blocked', 'editor-overlay-flags']) {
             if (this.textures.exists(key)) this.textures.remove(key);
         }
@@ -608,6 +607,7 @@ class MapEditorScene extends Phaser.Scene {
         this.drawDoors();
         this.drawArrivals();
         if (layer === 'spawns') this.drawSpawns();
+        if (layer === 'rules' || layer === 'points') this.drawRules();
     }
 
     /** Unfolds a panel section (selecting something in it, or starting its tool). */
@@ -811,7 +811,7 @@ class MapEditorScene extends Phaser.Scene {
             const lower = opt.value.toLowerCase();
             const marks = [
                 this.dirty.has(lower) || this.walkDirty.has(lower) || this.spawnDirty.has(lower) ? '● unsaved'
-                    : this.overrideKey(lower) || this.walkKey(lower) || this.spawnKey(lower) ? 'edited' : '',
+                    : this.walkKey(lower) ? 'walk edits' : '',
                 this.clientFiles.has(lower) ? '' : 'no picture',
             ].filter(Boolean);
             opt.textContent = marks.length ? `${opt.value}  (${marks.join(', ')})` : opt.value;
@@ -823,13 +823,34 @@ class MapEditorScene extends Phaser.Scene {
     private refreshMapInfo(): void {
         if (!this.current) return;
         const lower = this.current.toLowerCase();
+        const info = this.infos.get(lower);
         const tag = this.dirty.has(lower)
             ? '<span class="tag dirty">unsaved door changes</span>'
-            : this.isEdited(this.current) ? '<span class="tag json">doors from teleports.json</span>' : '<span class="tag">built-in doors</span>';
+            : this.isEdited(this.current) ? '<span class="tag json">exact doors</span>' : '<span class="tag">doors by teleport flag</span>';
         const how = this.isEdited(this.current)
             ? 'A door works on exactly its tiles; the teleport flags are ignored.'
-            : 'A tile works as a door if it has the teleport flag and a door entry within 2 tiles.';
-        $('mapInfo').innerHTML = `${tag} ${how}${this.pictureNote ? `<br>${esc(this.pictureNote)}` : ''}`;
+            : 'A tile works as a door if it has the teleport flag and a door entry within 2 tiles. Saving this map\'s doors makes them exact.';
+        const file = info?.config
+            ? `<code>maps/${esc(info.config)}</code>`
+            : '<span class="sev-error">no map config: doors and spawns can\'t be saved</span>';
+        $('mapInfo').innerHTML = `${file} ${this.settingsSummary(info)}<br>${tag} ${how}${this.pictureNote ? `<br>${esc(this.pictureNote)}` : ''}`;
+    }
+
+    /** The map config's settings in a line ("town aresden · up to 600 monsters · ..."). */
+    private settingsSummary(info: ServerMapInfo | undefined): string {
+        const s = info?.settings;
+        if (!s) return '';
+        const parts: string[] = [];
+        if (s.location && s.location.toLowerCase() !== info!.name.toLowerCase()) parts.push(`side ${s.location}`);
+        if (s.maxObjects) parts.push(`up to ${s.maxObjects} monsters`);
+        if (s.randomMobs) parts.push(`random monsters level ${s.randomMobs} (not ported yet)`);
+        if (s.fixedDay) parts.push('indoors: always day, no weather');
+        if (s.levelLimit) parts.push(`level ${s.levelLimit}+`);
+        if (s.upperLevelLimit) parts.push(`up to level ${s.upperLevelLimit}`);
+        const n = (k: string, v: unknown[]) => (v.length ? `${v.length} ${k}` : '');
+        const pts = [n('no-attack', s.noAttack), n('waypoints', s.waypoints), n('fish', s.fishPoints), n('mineral', s.mineralPoints)].filter(Boolean);
+        if (pts.length) parts.push(pts.join(', '));
+        return parts.length ? `· ${esc(parts.join(' · '))}` : '';
     }
 
     private refreshWalkInfo(): void {
@@ -945,10 +966,9 @@ class MapEditorScene extends Phaser.Scene {
         const n = new Set([...this.dirty, ...this.walkDirty, ...this.spawnDirty]).size;
         $<HTMLButtonElement>('saveBtn').disabled = n === 0;
         $<HTMLButtonElement>('saveBtn').textContent = n ? `Save (${n} map${n === 1 ? '' : 's'})` : 'Save';
-        $<HTMLButtonElement>('revertBtn').disabled = !this.current || (!this.isEdited(this.current) && !this.dirty.has(this.current.toLowerCase()));
         const lower = this.current.toLowerCase();
-        $<HTMLButtonElement>('spawnRevertBtn').disabled = !this.current
-            || (this.spawnSource.get(lower) !== 'json' && !this.spawnDirty.has(lower));
+        $<HTMLButtonElement>('revertBtn').disabled = !this.current || !this.dirty.has(lower);
+        $<HTMLButtonElement>('spawnRevertBtn').disabled = !this.current || !this.spawnDirty.has(lower);
     }
 
     /** The door editor is rebuilt only when the selection changes, so typing keeps focus. */
@@ -1167,12 +1187,11 @@ class MapEditorScene extends Phaser.Scene {
     private revertMap(): void {
         const lower = this.current.toLowerCase();
         const info = this.infos.get(lower);
-        if (!info || !confirm(`Throw away ${this.current}'s door edits and use the built-in doors? (Saved edits are removed from teleports.json when you save.)`)) return;
+        if (!info || !confirm(`Throw away ${this.current}'s unsaved door changes and go back to its map config? (Undo can bring them back.)`)) return;
         this.beforeChange(this.current);
         this.doors.set(lower, builtinDoors(info));
-        this.source.set(lower, 'builtin');
-        if (this.overrideKey(lower)) this.dirty.add(lower);
-        else this.dirty.delete(lower);
+        this.source.set(lower, info.exact ? 'json' : 'builtin');
+        this.dirty.delete(lower);
         this.selected = null;
         this.setMode('select');
         this.refreshDoorEditor();
@@ -1242,22 +1261,29 @@ class MapEditorScene extends Phaser.Scene {
         const status = $('saveStatus');
         if (!this.dirty.size && !this.walkDirty.size && !this.spawnDirty.size) return;
         const issues: string[] = [];
+        const nameOf = (lower: string) => this.mapNames.get(lower) ?? lower;
 
-        let teleports: Overrides | undefined;
-        if (this.dirty.size) {
-            const maps: Overrides['maps'] = { ...this.overrides.maps };
-            for (const lower of this.dirty) {
-                const name = this.mapNames.get(lower) ?? lower;
-                const key = this.overrideKey(lower);
-                if (key) delete maps[key];
-                if (this.source.get(lower) !== 'json') continue;
-                for (const d of this.doorsOf(name)) {
-                    if (!d.tiles.size) issues.push(`${name}: a door has no tiles (${doorLabel(d)})`);
-                    if (!this.mapNames.has(d.to.map.toLowerCase())) issues.push(`${name}: ${doorLabel(d)} leads to a map the server doesn't have`);
-                }
-                maps[name] = doorsToOverride(this.doorsOf(name));
+        // Doors and spawns of the changed maps go into their map configs
+        let doors: Record<string, OverrideDoor[]> | undefined;
+        for (const lower of this.dirty) {
+            const name = nameOf(lower);
+            if (!this.infos.get(lower)?.config) { issues.push(`${name}: has no map config to save doors in`); continue; }
+            for (const d of this.doorsOf(name)) {
+                if (!d.tiles.size) issues.push(`${name}: a door has no tiles (${doorLabel(d)})`);
+                if (!this.infos.get(d.to.map.toLowerCase())?.config) issues.push(`${name}: ${doorLabel(d)} leads to a map without a map config`);
             }
-            teleports = { version: 1, maps };
+            (doors ??= {})[name] = doorsToOverride(this.doorsOf(name));
+        }
+        let spawns: Record<string, SpawnSpot[]> | undefined;
+        for (const lower of this.spawnDirty) {
+            const name = nameOf(lower);
+            if (!this.infos.get(lower)?.config) { issues.push(`${name}: has no map config to save spawns in`); continue; }
+            for (const sp of this.spawnsOf(name)) {
+                const t = this.npcTypes.get(sp.npc);
+                if (!t) issues.push(`${name}: a spawn has an unknown NPC type (${sp.npc})`);
+                else if (!t.configName) issues.push(`${name}: ${t.name} (type ${sp.npc}) shares its name with other types and can't be saved; pick another`);
+            }
+            (spawns ??= {})[name] = this.spawnsOf(name).map(spawnToSpot);
         }
 
         let walkable: WalkOverrides | undefined;
@@ -1266,7 +1292,7 @@ class MapEditorScene extends Phaser.Scene {
             for (const lower of this.walkDirty) {
                 const f = this.flagsCache.get(lower);
                 if (!f) continue;
-                const name = this.mapNames.get(lower) ?? lower;
+                const name = nameOf(lower);
                 const key = this.walkKey(lower);
                 if (key) delete maps[key];
                 const edit = walkEditOf(f);
@@ -1275,53 +1301,108 @@ class MapEditorScene extends Phaser.Scene {
             walkable = { version: 1, maps };
         }
 
-        let spawns: SpawnOverrides | undefined;
-        if (this.spawnDirty.size) {
-            const maps: SpawnOverrides['maps'] = { ...this.spawnOverrides.maps };
-            for (const lower of this.spawnDirty) {
-                const name = this.mapNames.get(lower) ?? lower;
-                const key = this.spawnKey(lower);
-                if (key) delete maps[key];
-                if (this.spawnSource.get(lower) !== 'json') continue;
-                for (const sp of this.spawnsOf(name)) {
-                    if (!this.npcTypes.has(sp.npc)) issues.push(`${name}: a spawn has an unknown NPC type (${sp.npc})`);
-                }
-                maps[name] = this.spawnsOf(name).map(spawnToSpot);
-            }
-            spawns = { version: 1, maps };
-        }
-
         if (issues.length) {
             status.innerHTML = `<span class="sev-error">Not saved:</span><br>${issues.map(esc).join('<br>')}`;
             return;
         }
         status.textContent = 'Saving…';
         try {
-            const r = await getJSON<{ ok: boolean; overrideError: string; walkError: string; spawnError: string }>(`${API}save`, {
+            const r = await getJSON<SaveResult>(`${API}save`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ teleports, walkable, spawns }),
+                body: JSON.stringify({ doors, spawns, walkable }),
             });
             if (!r.ok) {
-                status.innerHTML = `<span class="sev-error">Saved, but the server can't read it:</span> ${esc(r.overrideError || r.walkError || r.spawnError)}`;
+                const why = [...(r.errors ?? []), r.walkError ?? ''].filter(Boolean);
+                status.innerHTML = `<span class="sev-error">Not saved:</span><br>${why.map(esc).join('<br>')}`;
                 return;
             }
-            const files = [teleports && 'teleports.json', walkable && 'walkable.json', spawns && 'spawns.json'].filter(Boolean).join(', ');
             const n = new Set([...this.dirty, ...this.walkDirty, ...this.spawnDirty]).size;
-            if (teleports) this.overrides = teleports;
             if (walkable) this.walkable = walkable;
-            if (spawns) this.spawnOverrides = spawns;
+            // The saved maps' configs as the server now reads them (exact doors, spawn lines)
+            for (const m of r.maps ?? []) {
+                const lower = m.name.toLowerCase();
+                if (this.dirty.has(lower) || this.spawnDirty.has(lower)) this.infos.set(lower, m);
+            }
             // Saved maps keep their working copies; only the "unsaved" marks go.
             this.dirty.clear();
             this.walkDirty.clear();
             this.spawnDirty.clear();
             this.refreshAll();
-            status.innerHTML = `Saved ${n} map${n === 1 ? '' : 's'} to ${files} (in <code>server/internal/mapdata/</code>).
-                A running game server loads the changes within a second; admins see a notice in game.
+            const files = [
+                ...r.written.map((m) => `maps/${m}.txt`),
+                ...(walkable ? ['walkable.json'] : []),
+            ];
+            status.innerHTML = `Saved ${n} map${n === 1 ? '' : 's'}${files.length ? `: ${files.map((x) => `<code>${esc(x)}</code>`).join(', ')}` : ' (no file changed)'}
+                in <code>server/internal/mapdata/</code>. A running game server loads the changes within a second; admins see a notice in game.
                 ${spawns ? 'Maps with changed spawns get all their spawned NPCs replaced.' : ''}`;
         } catch (err) {
             status.innerHTML = `<span class="sev-error">Save failed:</span> ${esc(err instanceof Error ? err.message : String(err))}`;
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // Map config layers (no-attack areas, points): shown, not edited yet
+    // ---------------------------------------------------------------------
+
+    private drawRules(): void {
+        const g = this.rulesGfx;
+        g.clear();
+        for (const t of this.ruleLabels) t.destroy();
+        this.ruleLabels = [];
+        const s = this.infos.get(this.current.toLowerCase())?.settings;
+        if (!s) return;
+        const label = (text: string, x: number, y: number, colour: number) => {
+            this.ruleLabels.push(this.add.text(x, y, text, {
+                fontFamily: 'monospace', fontSize: '11px', color: css(colour), backgroundColor: '#000000aa', padding: { x: 2, y: 1 },
+            }).setOrigin(0, 0).setDepth(DEPTH.rules + 0.1));
+        };
+        if (this.layers.rules) {
+            for (const [num, x1, y1, x2, y2] of s.noAttack) {
+                g.fillStyle(RULE_COLOUR.noAttack, 0.18);
+                g.fillRect(x1 * T, y1 * T, (x2 - x1 + 1) * T, (y2 - y1 + 1) * T);
+                g.lineStyle(2, RULE_COLOUR.noAttack, 0.9);
+                g.strokeRect(x1 * T, y1 * T, (x2 - x1 + 1) * T, (y2 - y1 + 1) * T);
+                label(`no-attack ${num}`, x1 * T + 2, y1 * T + 2, RULE_COLOUR.noAttack);
+            }
+            for (const [num, x1, y1, x2, y2] of s.npcAvoid) {
+                g.lineStyle(2, RULE_COLOUR.npcAvoid, 0.8);
+                g.strokeRect(x1 * T, y1 * T, (x2 - x1 + 1) * T, (y2 - y1 + 1) * T);
+                label(`no random monsters ${num}`, x1 * T + 2, y2 * T + T - 16, RULE_COLOUR.npcAvoid);
+            }
+        }
+        if (this.layers.points) {
+            const dot = (x: number, y: number, colour: number, r: number) => {
+                g.fillStyle(colour, 0.9);
+                g.fillCircle(x * T + T / 2, y * T + T / 2, r);
+                g.lineStyle(1, 0x000000, 0.8);
+                g.strokeCircle(x * T + T / 2, y * T + T / 2, r);
+            };
+            for (const [num, x, y] of s.waypoints) { dot(x, y, RULE_COLOUR.waypoint, 4); label(`wp ${num}`, x * T + T / 2 + 5, y * T + 4, RULE_COLOUR.waypoint); }
+            for (const [num, x, y] of s.fishPoints) { dot(x, y, RULE_COLOUR.fish, 7); label(`fish ${num}`, x * T + T / 2 + 8, y * T + 4, RULE_COLOUR.fish); }
+            for (const [num, x, y] of s.mineralPoints) { dot(x, y, RULE_COLOUR.mineral, 7); label(`mineral ${num}`, x * T + T / 2 + 8, y * T + 4, RULE_COLOUR.mineral); }
+            for (const [num, x, y] of s.strikePoints) { dot(x, y, RULE_COLOUR.strike, 7); label(`strike ${num}`, x * T + T / 2 + 8, y * T + 4, RULE_COLOUR.strike); }
+            for (const [num, x, y] of s.initialPoints) { dot(x, y, RULE_COLOUR.initial, 8); label(`start ${num}`, x * T + T / 2 + 9, y * T + 4, RULE_COLOUR.initial); }
+        }
+    }
+
+    /** What the map config says about a tile, for the status bar. */
+    private rulesAt(x: number, y: number): string[] {
+        const s = this.infos.get(this.current.toLowerCase())?.settings;
+        if (!s) return [];
+        const out: string[] = [];
+        const inside = (r: number[]) => x >= r[1] && x <= r[3] && y >= r[2] && y <= r[4];
+        for (const r of s.noAttack) if (inside(r)) out.push(`no-attack area ${r[0]}`);
+        for (const r of s.npcAvoid) if (inside(r)) out.push(`no random monsters (${r[0]})`);
+        const at = (list: [number, number, number][], what: string) => {
+            for (const [n, px, py] of list) if (px === x && py === y) out.push(`${what} ${n}`);
+        };
+        at(s.waypoints, 'waypoint');
+        at(s.fishPoints, 'fish point');
+        at(s.mineralPoints, 'mineral point');
+        at(s.strikePoints, 'strike point');
+        at(s.initialPoints, 'start point');
+        return out;
     }
 
     // ---------------------------------------------------------------------
@@ -1453,7 +1534,7 @@ class MapEditorScene extends Phaser.Scene {
 
     private placeSpawn(x: number, y: number): void {
         this.beforeChange(this.current);
-        const sp: Spawn = { id: newSpawnId(), npc: this.placeNpc, count: 0, x, y, radius: 0, area: null, dir: 0, respawn: 0, note: '' };
+        const sp: Spawn = { id: newSpawnId(), npc: this.placeNpc, count: 0, x, y, radius: 0, area: null, dir: 0, respawn: 0, note: '', src: '' };
         this.spawnsOf(this.current).push(sp);
         this.setMode('spawn');
         this.selectSpawn(this.current, sp, false);
@@ -1475,7 +1556,7 @@ class MapEditorScene extends Phaser.Scene {
         const sel = this.selectedSpawn;
         if (!sel) return;
         this.beforeChange(sel.map);
-        const copy: Spawn = { ...sel.spawn, id: newSpawnId(), area: sel.spawn.area ? [...sel.spawn.area] as Spawn['area'] : null };
+        const copy: Spawn = { ...sel.spawn, id: newSpawnId(), src: '', area: sel.spawn.area ? [...sel.spawn.area] as Spawn['area'] : null };
         copy.x += 1;
         if (copy.area) copy.area = [copy.area[0] + 1, copy.area[1], copy.area[2] + 1, copy.area[3]];
         this.spawnsOf(sel.map).push(copy);
@@ -1485,12 +1566,11 @@ class MapEditorScene extends Phaser.Scene {
 
     private revertSpawns(): void {
         const lower = this.current.toLowerCase();
-        if (!confirm(`Throw away ${this.current}'s spawn edits and use the built-in spawns? (Undo can bring them back.)`)) return;
+        if (!confirm(`Throw away ${this.current}'s unsaved spawn changes and go back to its map config? (Undo can bring them back.)`)) return;
         this.beforeChange(this.current);
         this.spawns.set(lower, (this.infos.get(lower)?.spawns ?? []).map(spawnFromSpot));
         this.spawnSource.set(lower, 'builtin');
-        if (this.spawnKey(lower)) this.spawnDirty.add(lower);
-        else this.spawnDirty.delete(lower);
+        this.spawnDirty.delete(lower);
         this.selectedSpawn = null;
         this.refreshSpawnEditor();
         this.drawSpawns();
@@ -1508,7 +1588,7 @@ class MapEditorScene extends Phaser.Scene {
         $('spawnsSummary').textContent = `${spawns.length} spawn${spawns.length === 1 ? '' : 's'}${this.spawnDirty.has(lower) ? ' · unsaved' : ''}`;
         $('spawnInfo').innerHTML = (this.spawnDirty.has(lower)
             ? '<span class="tag dirty">unsaved spawn changes</span> '
-            : this.spawnSource.get(lower) === 'json' ? '<span class="tag json">spawns from spawns.json</span> ' : '<span class="tag">built-in spawns</span> ')
+            : '<span class="tag">from the map config</span> ')
             + `${spawns.length} spawn${spawns.length === 1 ? '' : 's'}, ${spawns.reduce((n, s) => n + spawnCount(s), 0)} NPCs.`;
         list.innerHTML = spawns.length
             ? spawns.map((sp) => {
@@ -1925,6 +2005,7 @@ class MapEditorScene extends Phaser.Scene {
         }
         const arrivals = this.arrivalsHere().filter((a) => a.door.to.x === x && a.door.to.y === y);
         if (arrivals.length) parts.push(`arrival from ${arrivals.map((a) => a.map).join(', ')}`);
+        parts.push(...this.rulesAt(x, y));
         if (this.layers.spawns) {
             const sp = this.spawnAt(x, y, false);
             if (sp) parts.push(`spawn ${spawnLabel(sp, this.npcTypes)}`);

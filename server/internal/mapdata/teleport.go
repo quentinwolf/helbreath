@@ -1,5 +1,7 @@
 package mapdata
 
+import "strings"
+
 // TeleportDest defines a destination for a teleport tile.
 type TeleportDest struct {
 	DestMap  string
@@ -12,10 +14,10 @@ type TeleportDest struct {
 // Multiple source tiles can point to the same destination.
 type TeleportConfig map[string]TeleportDest
 
-// TeleportKey creates a lookup key for a source tile.
+// TeleportKey creates a lookup key for a source tile: "map:x:y", the map in
+// lower case (the original spells some maps two ways, e.g. Cmdhall_1 / CmdHall_1).
 func TeleportKey(mapName string, x, y int) string {
-	// Use a simple format: "map:x:y"
-	return mapName + ":" + itoa(x) + ":" + itoa(y)
+	return strings.ToLower(mapName) + ":" + itoa(x) + ":" + itoa(y)
 }
 
 func itoa(n int) string {

@@ -68,9 +68,8 @@ func TestMapConfigEditsRespawnLive(t *testing.T) {
 	e.maps[gm.Name] = gm
 	e.SetMapEditsDir(dir)
 	e.loadMapEdits()
-	base := DefaultSpawnConfig()
-	e.mapEdits.baseSpawns, e.mapEdits.baseFromConfigs = base, true
-	e.SpawnNPCsWithConfig(e.loadSpawnEdits(base))
+	e.mapEdits.baseFromConfigs = true
+	e.SpawnNPCsWithConfig(e.trackSpawns(DefaultSpawnConfig()))
 
 	shopkeeperAt := func() (x, y, n int) {
 		e.npcs.Range(func(_, v any) bool {

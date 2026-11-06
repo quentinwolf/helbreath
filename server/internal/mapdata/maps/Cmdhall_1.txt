@@ -5,18 +5,21 @@
 [MAP-INFO]
 
 map-location  = aresden
+// Port setting: doors work on exactly the tiles listed (set by the map editor)
+exact-doors = 1
 initial-point = 1  40 52
 
 
 //-Teleportation-Set----SX-----SY-----DestMapName---------DX-----DY----Dir---;
-teleport-loc     =      38     49     aresden             97    161    4
-teleport-loc     =      39     49     aresden             98    161    4
-teleport-loc     =      39     50     aresden             98    161    4
-teleport-loc     =      40     50     aresden             97    161    4
-teleport-loc     =      49     48     aresden             98    161    4
-teleport-loc     =      50     48     aresden             97    161    4
-teleport-loc     =      50     47     aresden             98    161    4
-teleport-loc     =      51     47     aresden             97    161    4
+teleport-loc     =     38     49     aresden             102    162    4
+teleport-loc     =     39     49     aresden             102    162    4
+teleport-loc     =     39     50     aresden             102    162    4
+teleport-loc     =     40     50     aresden             102    162    4
+teleport-loc     =     49     48     aresden             96     163    4
+teleport-loc     =     50     48     aresden             96     163    4
+teleport-loc     =     50     47     aresden             96     163    4
+teleport-loc     =     51     47     aresden             96     163    4
+teleport-loc     =     49     49     aresden             96     163    4
 
 //-WayPoint-Set---------Num-----X-----Y----;
 waypoint          =     1      57     50

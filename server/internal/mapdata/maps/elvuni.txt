@@ -5,19 +5,20 @@
 [MAP-INFO]
 
 map-location  = elvine
+// Port setting: doors work on exactly the tiles listed (set by the map editor)
+exact-doors = 1
 initial-point = 1  173 24
 
 
 //-Teleportation-Set----SX-----SY-----DestMapName---------DX-----DY----Dir---;
-teleport-loc     =      176    20     huntzone1           23     53    1
-teleport-loc     =      176    21     huntzone1           23     53    1
-teleport-loc     =      176    22     huntzone1           23     53    1
-teleport-loc     =      176    23     huntzone1           23     53    1
-teleport-loc     =      176    24     huntzone1           23     53    1
-teleport-loc     =      176    25     huntzone1           23     53    1
-teleport-loc     =      176    26     huntzone1           23     53    1
-teleport-loc     =      176    27     huntzone1           23     53    1
-teleport-loc     =      176    28     huntzone1           23     53    1
+teleport-loc     =     177    21     huntzone1           23     53     1
+teleport-loc     =     177    22     huntzone1           23     53     1
+teleport-loc     =     177    23     huntzone1           23     53     1
+teleport-loc     =     177    24     huntzone1           23     53     1
+teleport-loc     =     177    25     huntzone1           23     53     1
+teleport-loc     =     177    26     huntzone1           23     53     1
+teleport-loc     =     177    27     huntzone1           23     53     1
+teleport-loc     =     177    28     huntzone1           23     53     1
 
 
 //-WayPoint-Set---------Num-----X-----Y----;

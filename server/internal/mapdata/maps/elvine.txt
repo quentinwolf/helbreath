@@ -5,6 +5,8 @@
 [MAP-INFO]
 
 map-location  = elvine
+// Port setting: doors work on exactly the tiles listed (set by the map editor)
+exact-doors = 1
 initial-point = 1  158 57
 initial-point = 2  110 89
 initial-point = 3  170 145
@@ -23,10 +25,6 @@ teleport-loc     =      145    127    cityhall_2          57     43    6
 teleport-loc     =      145    126    cityhall_2          57     43    6
 teleport-loc     =      146    126    cityhall_2          57     43    6
 
-teleport-loc     =      131    77     cath_2              40     40    4
-teleport-loc     =      132    77     cath_2              40     40    4
-teleport-loc     =      132    76     cath_2              40     40    4
-teleport-loc     =      133    76     cath_2              40     40    4
 
 teleport-loc     =      239    107    bsmith_2            34     37    4
 teleport-loc     =      240    107    bsmith_2            34     37    4
@@ -37,15 +35,7 @@ teleport-loc     =      229    112    bsmith_2            43     32    5
 teleport-loc     =      229    113    bsmith_2            43     32    5
 teleport-loc     =      230    113    bsmith_2            43     32    5
 
-teleport-loc     =      197    127    wrhus_2             56     36    4
-teleport-loc     =      198    128    wrhus_2             56     36    4
-teleport-loc     =      199    129    wrhus_2             56     36    4
-teleport-loc     =      203    129    wrhus_2             56     36    4
 
-teleport-loc     =      87     174    elvwrhus            56     36    4
-teleport-loc     =      88     175    elvwrhus            56     36    4
-teleport-loc     =      89     176    elvwrhus            56     36    4
-teleport-loc     =      93     176    elvwrhus            56     36    4
 
 teleport-loc     =      76     141    gldhall_2           54     41    6
 teleport-loc     =      77     140    gldhall_2           54     41    6
@@ -56,11 +46,6 @@ teleport-loc     =      180    77     wzdtwr_2            43     34    4
 teleport-loc     =      181    77     wzdtwr_2            43     34    4
 teleport-loc     =      181    76     wzdtwr_2            43     34    4
 
-teleport-loc     =      225    151    gshop_2             50     39    4
-teleport-loc     =      225    152    gshop_2             50     39    4
-teleport-loc     =      226    152    gshop_2             50     39    4
-teleport-loc     =      229    152    gshop_2             50     39    4
-teleport-loc     =      230    151    gshop_2             50     39    4
 
 teleport-loc     =      21     277    middleland          103    23    5
 teleport-loc     =      22     277    middleland          103    23    5
@@ -107,12 +92,27 @@ teleport-loc     =      277    197    elvfarm              23    149  1
 teleport-loc     =      277    198    elvfarm              23    149  1
 teleport-loc     =      277    199    elvfarm              23    149  1
 
-teleport-loc     =      213    89    CmdHall_2              51    50   1
-teleport-loc     =      214    89    CmdHall_2              51    50   1
-teleport-loc     =      214    88    CmdHall_2              51    50   1
-teleport-loc     =      220    87    CmdHall_2              40    52   1
-teleport-loc     =      221    87    CmdHall_2              40    52   1
-teleport-loc     =      222    87    CmdHall_2              40    52   1
+teleport-loc     =     213    89     Cmdhall_2           52     50     0
+teleport-loc     =     214    89     Cmdhall_2           52     50     0
+teleport-loc     =     214    88     Cmdhall_2           52     50     0
+teleport-loc     =     220    87     Cmdhall_2           40     52     0
+teleport-loc     =     221    87     Cmdhall_2           40     52     0
+teleport-loc     =     222    87     Cmdhall_2           40     52     0
+teleport-loc     =     199    126    wrhus_2             56     36     4
+teleport-loc     =     199    127    wrhus_2             56     36     4
+teleport-loc     =     200    127    wrhus_2             56     36     4
+teleport-loc     =     203    128    wrhus_2             56     36     4
+teleport-loc     =     204    128    wrhus_2             56     36     4
+teleport-loc     =     226    150    gshop_2             50     39     4
+teleport-loc     =     229    150    gshop_2             50     39     4
+teleport-loc     =     227    151    gshop_2             50     39     4
+teleport-loc     =     228    151    gshop_2             50     39     4
+teleport-loc     =     88     174    elvwrhus            56     36     4
+teleport-loc     =     89     174    elvwrhus            56     36     4
+teleport-loc     =     89     175    elvwrhus            56     36     4
+teleport-loc     =     93     175    elvwrhus            56     36     4
+teleport-loc     =     94     175    elvwrhus            56     36     4
+teleport-loc     =     94     176    elvwrhus            56     36     4
 
 //-WayPoint-Set---------Num-----X-----Y----;
 waypoint          =     0        45    55

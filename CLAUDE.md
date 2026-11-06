@@ -37,9 +37,10 @@ cd client && npx tsc --noEmit
 ```
 
 - `-memdb` makes every character admin level 4 (`/setadmin <name> 0` to test as a player).
-- Map configs `server/internal/mapdata/maps/*.txt` and the map editor's files in
-  `server/internal/mapdata/` (`teleports.json`, `walkable.json`, `spawns.json`) reload in the running
+- Map configs `server/internal/mapdata/maps/*.txt` (doors, spawns, town NPCs, map settings) and
+  `server/internal/mapdata/walkable.json` (the editor's walkability patches) reload in the running
   server within a second. A file with an error is reported (log + admins) and the old version kept.
+  The map editor saves into the same `.txt` files, changing only the lines it must.
 - Map editor: http://localhost:3000/map-editor.html ([docs/map-editor.md](docs/map-editor.md)).
 - Working copy is CRLF (autocrlf); `gofmt -l` flags every file, ignore that.
 
@@ -49,10 +50,11 @@ Server (`server/internal/`):
 - `game/engine.go`: main loop (100 ms tick), message handling, NPC tick. `npc_combat.go`,
   `npc_movement.go`: AI. `combat.go`: damage and exp. `admin.go`: GM chat commands.
 - `game/magic_handler.go` + `*_spells.go`, `fields.go`: spells. `town_npcs.go`: shop/City Hall/Gandalf clicks.
-- `game/spawn_config.go` (spawns from the map configs), `spawn_overrides.go` (spawns.json). `map_edits.go`: live reload.
+- `game/spawn_config.go`: spawns from the map configs. `map_edits.go`: live reload.
 - `mapdata/`: .amd loader; **map configs** `maps/<map>.txt` (`mapconfig.go` parser, `mapconfigs.go` loader,
   [docs/map-config.md](docs/map-config.md)): doors, spawns, town NPCs, fixed-day and the other map settings.
-  `teleport.go` / `teleport_overrides.go`: doors + teleports.json. `maptype.go`: safe-zone list (still hard-coded).
+  `mapconfig_edit.go`: the writer the map editor saves through. `teleport.go` / `door_table.go`: doors
+  (exact-doors maps use exactly their tiles). `maptype.go`: safe-zone list (still hard-coded).
 - `items/`, `npc/`, `magic/`: data (`*_gen.go`) and rules. `world/`: time of day, weather.
 - `db/`: Postgres + in-memory store.
 
@@ -64,7 +66,7 @@ Client (`client/src/`):
 
 Import tools (`server/tools/`): `itemimport`, `npcimport`, `magicimport` (also `-ts` for
 `SpellCosts.ts`), `mapimport` (an original MAPDATA/*.txt -> map config; for adding maps),
-`teleportexport` (the map editor's view of the server's doors and spawns). Usage is in each tool's header.
+`teleportexport` (the map editor's view of the maps) and `mapconfigsave` (the editor's saves). Usage is in each tool's header.
 
 ## Pitfalls
 

@@ -5,6 +5,8 @@
 [MAP-INFO]
 
 map-location	=	middleland
+// Port setting: doors work on exactly the tiles listed (set by the map editor)
+exact-doors = 1
 initial-point	=	1	192	228
 level-limit	=	20
 pk-mode = 0
@@ -64,9 +66,9 @@ teleport-loc	=	199	235	middled1x	70	108	1
 teleport-loc	=	200	235	middled1x	70	108	1
 teleport-loc	=	200	234	middled1x	70	108	1
 
-teleport-loc	=	381	284	toh1	145	31	1
-teleport-loc	=	382	284	toh1	145	31	1
-teleport-loc	=	383	284	toh1	145	31	1
+teleport-loc     =     381    284    Toh1                145    31     0
+teleport-loc     =     382    284    Toh1                145    31     0
+teleport-loc     =     383    284    Toh1                145    31     0
 
 teleport-loc     =     452    281     icebound	          264     260   8
 teleport-loc     =     453    281     icebound	          264     260   8

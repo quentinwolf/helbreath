@@ -1,8 +1,9 @@
-// Spawn data for the map editor: the spawns.json format, working copies, and the
+// Spawn data for the map editor: the save format (written into the map's
+// maps/<map>.txt as spot-mob-generator and npc lines), working copies, and the
 // checks behind the Problems list. No Phaser or DOM in here.
 import { Door, Problem, TileFlags, isBlocked, tileKey } from './doors';
 
-/** One spawn as spawns.json (and the Go export) has it. */
+/** One spawn as the Go export has it (and as the editor saves it). */
 export interface SpawnSpot {
     npc: number;
     count?: number;
@@ -14,6 +15,8 @@ export interface SpawnSpot {
     dir?: number;
     respawn?: number;
     note?: string;
+    /** The map config line it came from ("spot:<num>" / "npc:<line>"), so saving rewrites that line. */
+    src?: string;
 }
 
 export interface SpawnOverrides {
@@ -24,6 +27,8 @@ export interface SpawnOverrides {
 export interface NpcTypeInfo {
     id: number;
     name: string;
+    /** The name map configs use for it; missing = it can't be written to one. */
+    configName?: string;
     stationary?: boolean;
     town?: boolean;
 }
@@ -40,6 +45,7 @@ export interface Spawn {
     dir: number;
     respawn: number;
     note: string;
+    src: string;
 }
 
 let nextSpawnId = 1;
@@ -57,6 +63,7 @@ export function spawnFromSpot(s: SpawnSpot): Spawn {
         dir: s.dir ?? 0,
         respawn: s.respawn ?? 0,
         note: s.note ?? '',
+        src: s.src ?? '',
     };
 }
 
@@ -74,6 +81,7 @@ export function spawnToSpot(s: Spawn): SpawnSpot {
     if (s.dir) out.dir = s.dir;
     if (s.respawn) out.respawn = s.respawn;
     if (s.note.trim()) out.note = s.note.trim();
+    if (s.src) out.src = s.src;
     return out;
 }
 
@@ -131,6 +139,8 @@ export function findSpawnProblems(c: SpawnProblemContext): Problem[] {
         const base = { x: at.x, y: at.y, spawnId: s.id };
         if (!c.types.has(s.npc)) {
             out.push({ severity: 'error', text: `${label}: unknown NPC type ${s.npc}`, ...base });
+        } else if (!c.types.get(s.npc)!.configName) {
+            out.push({ severity: 'error', text: `${label}: this NPC type shares its name with others and can't be saved in a map config; pick another`, ...base });
         }
         if (s.area) {
             const [x1, y1, x2, y2] = s.area;

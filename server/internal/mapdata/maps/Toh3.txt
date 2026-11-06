@@ -5,6 +5,8 @@
 [MAP-INFO]
 
 map-location = toh3
+// Port setting: doors work on exactly the tiles listed (set by the map editor)
+exact-doors = 1
 initial-point = 1  93 40
 initial-point = 2  147 32
 level-limit   = 180
@@ -15,9 +17,9 @@ teleport-loc     =      93     38     toh2                101    270   5
 teleport-loc     =      94     38     toh2                101    270   5
 teleport-loc     =      94     39     toh2                101    270   5
 
-teleport-loc     =      147    30     toh2                251    240   5
-teleport-loc     =      148    30     toh2                251    240   5
-teleport-loc     =      148    31     toh2                251    240   5
+teleport-loc     =     147    30     Toh2                251    241    5
+teleport-loc     =     148    30     Toh2                251    241    5
+teleport-loc     =     148    31     Toh2                251    241    5
 
 //-WayPoint-Set---------Num-----X-----Y----;
 waypoint          =     0       81    50

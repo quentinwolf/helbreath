@@ -15,16 +15,16 @@ teleport-loc       =    55     34     elvine              92     177    4
 
 
 //-WayPoint-Set---------Num-----X-----Y----;
-waypoint          =     1      66    38
-waypoint          =     2      66    38
-waypoint          =     3      66    38
-waypoint          =     4      66    38
-waypoint          =     5      66    38
-waypoint          =     6      66    38
-waypoint          =     7      66    38
-waypoint          =     8      66    38
-waypoint          =     9      66    38
-waypoint          =     10     66    38
+waypoint          =     1      66    39
+waypoint          =     2      66    39
+waypoint          =     3      66    39
+waypoint          =     4      66    39
+waypoint          =     5      66    39
+waypoint          =     6      66    39
+waypoint          =     7      66    39
+waypoint          =     8      66    39
+waypoint          =     9      66    39
+waypoint          =     10     66    39
 
 //-NPC-setting--------Name---------------MoveType----WaypointIndex(10)-------NamePrefix-------;
 

@@ -79,10 +79,4 @@ func TestEditFilesFromDisk(t *testing.T) {
 	if EditFileStamp(dir, WalkableFile) == "" {
 		t.Error("file on disk should have a stamp")
 	}
-	if err := os.WriteFile(filepath.Join(dir, TeleportsFile), []byte(`{"version": 2}`), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := BuildTeleportTableFrom(dir); err == nil {
-		t.Error("a broken teleports.json on disk should be reported")
-	}
 }

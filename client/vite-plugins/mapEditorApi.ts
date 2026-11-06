@@ -1,9 +1,12 @@
 // Dev-server API for the map editor (client/map-editor.html, docs/map-editor.md).
 // Only runs under `npm run dev`; nothing here is part of the game build.
 //
-//   GET  /__map-editor/state               server maps + built-in doors, teleports.json, client map files
+//   GET  /__map-editor/state               server maps with their doors, spawns and map config settings,
+//                                          walkable.json, client map files
 //   GET  /__map-editor/server-map?file=X   a .amd file from the server's map folder (assets/MAPDATA)
-//   POST /__map-editor/save                writes teleports.json, walkable.json and spawns.json (server/internal/mapdata)
+//   POST /__map-editor/save                {doors, spawns, walkable}: doors and spawns go into the maps'
+//                                          configs (server/internal/mapdata/maps/<map>.txt, through the Go
+//                                          tool mapconfigsave); walkable.json is written here
 import type { Plugin } from 'vite';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { execFile } from 'node:child_process';
@@ -12,19 +15,6 @@ import path from 'node:path';
 
 const PREFIX = '/__map-editor/';
 
-interface OverrideDoor {
-    name?: string;
-    tiles: [number, number][];
-    to: { map: string; x: number; y: number; dir?: number };
-}
-interface Overrides {
-    version: number;
-    maps: Record<string, OverrideDoor[]>;
-}
-interface SpawnOverrides {
-    version: number;
-    maps: Record<string, Record<string, unknown>[]>;
-}
 interface WalkOverrides {
     version: number;
     maps: Record<string, { block?: [number, number][]; open?: [number, number][] }>;
@@ -37,9 +27,7 @@ export function mapEditorApi(): Plugin {
     const paths = () => ({
         serverMaps: path.join(repo, 'assets', 'MAPDATA'),
         clientMaps: path.join(repo, 'client', 'public', 'assets', 'maps'),
-        overrides: path.join(repo, 'server', 'internal', 'mapdata', 'teleports.json'),
         walkable: path.join(repo, 'server', 'internal', 'mapdata', 'walkable.json'),
-        spawns: path.join(repo, 'server', 'internal', 'mapdata', 'spawns.json'),
     });
 
     const goBinary = (): string => {
@@ -48,7 +36,7 @@ export function mapEditorApi(): Plugin {
         return process.platform === 'win32' && fs.existsSync(windowsDefault) ? windowsDefault : 'go';
     };
 
-    // The Go tool resolves the built-in doors exactly as the server does.
+    // The Go tool reads the map configs and resolves the doors exactly as the server does.
     const runExport = (): Promise<string> =>
         new Promise((resolve, reject) => {
             execFile(goBinary(), ['run', './server/tools/teleportexport', '-maps', paths().serverMaps],
@@ -57,6 +45,18 @@ export function mapEditorApi(): Plugin {
                     if (err) reject(new Error(`teleportexport failed: ${stderr || err.message}`));
                     else resolve(stdout);
                 });
+        });
+
+    // The Go tool writes doors and spawns into the map configs, changing only the lines it must.
+    const runSave = (edits: unknown): Promise<{ written: string[]; errors: string[] }> =>
+        new Promise((resolve, reject) => {
+            const child = execFile(goBinary(), ['run', './server/tools/mapconfigsave'],
+                { cwd: repo, maxBuffer: 16 * 1024 * 1024 },
+                (err, stdout, stderr) => {
+                    if (err) reject(new Error(`mapconfigsave failed: ${stderr || err.message}`));
+                    else resolve(JSON.parse(stdout));
+                });
+            child.stdin?.end(JSON.stringify(edits));
         });
 
     const send = (res: ServerResponse, status: number, body: unknown) => {
@@ -78,11 +78,9 @@ export function mapEditorApi(): Plugin {
         if (refresh || exportCache === null) exportCache = await runExport();
         const exported = JSON.parse(exportCache);
         const p = paths();
-        const overrides = JSON.parse(fs.readFileSync(p.overrides, 'utf8')) as Overrides;
         const walkable = JSON.parse(fs.readFileSync(p.walkable, 'utf8')) as WalkOverrides;
-        const spawns = JSON.parse(fs.readFileSync(p.spawns, 'utf8')) as SpawnOverrides;
         const clientMaps = fs.readdirSync(p.clientMaps).filter((f) => f.toLowerCase().endsWith('.amd'));
-        return { ...exported, overrides, walkable, spawns, clientMaps };
+        return { ...exported, walkable, clientMaps };
     };
 
     return {
@@ -107,24 +105,32 @@ export function mapEditorApi(): Plugin {
                         res.setHeader('Content-Type', 'application/octet-stream');
                         res.end(fs.readFileSync(path.join(dir, match)));
                     } else if (route === 'save' && req.method === 'POST') {
-                        const body = JSON.parse(await readBody(req)) as { teleports?: Overrides; walkable?: WalkOverrides; spawns?: SpawnOverrides };
-                        const valid = (o?: { version: number; maps: unknown }) =>
-                            o?.version === 1 && typeof o.maps === 'object' && o.maps !== null;
-                        if ([body.teleports, body.walkable, body.spawns].some((o) => o && !valid(o))) {
-                            return send(res, 400, { error: 'files need version 1 and maps' });
+                        const body = JSON.parse(await readBody(req)) as {
+                            doors?: Record<string, unknown[]>; spawns?: Record<string, unknown[]>; walkable?: WalkOverrides;
+                        };
+                        if (body.walkable && (body.walkable.version !== 1 || typeof body.walkable.maps !== 'object')) {
+                            return send(res, 400, { error: 'walkable.json needs version 1 and maps' });
                         }
-                        // The game server reloads these files when they change, so write each
-                        // in one step (it never sees half a file).
-                        if (body.teleports) writeWhole(paths().overrides, formatOverrides(body.teleports));
+                        // Map configs first: the Go tool checks every changed file the way the
+                        // server reads it and writes none if one has a problem.
+                        let written: string[] = [];
+                        if (body.doors || body.spawns) {
+                            const r = await runSave({ doors: body.doors ?? {}, spawns: body.spawns ?? {} });
+                            if (r.errors.length) return send(res, 200, { ok: false, errors: r.errors, written: [] });
+                            written = r.written;
+                        }
+                        // The game server reloads walkable.json when it changes, so write it in
+                        // one step (it never sees half a file).
                         if (body.walkable) writeWhole(paths().walkable, formatWalkable(body.walkable));
-                        if (body.spawns) writeWhole(paths().spawns, formatSpawns(body.spawns));
-                        // Re-run the Go tool: it parses the new files the way the server will.
+                        // Re-run the export: the new files as the server will read them.
                         const after = await state(true);
+                        const errors = [...(after.configErrors ?? [])];
                         send(res, 200, {
-                            ok: !after.overrideError && !after.walkError && !after.spawnError,
-                            overrideError: after.overrideError ?? '',
+                            ok: !after.walkError && errors.length === 0,
+                            errors,
+                            written,
                             walkError: after.walkError ?? '',
-                            spawnError: after.spawnError ?? '',
+                            maps: after.maps,
                         });
                     } else {
                         send(res, 404, { error: `unknown map editor route ${route}` });
@@ -149,20 +155,6 @@ function writeWhole(file: string, text: string): void {
     }
 }
 
-/** teleports.json with one door per line, maps sorted, so diffs stay readable. */
-export function formatOverrides(o: Overrides): string {
-    const names = Object.keys(o.maps).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-    if (names.length === 0) return '{\n  "version": 1,\n  "maps": {}\n}\n';
-    const mapBlocks = names.map((name) => {
-        const doors = o.maps[name].map((d) => {
-            const door: OverrideDoor = d.name ? { name: d.name, to: d.to, tiles: d.tiles } : { to: d.to, tiles: d.tiles };
-            return `      ${JSON.stringify(door)}`;
-        });
-        return `    ${JSON.stringify(name)}: [\n${doors.join(',\n')}\n    ]`;
-    });
-    return `{\n  "version": 1,\n  "maps": {\n${mapBlocks.join(',\n')}\n  }\n}\n`;
-}
-
 /** walkable.json with one line per map and list, maps sorted. */
 export function formatWalkable(o: WalkOverrides): string {
     const names = Object.keys(o.maps)
@@ -175,17 +167,6 @@ export function formatWalkable(o: WalkOverrides): string {
             .filter((k) => e[k]?.length)
             .map((k) => `      ${JSON.stringify(k)}: ${JSON.stringify(e[k])}`);
         return `    ${JSON.stringify(name)}: {\n${lists.join(',\n')}\n    }`;
-    });
-    return `{\n  "version": 1,\n  "maps": {\n${blocks.join(',\n')}\n  }\n}\n`;
-}
-
-/** spawns.json with one spawn per line, maps sorted. */
-export function formatSpawns(o: SpawnOverrides): string {
-    const names = Object.keys(o.maps).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-    if (names.length === 0) return '{\n  "version": 1,\n  "maps": {}\n}\n';
-    const blocks = names.map((name) => {
-        const spots = o.maps[name].map((s) => `      ${JSON.stringify(s)}`);
-        return `    ${JSON.stringify(name)}: [${spots.length ? `\n${spots.join(',\n')}\n    ` : ''}]`;
     });
     return `{\n  "version": 1,\n  "maps": {\n${blocks.join(',\n')}\n  }\n}\n`;
 }

@@ -5,6 +5,8 @@
 [MAP-INFO]
 
 map-location  = elvine
+// Port setting: doors work on exactly the tiles listed (set by the map editor)
+exact-doors = 1
 initial-point = 1  51 41
 
 //-Teleportation-Set----SX-----SY-----DestMapName---------DX-----DY----Dir---;
@@ -13,23 +15,26 @@ teleport-loc       =    50     36     elvine              228    153   4
 teleport-loc       =    49     37     elvine              228    153   4
 teleport-loc       =    50     37     elvine              228    153   4
 teleport-loc       =    51     37     elvine              228    153   4
+teleport-loc     =     49     30     gshop_2             60     37     0
+teleport-loc     =     58     34     gshop_2             47     31     0
+teleport-loc     =     59     34     gshop_2             47     31     0
 
 //-WayPoint-Set---------Num-----X-----Y----;
-waypoint          =     1      59    42
-waypoint          =     2      59    42
-waypoint          =     3      59    42
-waypoint          =     4      59    42
-waypoint          =     5      59    42
-waypoint          =     6      59    42
-waypoint          =     7      59    42
-waypoint          =     8      59    42
-waypoint          =     9      59    42
-waypoint          =     10     59    42
+waypoint          =     1      60    43
+waypoint          =     2      60    43
+waypoint          =     3      60    43
+waypoint          =     4      60    43
+waypoint          =     5      60    43
+waypoint          =     6      60    43
+waypoint          =     7      60    43
+waypoint          =     8      60    43
+waypoint          =     9      60    43
+waypoint          =     10     60    43
 
 
 //-NPC-setting--------Name---------------MoveType----WaypointIndex(10)-------NamePrefix-------;
 
-npc               =   ShopKeeper-W       2           1 2 3 4 5 6 7 8 9 10         1
+npc               =   ShopKeeper-W       2   1 2 3 4 5 6 7 8 9 10   1 dir=4
 
 
 

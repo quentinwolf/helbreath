@@ -5,6 +5,8 @@
 [MAP-INFO]
 
 map-location  = elvine
+// Port setting: doors work on exactly the tiles listed (set by the map editor)
+exact-doors = 1
 level-limit   = 20
 
 initial-point = 1  50  122
@@ -40,15 +42,15 @@ teleport-loc     =      174   20      huntzone3           50     166  5
 teleport-loc     =      175   20      huntzone3           50     166  5
 teleport-loc     =      176   20      huntzone3           50     166  5
 
-teleport-loc     =      20    48      elvuni              173    24   5
-teleport-loc     =      20    49      elvuni              173    24   5
-teleport-loc     =      20    50      elvuni              173    24   5
-teleport-loc     =      20    51      elvuni              173    24   5
-teleport-loc     =      20    52      elvuni              173    24   5
-teleport-loc     =      20    53      elvuni              173    24   5
-teleport-loc     =      20    54      elvuni              173    24   5
-teleport-loc     =      20    55      elvuni              173    24   5
-teleport-loc     =      20    56      elvuni              173    24   5
+teleport-loc     =     20     48     elvuni              175    24     5
+teleport-loc     =     20     49     elvuni              175    24     5
+teleport-loc     =     20     50     elvuni              175    24     5
+teleport-loc     =     20     51     elvuni              175    24     5
+teleport-loc     =     20     52     elvuni              175    24     5
+teleport-loc     =     20     53     elvuni              175    24     5
+teleport-loc     =     20     54     elvuni              175    24     5
+teleport-loc     =     20     55     elvuni              175    24     5
+teleport-loc     =     20     56     elvuni              175    24     5
 
 
 

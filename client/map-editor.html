@@ -65,7 +65,7 @@
 <body>
   <aside id="panel">
     <div id="panelTop">
-      <h1>HB Map Editor <span class="note">doors, walkability &amp; spawns</span></h1>
+      <h1>HB Map Editor <span class="note">doors, walkability, spot mob generators &amp; NPCs</span></h1>
       <div id="banner"></div>
       <div class="row">
         <select id="mapSelect" class="grow" title="Map"></select>
@@ -113,12 +113,12 @@
 
 
       <details class="section" data-section="spawns" open>
-        <summary>Spawns &amp; NPCs <span class="sumNote" id="spawnsSummary"></span></summary>
+        <summary>Spot mob generators &amp; NPCs <span class="sumNote" id="spawnsSummary"></span></summary>
         <div class="body">
           <div class="row">
             <button id="spawnBtn" title="Drag NPCs and spawn areas to move them">Edit spawns</button>
             <button id="newSpawnBtn" title="Click on the map to place a new spawn">+ New spawn</button>
-            <button id="spawnRevertBtn" class="danger" title="Throw away this map's spawn edits and use the built-in spawns">Revert spawns</button>
+            <button id="spawnRevertBtn" class="danger" title="Throw away this map's unsaved spawn changes">Discard spawn changes</button>
           </div>
           <div id="spawnInfo" class="note"></div>
           <div id="spawnEditor" class="editorBox"></div>
@@ -148,8 +148,8 @@
 
     <div id="saveBar">
       <div class="row">
-        <button id="saveBtn" class="primary" title="Writes teleports.json, walkable.json and spawns.json (Ctrl+S)">Save</button>
-        <button id="revertBtn" class="danger" title="Throw away this map's door edits and use the built-in doors">Revert doors</button>
+        <button id="saveBtn" class="primary" title="Writes the changed maps' configs (maps/&lt;map&gt;.txt) and walkable.json (Ctrl+S)">Save</button>
+        <button id="revertBtn" class="danger" title="Throw away this map's unsaved door changes">Discard door changes</button>
       </div>
       <div id="saveStatus" class="note"></div>
     </div>

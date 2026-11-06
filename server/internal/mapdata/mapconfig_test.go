@@ -37,7 +37,7 @@ func TestParseMapConfig(t *testing.T) {
 	if len(c.InitialPoints) != 1 || c.InitialPoints[0] != (IndexedPoint{1, 140, 49}) {
 		t.Errorf("initial point: %v", c.InitialPoints)
 	}
-	if len(c.Teleports) != 1 || c.Teleports[0] != (TeleportLoc{54, 33, "aresden", 222, 136, 4}) {
+	if len(c.Teleports) != 1 || c.Teleports[0] != (TeleportLoc{54, 33, "aresden", 222, 136, 4, 10, ""}) {
 		t.Errorf("teleports: %v", c.Teleports)
 	}
 	if len(c.SpotMobs) != 1 || c.SpotMobs[0].Monster != "Slime" || c.SpotMobs[0].Max != 20 || c.SpotMobs[0].Area != (Rect{106, 43, 123, 55}) {

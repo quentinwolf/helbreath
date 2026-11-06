@@ -27,6 +27,11 @@ type SpawnEntry struct {
 	AreaY1 int `json:"area_y1,omitempty"`
 	AreaX2 int `json:"area_x2,omitempty"`
 	AreaY2 int `json:"area_y2,omitempty"`
+
+	// Src is the map config line it came from ("spot:<num>" or "npc:<line>"),
+	// Note that line's comment: for the map editor, not part of what spawns.
+	Src  string `json:"-"`
+	Note string `json:"-"`
 }
 
 // HasArea reports whether the entry spawns into a rectangle.
@@ -129,7 +134,8 @@ func mapSpawns(c *mapdata.MapConfig) []SpawnEntry {
 			count = max(1, s.Max*c.MaxObjects/total)
 		}
 		out = append(out, SpawnEntry{MapName: c.Name, NpcTypeID: id, Count: count,
-			AreaX1: s.Area.X1, AreaY1: s.Area.Y1, AreaX2: s.Area.X2, AreaY2: s.Area.Y2})
+			AreaX1: s.Area.X1, AreaY1: s.Area.Y1, AreaX2: s.Area.X2, AreaY2: s.Area.Y2,
+			Dir: s.Dir, RespawnDelay: s.Respawn, Src: fmt.Sprintf("spot:%d", s.Num), Note: s.Comment})
 	}
 	for _, n := range c.NPCs {
 		id, err := npc.TypeForConfigName(n.Name)
@@ -140,7 +146,8 @@ func mapSpawns(c *mapdata.MapConfig) []SpawnEntry {
 		if err != nil {
 			continue
 		}
-		out = append(out, SpawnEntry{MapName: c.Name, NpcTypeID: id, SpawnX: at.X, SpawnY: at.Y})
+		out = append(out, SpawnEntry{MapName: c.Name, NpcTypeID: id, SpawnX: at.X, SpawnY: at.Y,
+			Dir: n.Dir, RespawnDelay: n.Respawn, Src: fmt.Sprintf("npc:%d", n.Line), Note: n.Comment})
 	}
 	return out
 }

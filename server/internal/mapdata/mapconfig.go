@@ -15,7 +15,8 @@ import (
 // line; the [MAP-INFO] / [END-MAP-INFO] markers are allowed and ignored. The
 // one change from the original is that spot-mob-generator names its monster
 // ("Slime") where the original had a mob code from a table inside its server.
-// See docs/map-config.md for every key.
+// Port additions: the exact-doors setting, and dir=N / respawn=N options at
+// the end of spot-mob-generator and npc lines. See docs/map-config.md.
 
 // MapConfig is one map's config file.
 type MapConfig struct {
@@ -29,6 +30,10 @@ type MapConfig struct {
 	FixedDay        bool // fixed-dayornight-mode: always day, never weather (indoors)
 	MaxObjects      int  // maximum-object: cap on monsters on the map (0 = none)
 	RandomMobs      RandomMobGenerator
+	// ExactDoors (port setting exact-doors = 1, set by the map editor): a door
+	// works on exactly the tiles listed. Without it a tile needs the .amd
+	// teleport flag and borrows a door entry up to 2 tiles away.
+	ExactDoors bool
 
 	Teleports   []TeleportLoc
 	Waypoints   map[int]Point
@@ -84,6 +89,8 @@ type TeleportLoc struct {
 	DestMap      string
 	DestX, DestY int
 	Dir          int
+	Line         int
+	Comment      string // the line's trailing comment
 }
 
 // RandomMobGenerator is random-mob-generator = <on 0/1> <level>.
@@ -101,7 +108,16 @@ type SpotMobGenerator struct {
 	Area    Rect
 	Monster string
 	Max     int
+	SpawnOptions
 	Line    int
+	Comment string
+}
+
+// SpawnOptions are the port's optional name=value values at the end of a
+// spot-mob-generator or npc line.
+type SpawnOptions struct {
+	Dir     int // dir=N: facing on (re)spawn, 1 = north clockwise to 8 (0 = the NPC's default)
+	Respawn int // respawn=N: seconds (0 = the NPC type's own delay)
 }
 
 // NpcSetting is npc = <name> <move type> <waypoint x10> <name prefix>: a town
@@ -110,7 +126,9 @@ type NpcSetting struct {
 	Name      string
 	MoveType  int
 	Waypoints []int
-	Line      int
+	SpawnOptions
+	Line    int
+	Comment string
 }
 
 // MineralGenerator is mineral-generator = <on 0/1> <level>.
@@ -136,6 +154,7 @@ var knownKeys = map[string]bool{
 	"heldeniantower": true, "heldenianmodemap": true, "heldenianwinningzone": true,
 	"heldeniangatedoor": true, "pk-mode": true, "limited-cast": true, "drop-type": true,
 	"not-permanent-map": true, "boss-rate": true, "extra-drop": true,
+	"exact-doors": true, // port setting
 }
 
 // ParseMapConfig reads one config file. name is the map (the file's name
@@ -192,6 +211,13 @@ func (c *MapConfig) apply(l ConfigLine) error {
 		return fmt.Errorf("unknown setting %q", l.Key)
 	}
 	v := l.Values
+	var opts SpawnOptions
+	if l.Key == "spot-mob-generator" || l.Key == "npc" {
+		var err error
+		if v, opts, err = spawnOptions(l.Key, v); err != nil {
+			return err
+		}
+	}
 	ints := func(n int) ([]int, error) {
 		if len(v) < n {
 			return nil, fmt.Errorf("%s needs %d numbers, has %d values", l.Key, n, len(v))
@@ -238,6 +264,11 @@ func (c *MapConfig) apply(l ConfigLine) error {
 		return err
 	case "maximum-object":
 		return one(&c.MaxObjects)
+	case "exact-doors":
+		var on int
+		err := one(&on)
+		c.ExactDoors = on != 0
+		return err
 	case "random-mob-generator":
 		n, err := ints(2)
 		if err != nil {
@@ -252,7 +283,8 @@ func (c *MapConfig) apply(l ConfigLine) error {
 		if err != nil {
 			return err
 		}
-		c.Teleports = append(c.Teleports, TeleportLoc{X: n[0], Y: n[1], DestMap: v[2], DestX: n[2], DestY: n[3], Dir: n[4]})
+		c.Teleports = append(c.Teleports, TeleportLoc{X: n[0], Y: n[1], DestMap: v[2], DestX: n[2], DestY: n[3], Dir: n[4],
+			Line: l.No, Comment: l.Comment})
 	case "waypoint":
 		n, err := ints(3)
 		if err != nil {
@@ -285,7 +317,7 @@ func (c *MapConfig) apply(l ConfigLine) error {
 			}
 		}
 		c.SpotMobs = append(c.SpotMobs, SpotMobGenerator{Num: n[0], Type: n[1],
-			Area: Rect{n[2], n[3], n[4], n[5]}, Monster: v[6], Max: n[6], Line: l.No})
+			Area: Rect{n[2], n[3], n[4], n[5]}, Monster: v[6], Max: n[6], SpawnOptions: opts, Line: l.No, Comment: l.Comment})
 	case "npc":
 		if len(v) < 3 {
 			return fmt.Errorf("npc needs name move-type waypoints... prefix")
@@ -305,7 +337,7 @@ func (c *MapConfig) apply(l ConfigLine) error {
 		if err != nil {
 			return err
 		}
-		c.NPCs = append(c.NPCs, NpcSetting{Name: v[0], MoveType: mt, Waypoints: ns, Line: l.No})
+		c.NPCs = append(c.NPCs, NpcSetting{Name: v[0], MoveType: mt, Waypoints: ns, SpawnOptions: opts, Line: l.No, Comment: l.Comment})
 	case "fish-point":
 		n, err := ints(3)
 		if err != nil {
@@ -331,6 +363,37 @@ func (c *MapConfig) apply(l ConfigLine) error {
 	}
 	// Other known keys are kept in Lines only until their system is ported.
 	return nil
+}
+
+// spawnOptions takes the name=value options off the end of a line's values.
+func spawnOptions(key string, v []string) ([]string, SpawnOptions, error) {
+	var o SpawnOptions
+	for len(v) > 0 {
+		name, val, ok := strings.Cut(v[len(v)-1], "=")
+		if !ok {
+			break
+		}
+		n, err := strconv.Atoi(val)
+		if err != nil {
+			return v, o, fmt.Errorf("%s: option %s=%q isn't a number", key, name, val)
+		}
+		switch strings.ToLower(name) {
+		case "dir":
+			if n < 0 || n > 8 {
+				return v, o, fmt.Errorf("%s: dir=%d (must be 0-8)", key, n)
+			}
+			o.Dir = n
+		case "respawn":
+			if n < 0 {
+				return v, o, fmt.Errorf("%s: respawn=%d can't be negative", key, n)
+			}
+			o.Respawn = n
+		default:
+			return v, o, fmt.Errorf("%s: unknown option %q (dir= or respawn=)", key, name)
+		}
+		v = v[:len(v)-1]
+	}
+	return v, o, nil
 }
 
 func numbers(key string, vals ...string) ([]int, error) {

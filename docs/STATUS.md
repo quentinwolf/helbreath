@@ -21,8 +21,8 @@ Legend: **Done** = works like the original. **Partial** = works, with listed gap
 |---|---|---|
 | Map configs | Done | One `server/internal/mapdata/maps/<map>.txt` per map in the original MAPDATA syntax (monster names instead of mob codes), live reload. See [map-config.md](map-config.md) for which settings are used |
 | Map loading (.amd), collision | Done | Map editor can patch walkability (`walkable.json`, live reload) |
-| Doors / teleports | Done | `teleport-loc` from the map configs; editor overrides in `teleports.json`. Missing destination maps: arefarm, elvfarm, gldhall_1/2, inferniaB (stand-in exits on default and 2ndmiddle). Doors to `-1 -1` use the map centre, not `initial-point` |
-| Monster spawns (`spot-mob-generator`) | Done | From the map configs (type 1 rectangles); editor overrides in `spawns.json`. Type 2 (waypoint routes) not ported |
+| Doors / teleports | Done | `teleport-loc` from the map configs; maps saved by the editor have `exact-doors = 1` (exact tiles). Missing destination maps: arefarm, elvfarm, gldhall_1/2, inferniaB (stand-in exits on default and 2ndmiddle). Doors to `-1 -1` use the map centre, not `initial-point` |
+| Monster spawns (`spot-mob-generator`) | Done | From the map configs (type 1 rectangles; `dir=` / `respawn=` options). Type 2 (waypoint routes) not ported |
 | Town NPCs (`npc` lines) | Partial | Stand on their first waypoint; walking between waypoints not ported |
 | Random mob generator | Missing | Random monsters anywhere on a map by level table (towns: Slime, Giant Ant, Rabbit, Cat, Orc). Hunt zones, dungeons and 2ndmiddle use stand-in spot generators (numbered 101+) |
 | `maximum-object` | Partial | Only scales spot generator counts |
@@ -33,7 +33,7 @@ Legend: **Done** = works like the original. **Partial** = works, with listed gap
 | Day/night | Done | Indoor maps (`fixed-dayornight-mode`) always day |
 | Weather | Partial | Rain is the original's (effect2 drops + splashes). Fog is the port's own. One global roll (the original rolled per map). Rain splashes on HUD not applicable |
 | Snow | Changed | Original snowflakes (effect2 frames 39-50). Random snow only in **December and January** (rain the rest of the year); Icebound snows all year like the original. `/weather snow` works any time |
-| Map editor | Done | `client/map-editor.html`, `docs/map-editor.md`: doors, walkability, spawns |
+| Map editor | Done | `client/map-editor.html`, `docs/map-editor.md`: doors, walkability, spot mob generators and town NPCs, saved into the map configs. Shows no-attack / no-spawn areas, waypoints, fish, mineral, start and strike points (not editable yet) |
 
 ## Characters and combat
 
@@ -104,7 +104,8 @@ Legend: **Done** = works like the original. **Partial** = works, with listed gap
 ## Planned next (map config unification)
 
 1. ~~One plain-text config per map~~ Done: [map-config.md](map-config.md).
-2. Map editor reads/writes those files ("Spot Mob Generators", no-attack areas, fish/mineral points, waypoints).
+2. ~~Map editor reads/writes those files~~ Done (doors, spawns; other settings shown). Next for it:
+   editing no-attack areas and fish / mineral / start points.
 3. No-attack areas enforced, random mob generator (then drop the 101+ stand-ins), map rules
    (`initial-point` for `-1 -1` doors and respawn, level limits, recall, safe zones from the files).
 4. Fishing and mining at their points.

@@ -5,56 +5,6 @@ import (
 	"testing"
 )
 
-func TestEmbeddedTeleportOverridesParse(t *testing.T) {
-	if _, err := LoadTeleportOverrides(); err != nil {
-		t.Fatalf("teleports.json (written by the map editor) is broken: %v", err)
-	}
-}
-
-func TestParseTeleportOverridesRejectsBadFiles(t *testing.T) {
-	for name, data := range map[string]string{
-		"not json":    `{`,
-		"no version":  `{"maps": {}}`,
-		"no dest map": `{"version": 1, "maps": {"elvine": [{"tiles": [[1,2]], "to": {"x": 1, "y": 1}}]}}`,
-		"no tiles":    `{"version": 1, "maps": {"elvine": [{"tiles": [], "to": {"map": "gshop_2", "x": 1, "y": 1}}]}}`,
-		"bad dir":     `{"version": 1, "maps": {"elvine": [{"tiles": [[1,2]], "to": {"map": "gshop_2", "x": 1, "y": 1, "dir": 9}}]}}`,
-		"shared tile": `{"version": 1, "maps": {"elvine": [{"tiles": [[1,2]], "to": {"map": "a", "x": 1, "y": 1}}, {"tiles": [[1,2]], "to": {"map": "b", "x": 1, "y": 1}}]}}`,
-		"map twice":   `{"version": 1, "maps": {"elvine": [], "Elvine": []}}`,
-	} {
-		if _, err := ParseTeleportOverrides([]byte(data)); err == nil {
-			t.Errorf("%s: should be rejected", name)
-		}
-	}
-}
-
-func TestTeleportOverridesReplaceAMapsDoors(t *testing.T) {
-	tc := TeleportConfig{
-		TeleportKey("elvine", 10, 10):  {DestMap: "gshop_2", DestX: 1, DestY: 1},
-		TeleportKey("elvine", 20, 20):  {DestMap: "wrhus_2", DestX: 2, DestY: 2},
-		TeleportKey("aresden", 10, 10): {DestMap: "gshop_1", DestX: 3, DestY: 3},
-	}
-	o, err := ParseTeleportOverrides([]byte(`{"version": 1, "maps": {"Elvine": [
-		{"name": "Shop", "tiles": [[11,10],[12,10]], "to": {"map": "gshop_2", "x": 40, "y": 30, "dir": 1}}]}}`))
-	if err != nil {
-		t.Fatal(err)
-	}
-	exact := o.Apply(tc)
-	if !exact["elvine"] || exact["aresden"] {
-		t.Errorf("only elvine should be exact, got %v", exact)
-	}
-	for _, key := range []string{TeleportKey("elvine", 10, 10), TeleportKey("elvine", 20, 20)} {
-		if _, ok := tc[key]; ok {
-			t.Errorf("built-in door %s should be gone", key)
-		}
-	}
-	if d := tc[TeleportKey("elvine", 12, 10)]; d.DestMap != "gshop_2" || d.DestX != 40 || d.Dir != 1 {
-		t.Errorf("new door tile: got %+v", d)
-	}
-	if _, ok := tc[TeleportKey("aresden", 10, 10)]; !ok {
-		t.Error("other maps keep their built-in doors")
-	}
-}
-
 func TestDoorAt(t *testing.T) {
 	gm := &GameMap{Name: "elvine", Width: 30, Height: 30, Tiles: make([][]Tile, 30)}
 	for y := range gm.Tiles {
@@ -85,10 +35,7 @@ func TestDoorAt(t *testing.T) {
 }
 
 func TestBuildTeleportTable(t *testing.T) {
-	table, err := BuildTeleportTable()
-	if err != nil {
-		t.Fatal(err)
-	}
+	table := BuildTeleportTable()
 	if len(table.Dests) == 0 {
 		t.Fatal("no doors")
 	}
@@ -96,5 +43,25 @@ func TestBuildTeleportTable(t *testing.T) {
 		if m != strings.ToLower(m) {
 			t.Errorf("exact map names should be lower case, got %q", m)
 		}
+	}
+}
+
+func TestExactDoorsFromConfig(t *testing.T) {
+	a, _ := ParseMapConfig("A", []byte(`exact-doors = 1
+teleport-loc = 5 5 B 1 1 0
+teleport-loc = 6 6 nowhere 1 1 0`))
+	b, _ := ParseMapConfig("B", []byte(`teleport-loc = 2 2 a 9 9 3`))
+	table := TeleportTableFrom(MapConfigs{"a": a, "b": b})
+	if !table.Exact["a"] || table.Exact["b"] {
+		t.Errorf("exact maps: %v", table.Exact)
+	}
+	if d, ok := table.DoorAt(nil, "a", 5, 5); !ok || d.DestMap != "B" {
+		t.Errorf("exact map A 5,5 -> B, got %+v %v", d, ok)
+	}
+	if _, ok := table.DoorAt(nil, "A", 6, 6); ok {
+		t.Error("a door to a map without a config is left out")
+	}
+	if d := table.Dests[TeleportKey("B", 2, 2)]; d.DestMap != "A" || d.Dir != 3 {
+		t.Errorf("destination names are spelled as the map's file: %+v", d)
 	}
 }
