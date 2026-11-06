@@ -13,7 +13,7 @@ import (
 
 // Heal spells, by their Magic.cfg type: Heal, Great Heal, Critical Heal and
 // Regenerate (HPUP_SPOT) heal whoever is on the clicked tile; Mass Heal does
-// that and heals everyone in the box around it; the Staminar Recovery spells
+// that and heals everyone in the box around it; the Stamina Recovery spells
 // (SPUP_AREA) do the same for stamina; Cure removes poison.
 const (
 	cfgTypeHealSpot  = 2

@@ -23,6 +23,7 @@ import { castLightningArrow, castMagicFlash, castMagicMissile, castMassLightning
 import { MassChillWind } from './MassChillWind';
 import { MassFireStrike } from './MassFireStrike';
 import { MeteorStrike } from './MeteorStrike';
+import { castCelebratingLight, castTremor } from './OriginalSpells';
 import { PoisonCloud } from './PoisonCloud';
 import { SpikeField } from './SpikeField';
 import { TripleEnergyBolt } from './TripleEnergyBolt';
@@ -95,7 +96,7 @@ const SPELLS: Record<number, SpellEntry> = {
     56: { sprites: ['effect', 'effect2'], play: (c) => castMassLightningArrow(c.ctx.scene, c.ox, c.oy, c.tx, c.ty, c.common) },
     // Recall, Summon Creature, Invisibility: the original's effect 112 on the target
     ...Object.fromEntries([12, 31, 32].map((id) => [id, { sprites: ['effect7'], play: (c: Cast) => castTransportFlash(c.ctx.scene, c.tx, c.ty, c.common) }])),
-    // Create Food, Staminar Drain, Protection From Arrow, Hold Person, Possession, Poison,
+    // Create Food, Stamina Drain, Protection From Arrow, Hold Person, Possession, Poison,
     // Protection From Magic, Detect Invisibility, Paralyze, Cure, Confuse Language, Polymorph,
     // Mass Poison, Confusion, Mass Confusion: effect 102 on the target
     ...Object.fromEntries([2, 11, 24, 25, 26, 27, 33, 34, 35, 36, 42, 52, 53, 62, 71].map((id) =>
@@ -116,6 +117,13 @@ const SPELLS: Record<number, SpellEntry> = {
     51: { sprites: ['effect'], play: (c) => new LightningBolt(c.ctx.scene, 0, 0, c.tx, c.ty, boltConfig(c, { originPixelX: c.ox, originPixelY: c.oy - 50 })) },
     74: { sprites: ['effect'], play: (c) => new LightningStrike(c.ctx.scene, c.ox, c.oy, c.tx, c.ty, { strikeInterval: 120, strikes: 5, radius: 1, lightningBoltConfig: boltConfig(c) }) },
     93: { sprites: ['effect'], play: (c) => new LightningStrike(c.ctx.scene, c.ox, c.oy, c.tx, c.ty, { strikeInterval: 50, strikes: 12, radius: 3, lightningBoltConfig: boltConfig(c) }) },
+    // Tremor and Celebrating Light (ported from the original client: effects 138 and 114)
+    22: { sprites: ['effect2'], play: (c) => castTremor(c.ctx.scene, c.tx, c.ty, c.common) },
+    14: { sprites: ['effect6'], play: (c) => castCelebratingLight(c.ctx.scene, c.tx, c.ty, c.common) },
+    // Forge's Breath and Ultimate Elixir are Equilibrium spells with no surviving client
+    // art: stand-ins in their element (fire 5x5, earth 11x11)
+    6: { sprites: ['effect', 'effect3'], play: (c) => new MassFireStrike(c.ctx.scene, c.ox, c.oy, c.tileX, c.tileY, { projectileSpeed: 1500, ...c.common }) },
+    5: { sprites: ['effect4'], play: (c) => new PoisonCloud(c.ctx.scene, c.tx, c.ty, { duration: 1500, radius: 3 }) },
     // Divine Revenge: an Equilibrium spell whose client art isn't in any source we have;
     // stand-in: bolts from the sky over its 5x5 area
     78: { sprites: ['effect'], play: (c) => new LightningStrike(c.ctx.scene, c.ox, c.oy, c.tx, c.ty, { strikeInterval: 70, strikes: 8, radius: 2, lightningBoltConfig: boltConfig(c) }) },

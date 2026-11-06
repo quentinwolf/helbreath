@@ -101,7 +101,7 @@ func init() {
 	}
 
 	SpellDB[11] = &SpellDef{
-		ID: 11, Name: "Staminar Drain", CfgType: 5,
+		ID: 11, Name: "Stamina Drain", CfgType: 5,
 		Type: SpellTypeDebuff, Element: ElementNone,
 		ManaCost: 14, CastTime: 500, Cooldown: 500, Range: MaxCastRange,
 		Duration: 30,
@@ -148,7 +148,7 @@ func init() {
 	}
 
 	SpellDB[15] = &SpellDef{
-		ID: 15, Name: "Staminar Recovery", CfgType: 7,
+		ID: 15, Name: "Stamina Recovery", CfgType: 7,
 		Type: SpellTypeHeal, Element: ElementNone,
 		ManaCost: 20, CastTime: 500, Cooldown: 500, Range: 0,
 		HealAmount: 38,
@@ -218,7 +218,7 @@ func init() {
 	}
 
 	SpellDB[23] = &SpellDef{
-		ID: 23, Name: "Great Staminar Recovery", CfgType: 7,
+		ID: 23, Name: "Great Stamina Recovery", CfgType: 7,
 		Type: SpellTypeHeal, Element: ElementNone,
 		ManaCost: 45, CastTime: 900, Cooldown: 900, Range: 0,
 		HealAmount: 73,
@@ -274,7 +274,7 @@ func init() {
 	}
 
 	SpellDB[28] = &SpellDef{
-		ID: 28, Name: "Mass Staminar Recov", CfgType: 7,
+		ID: 28, Name: "Mass Stamina Recovery", CfgType: 7,
 		Type: SpellTypeHeal, Element: ElementNone,
 		ManaCost: 65, CastTime: 1100, Cooldown: 1100, Range: 0,
 		HealAmount: 146,

@@ -5165,6 +5165,9 @@ export class GameScene extends Phaser.Scene {
     // Buffs / debuffs
     13: { file: 'effect8', sheet: 5 },   // Defense Shield (EffectSpr[62])
     44: { file: 'effect8', sheet: 6 },   // Great Defense Shield (EffectSpr[63])
+    17: { file: 'effect8', sheet: 5 },   // Wood Mantle (Equilibrium; as Defense Shield)
+    58: { file: 'effect8', sheet: 1 },   // Bloody Mantle (Equilibrium; as Berserk)
+    87: { file: 'effect8', sheet: 6 },   // Magic Mantle (Equilibrium; as Great Defense Shield)
     50: { file: 'effect8', sheet: 1 },   // Berserk (EffectSpr[58])
     65: { file: 'effect7', sheet: 8 },   // Absolute Magic Protection (EffectSpr[53])
     76: { file: 'effect11', sheet: 1 },  // Cancellation (EffectSpr[90])

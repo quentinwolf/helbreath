@@ -6,15 +6,19 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"github.com/juanrossi/hbonline/server/internal/items"
 	"github.com/juanrossi/hbonline/server/internal/magic"
 	"github.com/juanrossi/hbonline/server/internal/mapdata"
+	"github.com/juanrossi/hbonline/server/internal/network"
 	"github.com/juanrossi/hbonline/server/internal/npc"
 	"github.com/juanrossi/hbonline/server/internal/player"
+	pb "github.com/juanrossi/hbonline/server/pkg/proto"
 )
 
 // Debuffs ported from the original server's magic handler (Server.cpp
-// ~17850-19830): Staminar Drain, Hold Person / Paralyze, Possession, and the
+// ~17850-19830): Stamina Drain, Hold Person / Paralyze, Possession, and the
 // Confuse family (Confuse Language, Confusion, Illusion, Illusion Movement,
 // and their Mass versions).
 
@@ -37,7 +41,7 @@ var statusOnText = map[string]string{
 func (e *Engine) castOriginalDebuff(p *player.Player, spell *magic.SpellDef, tx, ty int, targetID int32, gm *mapdata.GameMap) bool {
 	switch spell.CfgType {
 	case magic.CfgTypeSPDownArea:
-		e.castStaminarDrain(p, spell, tx, ty, gm)
+		e.castStaminaDrain(p, spell, tx, ty, gm)
 	case magic.CfgTypeHold:
 		e.castHold(p, spell, targetID, gm)
 	case magic.CfgTypePossession:
@@ -71,10 +75,10 @@ func (e *Engine) playersInBox(p *player.Player, tx, ty, ax, ay int) []*player.Pl
 	return out
 }
 
-// castStaminarDrain: SPDice off whoever is on the clicked tile, AreaSPDice off
+// castStaminaDrain: SPDice off whoever is on the clicked tile, AreaSPDice off
 // everyone in the box (the clicked player too), each after a resistance roll.
 // Monsters have no stamina (the original did nothing to NPCs either).
-func (e *Engine) castStaminarDrain(p *player.Player, spell *magic.SpellDef, tx, ty int, gm *mapdata.GameMap) {
+func (e *Engine) castStaminaDrain(p *player.Player, spell *magic.SpellDef, tx, ty int, gm *mapdata.GameMap) {
 	e.broadcastSpellEffect(p, spell, 0, p.X, p.Y, tx, ty, 0, 0, false, gm)
 	for _, t := range e.playersInBox(p, tx, ty, spell.AreaX, spell.AreaY) {
 		drain := 0
@@ -217,16 +221,47 @@ func (e *Engine) sendStatusOff(t *player.Player, eff magic.EffectType) {
 	}
 }
 
-// confusedSpeech is Confuse Language on chat: two times in three, a confused
-// speaker's words come out as gibberish (the original swapped each pair of
-// letters for random Korean syllables). GMs are never scrambled.
-func confusedSpeech(p *player.Player, msg string) string {
-	if p.AdminLevel > 0 || p.Effects == nil || p.Effects.GetEffectLevel(magic.EffectConfusion) != magic.ConfuseLanguage {
-		return msg
+// Confuse Language (Zac's design; the original scrambled the confused player's
+// own speech instead): a confused player can't understand anyone else. Every
+// chat line reaching them comes out as gibberish, except their own, a GM's,
+// and another confused player's (they share the confused tongue).
+
+// confusedLanguage reports whether a player is under Confuse Language.
+func confusedLanguage(p *player.Player) bool {
+	return p != nil && p.Effects != nil && p.Effects.GetEffectLevel(magic.EffectConfusion) == magic.ConfuseLanguage
+}
+
+// sendChat delivers one chat line to one reader, scrambled if they can't understand it.
+func (e *Engine) sendChat(to *player.Player, msg *pb.ChatMessage, data []byte) {
+	var sender *player.Player
+	if to.ObjectID != msg.ObjectId && confusedLanguage(to) {
+		if sender = e.getPlayerByID(msg.ObjectId); sender == nil {
+			sender = e.getPlayerByName(msg.SenderName)
+		}
 	}
-	if rand.Intn(3) == 1 {
-		return msg
+	if understands(to, sender, msg.ObjectId) {
+		to.Send(data)
+		return
 	}
+	garbled := proto.Clone(msg).(*pb.ChatMessage)
+	garbled.Message = gibberish(msg.Message)
+	if out, err := network.Encode(network.MsgChatMessage, garbled); err == nil {
+		to.Send(out)
+	}
+}
+
+// understands reports whether a reader can read a line from sender (nil = unknown,
+// e.g. a system line).
+func understands(reader, sender *player.Player, senderID int32) bool {
+	if reader.ObjectID == senderID || !confusedLanguage(reader) {
+		return true
+	}
+	return sender != nil && (sender.AdminLevel > 0 || confusedLanguage(sender))
+}
+
+// gibberish turns a line into random Korean syllables, one per two letters,
+// keeping the word breaks (as the original's Confuse Language did).
+func gibberish(msg string) string {
 	syllables := []rune("갑뷁쀍똠휶괎솗맗")
 	var b strings.Builder
 	for _, word := range strings.Fields(msg) {

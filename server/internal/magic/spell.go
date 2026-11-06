@@ -91,7 +91,7 @@ type SpellDef struct {
 	HealDice     Dice
 	AreaHealDice Dice
 
-	// Staminar Drain (CfgType 5): SPDice off the clicked player's stamina,
+	// Stamina Drain (CfgType 5): SPDice off the clicked player's stamina,
 	// AreaSPDice off everyone in the AreaX/AreaY box (them included).
 	SPDice     Dice
 	AreaSPDice Dice
@@ -112,7 +112,10 @@ type SpellDef struct {
 // Original DEF_MAGICTYPE_* numbers (SpellDef.CfgType) for the debuffs handled
 // in game/debuff_spells.go.
 const (
-	CfgTypeSPDownArea = 5  // Staminar Drain
+	CfgTypeSPDownArea = 5  // Stamina Drain, Celebrating Light (no dice: fireworks only)
+	CfgTypeCreate     = 10 // Create Food: a Meat or Baguette on the clicked tile
+	CfgTypeProtect    = 11 // Defense Shield, Protection From Arrow/Magic...: on the clicked player
+	CfgTypeBerserk    = 18 // Berserk (and Peace, which the original server did nothing with)
 	CfgTypeHold       = 12 // Hold Person, Paralyze
 	CfgTypePossession = 15 // Possession: pick up an item from afar
 	CfgTypeConfuse    = 16 // Confuse Language, Confusion, Illusion, Illusion Movement (+ Mass)
@@ -195,7 +198,7 @@ func (s *SpellDef) DealsDamage() bool {
 // empty ground.
 func (s *SpellDef) NeedsTarget() bool {
 	if s.Type == SpellTypeDebuff {
-		// Area debuffs (Confusion, Staminar Drain...) can land on empty ground,
+		// Area debuffs (Confusion, Stamina Drain...) can land on empty ground,
 		// and Possession is cast on an item lying on an empty tile.
 		return s.AreaX == 0 && s.AreaY == 0 && s.CfgType != CfgTypePossession
 	}

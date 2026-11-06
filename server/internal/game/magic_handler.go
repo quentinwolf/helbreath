@@ -85,10 +85,12 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 		e.castDamageSpell(p, spellDef, tx, ty, gm)
 	case spellDef.Type == magic.SpellTypeHeal:
 		e.handleHealSpell(p, spellDef, tx, ty, targetID, gm)
+	case spellDef.CfgType == magic.CfgTypeCreate:
+		e.castCreateFood(p, spellDef, tx, ty, gm)
 	case spellDef.Type == magic.SpellTypeBuff:
-		e.handleBuffSpell(p, spellDef, gm)
+		e.castBuff(p, spellDef, targetID, gm)
 	case e.castOriginalDebuff(p, spellDef, tx, ty, targetID, gm):
-		// Staminar Drain, Hold Person, Paralyze, Possession, Confuse/Illusion family
+		// Stamina Drain, Hold Person, Paralyze, Possession, Confuse/Illusion family
 	case spellDef.Type == magic.SpellTypeDebuff:
 		e.handleDebuffSpell(p, spellDef, targetID, gm)
 	}
@@ -173,6 +175,11 @@ func (e *Engine) validateSpellTarget(p *player.Player, spell *magic.SpellDef, tx
 	}
 	if spell.IsField() && fieldFreeMaps[p.MapName] {
 		return "You cannot cast that in town"
+	}
+	if spell.CfgType == magic.CfgTypeCreate {
+		if gm, ok := e.maps[p.MapName]; ok {
+			return createFoodCheck(p, gm, tx, ty)
+		}
 	}
 	if spell.Type == magic.SpellTypeHeal {
 		return e.healSpellCheck(p, spell, tx, ty, targetID)
@@ -412,15 +419,20 @@ func (e *Engine) spellHurtPlayer(p, t *player.Player, dmg int, freeze time.Durat
 	}
 }
 
-// handleBuffSpell handles self-buff spells.
+// handleBuffSpell casts a buff on yourself.
 func (e *Engine) handleBuffSpell(p *player.Player, spell *magic.SpellDef, gm *mapdata.GameMap) {
+	e.buffPlayer(p, p, spell, gm)
+}
+
+// buffPlayer puts caster's buff on p (the caster or whoever they clicked).
+func (e *Engine) buffPlayer(caster, p *player.Player, spell *magic.SpellDef, gm *mapdata.GameMap) {
 	// Apply status effect if the spell has one
 	if spell.ApplyEffect != 0 && p.Effects != nil {
 		eff := &magic.ActiveEffect{
 			Type:      spell.ApplyEffect,
 			Level:     spell.EffectLevel,
 			ExpiresAt: time.Now().Add(time.Duration(spell.Duration) * time.Second),
-			SourceID:  p.ObjectID,
+			SourceID:  caster.ObjectID,
 		}
 		if spell.TickDamage > 0 {
 			eff.TickDamage = spell.TickDamage
@@ -450,7 +462,12 @@ func (e *Engine) handleBuffSpell(p *player.Player, spell *magic.SpellDef, gm *ma
 		log.Printf("Player %s gained buff %s (+%d to stat %d for %ds)", p.Name, spell.Name, spell.BuffAmount, spell.BuffStat, spell.Duration)
 	}
 
-	e.broadcastSpellEffect(p, spell, p.ObjectID, p.X, p.Y, p.X, p.Y, 0, 0, false, gm)
+	if p != caster {
+		e.sendNotification(p, caster.Name+" cast "+spell.Name+" on you", 0)
+	} else if (spell.ApplyEffect != 0 || spell.BuffStat > 0) && spell.Duration > 0 {
+		e.sendNotification(p, fmt.Sprintf("%s is on you for %d seconds", spell.Name, spell.Duration), 0)
+	}
+	e.broadcastSpellEffect(caster, spell, p.ObjectID, caster.X, caster.Y, p.X, p.Y, 0, 0, false, gm)
 }
 
 // handleDebuffSpell handles debuff spells on targets.

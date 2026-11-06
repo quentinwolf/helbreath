@@ -16,8 +16,9 @@ export const LIGHTNING_SOUND = fx(40);
 export const CHILL_WIND_DROPLET_SOUND = fx(45);
 export const EFFECT_ICE_SHARD = fx(46);
 export const EFFECT_SNOW_IMPACT = fx(47);
+export const FIREWORK_SOUND = fx(42); // Celebrating Light
 
 /** Cache key -> file name under assets/sounds. */
 export const EFFECT_SOUND_FILES: Record<string, string> = Object.fromEntries(
-    [1, 2, 3, 4, 5, 12, 40, 45, 46, 47].map((n) => [fx(n), `E${n}.mp3`]),
+    [1, 2, 3, 4, 5, 12, 40, 42, 45, 46, 47].map((n) => [fx(n), `E${n}.mp3`]),
 );

@@ -601,6 +601,10 @@ func cleanName(name string) string {
 	n = strings.ReplaceAll(n, "'", "'")
 	// Fix "s " at beginning from possessives like "Forge s Breath" -> "Forge's Breath"
 	n = strings.ReplaceAll(n, " s ", "'s ")
+	// The original's "Staminar" (Staminar Drain, Staminar Recovery) is a mistranslation
+	n = strings.ReplaceAll(n, "Staminar", "Stamina")
+	n = strings.ReplaceAll(n, "Recov", "Recovery")
+	n = strings.ReplaceAll(n, "Recoveryery", "Recovery")
 	return n
 }
 

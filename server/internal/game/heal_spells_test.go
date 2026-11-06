@@ -80,7 +80,7 @@ func TestStaminaRecoveryRestoresStamina(t *testing.T) {
 	hp := p.HP
 	e.handleHealSpell(p, magic.GetSpellDef(15), p.X, p.Y, 0, gm)
 	if p.SP <= 0 || p.HP != hp {
-		t.Errorf("Staminar Recovery should restore SP only (SP %d, HP %d -> %d)", p.SP, hp, p.HP)
+		t.Errorf("Stamina Recovery should restore SP only (SP %d, HP %d -> %d)", p.SP, hp, p.HP)
 	}
 }
 

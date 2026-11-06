@@ -34,7 +34,7 @@ func TestSpellDBHasExactlyTheOriginalSpells(t *testing.T) {
 func TestOriginalHelbreathSpells(t *testing.T) {
 	for id, name := range map[int]string{
 		0: "Magic Missile", 1: "Heal", 2: "Create Food", 10: "Energy Bolt",
-		11: "Staminar Drain", 12: "Recall", 13: "Defense Shield", 20: "Fire Ball",
+		11: "Stamina Drain", 12: "Recall", 13: "Defense Shield", 20: "Fire Ball",
 		21: "Great Heal", 22: "Tremor", 25: "Hold Person", 27: "Poison",
 		30: "Fire Strike", 31: "Summon Creature", 32: "Invisibility", 36: "Cure",
 		37: "Lightning Arrow", 40: "Fire Wall", 41: "Fire Field", 43: "Lightning",

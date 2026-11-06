@@ -10,22 +10,22 @@ export const SPELL_GOLD_COST: Record<number, number> = {
   5: -1, // Ultimate Elixir
   6: -1, // Forge's Breath
   10: 200, // Energy Bolt
-  11: 200, // Staminar Drain
+  11: 200, // Stamina Drain
   12: 120, // Recall
   13: 200, // Defense Shield
   14: 400, // Celebrating Light
-  15: 300, // Staminar Recovery
+  15: 300, // Stamina Recovery
   16: -1, // Peace
   17: -1, // Wood Mantle
   20: 500, // Fire Ball
   21: 500, // Great Heal
   22: -1, // Tremor
-  23: 800, // Great Staminar Recovery
+  23: 800, // Great Stamina Recovery
   24: 300, // Protection From Arrow
   25: 500, // Hold Person
   26: 500, // Possession
   27: 700, // Poison
-  28: -1, // Mass Staminar Recov
+  28: -1, // Mass Stamina Recovery
   30: 1000, // Fire Strike
   31: 1000, // Summon Creature
   32: 800, // Invisibility
