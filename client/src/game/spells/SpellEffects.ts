@@ -95,10 +95,10 @@ const SPELLS: Record<number, SpellEntry> = {
     56: { sprites: ['effect', 'effect2'], play: (c) => castMassLightningArrow(c.ctx.scene, c.ox, c.oy, c.tx, c.ty, c.common) },
     // Recall, Summon Creature, Invisibility: the original's effect 112 on the target
     ...Object.fromEntries([12, 31, 32].map((id) => [id, { sprites: ['effect7'], play: (c: Cast) => castTransportFlash(c.ctx.scene, c.tx, c.ty, c.common) }])),
-    // Create Food, Protection From Arrow, Hold Person, Possession, Poison, Protection From
-    // Magic, Detect Invisibility, Paralyze, Cure, Confuse Language, Polymorph, Mass Poison,
-    // Confusion, Mass Confusion: effect 102 on the target
-    ...Object.fromEntries([2, 24, 25, 26, 27, 33, 34, 35, 36, 42, 52, 53, 62, 71].map((id) =>
+    // Create Food, Staminar Drain, Protection From Arrow, Hold Person, Possession, Poison,
+    // Protection From Magic, Detect Invisibility, Paralyze, Cure, Confuse Language, Polymorph,
+    // Mass Poison, Confusion, Mass Confusion: effect 102 on the target
+    ...Object.fromEntries([2, 11, 24, 25, 26, 27, 33, 34, 35, 36, 42, 52, 53, 62, 71].map((id) =>
         [id, { sprites: ['effect'], play: (c: Cast) => castMagicFlash(c.ctx.scene, c.tx, c.ty, c.common) }])),
     // Energy Bolt / Triple Energy Bolt
     10: { sprites: ['effect'], play: (c) => new EnergyBolt(c.ctx.scene, c.ox, c.oy, c.tileX, c.tileY, { projectileSpeed: 1500, ...c.common }) },
@@ -116,6 +116,9 @@ const SPELLS: Record<number, SpellEntry> = {
     51: { sprites: ['effect'], play: (c) => new LightningBolt(c.ctx.scene, 0, 0, c.tx, c.ty, boltConfig(c, { originPixelX: c.ox, originPixelY: c.oy - 50 })) },
     74: { sprites: ['effect'], play: (c) => new LightningStrike(c.ctx.scene, c.ox, c.oy, c.tx, c.ty, { strikeInterval: 120, strikes: 5, radius: 1, lightningBoltConfig: boltConfig(c) }) },
     93: { sprites: ['effect'], play: (c) => new LightningStrike(c.ctx.scene, c.ox, c.oy, c.tx, c.ty, { strikeInterval: 50, strikes: 12, radius: 3, lightningBoltConfig: boltConfig(c) }) },
+    // Divine Revenge: an Equilibrium spell whose client art isn't in any source we have;
+    // stand-in: bolts from the sky over its 5x5 area
+    78: { sprites: ['effect'], play: (c) => new LightningStrike(c.ctx.scene, c.ox, c.oy, c.tx, c.ty, { strikeInterval: 70, strikes: 8, radius: 2, lightningBoltConfig: boltConfig(c) }) },
     // Chill Wind / Mass Chill Wind
     45: { sprites: ['effect4', 'effect'], play: (c) => new ChillWind(c.ctx.scene, c.tx, c.ty, { dropDistance: 200, projectileSpeed: 1500, ...c.common }) },
     63: { sprites: ['effect5'], play: (c) => new MassChillWind(c.ctx.scene, c.tx, c.ty, { dropDistance: 200, projectileSpeed: 1500, ...c.common }) },
