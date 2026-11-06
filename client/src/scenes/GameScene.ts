@@ -737,7 +737,8 @@ export class GameScene extends Phaser.Scene {
     this.soundManager.setStackLimit('fx-', 2);
     this.musicManager = new MusicManager(this);
     this.soundTracker = new SoundTracker(this.soundManager);
-    this.weatherManager = new WeatherManager(this, this.soundManager);
+    this.weatherManager = new WeatherManager(this, this.soundManager,
+      (names, fn) => this.whenSpritesLoaded(names, fn));
     this.weatherReady = true;
     this.applyWorldState(); // anything that arrived while the scene was starting
 
@@ -1063,12 +1064,11 @@ export class GameScene extends Phaser.Scene {
       this.charPanel.hide();
     }
 
-    // Clear weather indoors, restore outdoors
-    if (GameScene.INDOOR_MAPS.has(mapName)) {
-      this.weatherManager.setWeather('clear');
-    } else if (this.weather && this.weather !== 'clear') {
-      this.weatherManager.setWeather(this.weather as any);
-    }
+    // Weather is per map (indoor maps and dungeons never have any): stop the old
+    // map's weather; the server sends the new map's time and weather right after
+    // the teleport.
+    this.weather = 'clear';
+    this.weatherManager.setWeather('clear');
 
     // Show loading overlay
     const overlay = this.add.rectangle(

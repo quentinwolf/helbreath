@@ -4,9 +4,11 @@ import (
 	"log"
 
 	"github.com/juanrossi/hbonline/server/internal/items"
+	"github.com/juanrossi/hbonline/server/internal/mapdata"
 	"github.com/juanrossi/hbonline/server/internal/network"
 	"github.com/juanrossi/hbonline/server/internal/player"
 	"github.com/juanrossi/hbonline/server/internal/quest"
+	"github.com/juanrossi/hbonline/server/internal/world"
 	pb "github.com/juanrossi/hbonline/server/pkg/proto"
 )
 
@@ -178,23 +180,34 @@ func (e *Engine) sendQuestList(p *player.Player) {
 
 func (e *Engine) sendWorldState(p *player.Player) {
 	state := &pb.Notification{
-		Message: "time:" + worldPhaseToString(e.worldState.GetTimeOfDay()) + "|weather:" + weatherToString(e.worldState.GetWeather()),
+		Message: e.worldStateFor(p.MapName),
 		Type:    10, // world state type
 	}
 	data, _ := network.Encode(network.MsgNotification, state)
 	p.Send(data)
 }
 
-func (e *Engine) broadcastWorldState() {
-	msg := "time:" + worldPhaseToString(e.worldState.GetTimeOfDay()) + "|weather:" + weatherToString(e.worldState.GetWeather())
-	state := &pb.Notification{
-		Message: msg,
-		Type:    10,
+// worldStateFor is the time/weather message for a player on mapName. Indoor
+// maps and dungeons are always "day" and "clear", like the original server
+// (fixed-dayornight-mode).
+func (e *Engine) worldStateFor(mapName string) string {
+	if mapdata.IsFixedDayMap(mapName) {
+		return "time:day|weather:clear"
 	}
-	data, _ := network.Encode(network.MsgNotification, state)
+	return "time:" + worldPhaseToString(e.worldState.GetTimeOfDay()) + "|weather:" + weatherToString(e.worldState.GetWeather())
+}
+
+// weatherOn is the weather on a map: always clear on indoor maps.
+func (e *Engine) weatherOn(mapName string) int {
+	if mapdata.IsFixedDayMap(mapName) {
+		return world.WeatherClear
+	}
+	return e.CurrentWeather
+}
+
+func (e *Engine) broadcastWorldState() {
 	e.players.Range(func(key, value any) bool {
-		p := value.(*player.Player)
-		p.Send(data)
+		e.sendWorldState(value.(*player.Player))
 		return true
 	})
 }

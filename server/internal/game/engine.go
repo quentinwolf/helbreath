@@ -561,7 +561,7 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 
 	// Calculate effective aggro range (fog reduces it by 30%)
 	aggroRange := n.Type.AggroRange
-	if e.CurrentWeather == world.WeatherFog {
+	if e.weatherOn(gm.Name) == world.WeatherFog {
 		aggroRange = aggroRange * 7 / 10
 		if aggroRange < 1 && n.Type.AggroRange > 0 {
 			aggroRange = 1
@@ -1835,6 +1835,7 @@ func (e *Engine) handleTeleport(p *player.Player, srcMap *mapdata.GameMap, dest 
 	// Send inventory, spells, etc.
 	e.sendInventoryUpdate(p)
 	e.sendNearbyGroundItems(p, destMap)
+	e.sendWorldState(p) // indoor maps have no weather
 
 	// Broadcast appear to players on new map
 	appear := p.ToPlayerAppear()

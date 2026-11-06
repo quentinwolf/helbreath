@@ -72,8 +72,8 @@ export const PLAYER_HEALTH_BAR_HEIGHT = 3;
 // Weather
 // ---------------------------------------------------------------------------
 
-/** Maximum particles for weather effects. */
-export const WEATHER_MAX_PARTICLES = 200;
+// Raindrops at "heavy" (original DEF_MAXWHETHEROBJECTS); light = 1/5, medium = 1/2.
+export const WEATHER_MAX_PARTICLES = 600;
 
 // ---------------------------------------------------------------------------
 // Debug

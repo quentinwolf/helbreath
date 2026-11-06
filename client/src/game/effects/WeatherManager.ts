@@ -2,6 +2,10 @@ import type { Scene } from 'phaser';
 import { WEATHER_MAX_PARTICLES } from '../../Config';
 import type { SoundManager } from '../../audio/SoundManager';
 import { RAIN_SOUND } from '../../audio/SoundFileNames';
+import { OriginalRain, RAIN_SPRITE } from './OriginalRain';
+
+/** Loads deferred .spr files, then runs fn (GameScene.whenSpritesLoaded). */
+export type SpriteLoader = (spriteNames: string[], fn: () => void) => void;
 
 export type WeatherType = 'clear' | 'rain' | 'fog';
 export type WeatherIntensity = 'light' | 'medium' | 'heavy';
@@ -27,14 +31,21 @@ export class WeatherManager {
     private fogPulseTime: number = 0;
     private ambientOverlay: Phaser.GameObjects.Rectangle | null = null;
     private rainSoundId: number = -1;
+    private rain: OriginalRain | null = null;
+    private readonly loadSprites: SpriteLoader | null;
+    /** Bumped on every weather change, so a sprite load that finishes late is ignored. */
+    private weatherGeneration = 0;
 
-    constructor(scene: Scene, soundManager: SoundManager | null) {
+    constructor(scene: Scene, soundManager: SoundManager | null, loadSprites: SpriteLoader | null = null) {
         this.scene = scene;
         this.soundManager = soundManager;
+        this.loadSprites = loadSprites;
     }
 
     setWeather(weather: WeatherType, intensity: WeatherIntensity = 'medium'): void {
-        // Always clear first, even if setting the same weather
+        // The server re-sends the world state every 30 s: keep the weather that's
+        // already running instead of restarting it (that wiped every raindrop).
+        if (weather === this.currentWeather && intensity === this.currentIntensity) return;
         this.clearWeather();
 
         this.currentWeather = weather;
@@ -65,6 +76,7 @@ export class WeatherManager {
     getWeather(): WeatherType { return this.currentWeather; }
 
     update(delta: number): void {
+        this.rain?.update(delta);
         if (this.fogOverlay && this.currentWeather === 'fog') {
             this.fogPulseTime += delta * 0.001;
             this.fogOverlay.setAlpha(0.35 + Math.sin(this.fogPulseTime * 0.5) * 0.08);
@@ -83,6 +95,9 @@ export class WeatherManager {
         }
         this.weatherObjects = [];
         this.fogOverlay = null;
+        this.rain?.destroy();
+        this.rain = null;
+        this.weatherGeneration++;
         this.stopRainSound();
         this.currentWeather = 'clear';
     }
@@ -92,30 +107,15 @@ export class WeatherManager {
         return obj;
     }
 
-    private startRain(maxParticles: number): void {
-        if (!this.scene.textures.exists('rain-particle')) {
-            const gfx = this.scene.add.graphics();
-            gfx.fillStyle(0xaaccff, 0.6);
-            gfx.fillRect(0, 0, 2, 8);
-            gfx.generateTexture('rain-particle', 2, 8);
-            gfx.destroy();
-        }
-
+    private startRain(dropCount: number): void {
         const cam = this.scene.cameras.main;
-
-        const emitter = this.track(this.scene.add.particles(0, 0, 'rain-particle', {
-            x: { min: -100, max: cam.width + 100 },
-            y: -20,
-            lifespan: 600,
-            speedY: { min: 400, max: 600 },
-            speedX: { min: -60, max: -20 },
-            quantity: Math.ceil(maxParticles / 30),
-            alpha: { start: 0.7, end: 0.15 },
-            scaleY: { min: 0.8, max: 1.4 },
-            blendMode: 'ADD',
-        }));
-        emitter.setScrollFactor(0);
-        emitter.setDepth(999990);
+        const generation = this.weatherGeneration;
+        const begin = () => {
+            if (generation !== this.weatherGeneration || this.currentWeather !== 'rain') return;
+            this.rain = new OriginalRain(this.scene, dropCount);
+        };
+        if (this.loadSprites) this.loadSprites([RAIN_SPRITE], begin);
+        else begin();
 
         // Slight darkening during rain
         const overlay = this.track(this.scene.add.rectangle(
