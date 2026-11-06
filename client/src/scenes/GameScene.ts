@@ -517,7 +517,7 @@ export class GameScene extends Phaser.Scene {
   private spellBarDiv: HTMLDivElement | null = null;
   private skillsOpen = false;
   private skillsDiv: HTMLDivElement | null = null;
-  private selectedSpellId = 0;
+  private selectedSpellId = -1; // -1 = none (Magic Missile is spell 0)
   private spellCatalog: SpellCatalogEntry[] = [];
   private spellBookTab: 'known' | 'learn' = 'known';
   private adminLevel = 0;
@@ -751,7 +751,7 @@ export class GameScene extends Phaser.Scene {
       if (pointer.rightButtonDown()) {
         if (GameScene.INDOOR_MAPS.has(this.currentMapName)) return;
         // Right-click: cast spell at range if one is selected, otherwise melee
-        if (this.selectedSpellId > 0) {
+        if (this.selectedSpellId >= 0) {
           this.handleSpellCast(pointer);
         } else {
           this.handleAttackClick(pointer);
@@ -5292,7 +5292,7 @@ export class GameScene extends Phaser.Scene {
         }
         html += '</div>';
       }
-      if (this.selectedSpellId > 0) {
+      if (this.selectedSpellId >= 0) {
         html += `<div style="margin-top:8px; font-size:11px; color:#aaa;">Right-click to cast. Click spell again to deselect.</div>`;
       }
     } else {
@@ -5385,7 +5385,7 @@ export class GameScene extends Phaser.Scene {
       btn.addEventListener('click', () => {
         const spellId = parseInt((btn as HTMLElement).dataset.spell || '0');
         if (this.selectedSpellId === spellId) {
-          this.selectedSpellId = 0; // Deselect
+          this.selectedSpellId = -1; // Deselect
         } else {
           this.selectedSpellId = spellId;
           this.preloadSpellEffect(spellId);
@@ -5405,7 +5405,7 @@ export class GameScene extends Phaser.Scene {
 
   /** Handle left-click when a spell is selected — cast at clicked tile or NPC. */
   private handleSpellCast(pointer: Phaser.Input.Pointer): void {
-    if (this.selectedSpellId <= 0) return;
+    if (this.selectedSpellId < 0) return;
 
     const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
     const clickTileX = Math.floor(worldPoint.x / TILE_SIZE);
@@ -5466,7 +5466,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private castSpellOnTarget(targetId: number, targetX?: number, targetY?: number): void {
-    if (this.selectedSpellId <= 0) return;
+    if (this.selectedSpellId < 0) return;
 
     this.msgHandler.sendMessage(Proto.MSG_SPELL_CAST_REQUEST, {
       spellId: this.selectedSpellId,
