@@ -109,28 +109,6 @@ func TestBuildTeleportConfig(t *testing.T) {
 	}
 }
 
-func TestBuildNoAttackAreas(t *testing.T) {
-	areas := BuildNoAttackAreas()
-
-	if len(areas) == 0 {
-		t.Fatal("No-attack areas should not be empty")
-	}
-
-	// Test aresden has no-attack areas
-	aresAreas, ok := areas["aresden"]
-	if !ok {
-		t.Fatal("Should have no-attack areas for aresden")
-	}
-	if len(aresAreas) != 7 {
-		t.Errorf("Expected 7 no-attack areas for aresden, got %d", len(aresAreas))
-	}
-
-	// The original files mark "none" with a -10 rectangle: left out
-	if got := areas["bsmith_1"]; len(got) != 0 {
-		t.Errorf("bsmith_1 has no real no-attack area, got %v", got)
-	}
-}
-
 func TestItoa(t *testing.T) {
 	tests := []struct {
 		input    int

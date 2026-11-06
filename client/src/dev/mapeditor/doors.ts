@@ -37,6 +37,8 @@ export interface MapSettings {
     fishPoints: [number, number, number][];
     mineralPoints: [number, number, number][];
     strikePoints: [number, number, number][];
+    /** The whole map is a no-attack area (no-attack-area = n -10 -10 -10 -10, as in buildings). */
+    noAttackAll?: boolean;
     /** num, x1, y1, x2, y2 */
     noAttack: [number, number, number, number, number][];
     npcAvoid: [number, number, number, number, number][];

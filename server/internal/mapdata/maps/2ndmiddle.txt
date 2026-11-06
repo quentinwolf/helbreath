@@ -95,12 +95,6 @@ spot-mob-generator	= 12  1    126 193 150 210	Zombie	10
 //strategic-point = 3   0    1     275  286
 
 
-// Port stand-ins for the random-mob-generator (not ported yet), so the map
-// isn't empty: the port's old hand-written spawns (centre +- radius).
-// Remove these once the random mob generator is in.
-spot-mob-generator = 101  1  105 105 155 155  Orc  8
-spot-mob-generator = 102  1  120 90 160 130  Troll  4
-spot-mob-generator = 103  1  100 80 140 120  Ogre  3
 
 // Port stand-ins: the exits above lead to the farms (elvfarm, arefarm), which the
 // port doesn't have yet, so until it does they go to Middleland. Delete these

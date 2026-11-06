@@ -68,6 +68,7 @@ type settings struct {
 	Waypoints       [][3]int `json:"waypoints"`
 	FishPoints      [][3]int `json:"fishPoints"`
 	MineralPoints   [][3]int `json:"mineralPoints"`
+	NoAttackAll     bool     `json:"noAttackAll,omitempty"` // the whole map (a -10 rectangle)
 	NoAttack        [][5]int `json:"noAttack"`     // num, x1, y1, x2, y2
 	NpcAvoid        [][5]int `json:"npcAvoid"`     // where random monsters don't spawn
 	StrikePoints    [][3]int `json:"strikePoints"` // num, x, y
@@ -249,8 +250,12 @@ func settingsOf(c *mapdata.MapConfig) settings {
 	for _, p := range c.MineralPts {
 		s.MineralPoints = append(s.MineralPoints, [3]int{p.Num, p.X, p.Y})
 	}
+	s.NoAttackAll = c.WholeMapNoAttack()
+	for _, r := range c.NpcAvoid {
+		s.NpcAvoid = append(s.NpcAvoid, [5]int{r.Num, r.X1, r.Y1, r.X2, r.Y2})
+	}
 	for _, r := range c.NoAttack {
-		if r.X2 >= 0 && r.Y2 >= 0 {
+		if r.Y1 > 0 { // the original's rule (CMap::_SetupNoAttackArea)
 			s.NoAttack = append(s.NoAttack, [5]int{r.Num, r.X1, r.Y1, r.X2, r.Y2})
 		}
 	}
@@ -258,8 +263,6 @@ func settingsOf(c *mapdata.MapConfig) settings {
 	for _, l := range c.Lines {
 		n := numbersOf(l.Values)
 		switch {
-		case l.Key == "npc-avoidrect" && len(n) >= 5:
-			s.NpcAvoid = append(s.NpcAvoid, [5]int{n[0], n[1], n[2], n[3], n[4]})
 		case l.Key == "strike-point" && len(n) >= 3:
 			s.StrikePoints = append(s.StrikePoints, [3]int{n[0], n[1], n[2]})
 		}

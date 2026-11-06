@@ -204,11 +204,5 @@ mineral-point = 38 453 54
 mineral-point = 39 454 55
 mineral-point = 40 455 56
 
-// Port stand-ins for the random-mob-generator (not ported yet), so the map
-// isn't empty: the port's old hand-written spawns (centre +- radius).
-// Remove these once the random mob generator is in.
-spot-mob-generator = 101  1  120 120 280 280  Troll  10
-spot-mob-generator = 102  1  240 240 360 360  Ogre  5
-spot-mob-generator = 103  1  210 210 290 290  Stalker  3
 
 [END-MAP-INFO]

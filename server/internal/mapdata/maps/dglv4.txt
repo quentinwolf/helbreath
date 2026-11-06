@@ -47,11 +47,5 @@ spot-mob-generator	= 1  1    180 180 220 220    Skeleton  50
 spot-mob-generator	= 2  1    70 70 310 310      Demon  50
 spot-mob-generator	= 3  1    170 170 230 230    Demon  5
 
-// Port stand-ins for the random-mob-generator (not ported yet), so the map
-// isn't empty: the port's old hand-written spawns (centre +- radius).
-// Remove these once the random mob generator is in.
-spot-mob-generator = 101  1  150 150 250 250  Liche  5
-spot-mob-generator = 102  1  170 170 230 230  Demon  2
-spot-mob-generator = 103  1  210 210 290 290  Ettin  3
 
 [END-MAP-INFO]

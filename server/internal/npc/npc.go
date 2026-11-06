@@ -346,6 +346,7 @@ type NPC struct {
 	DeathTime      time.Time // when the NPC died (for respawn timer)
 	RespawnDelay   time.Duration
 	Summoned       bool // spawned by /summon: removed on death instead of respawning
+	RandomMob      bool // made by the random mob generator: removed on death (it makes more)
 	// FromSpawnList: created from the spawn list (respawned when the map editor
 	// changes its map's spawns). SpawnDir: the way it faces on (re)spawn, 0 = default.
 	FromSpawnList bool

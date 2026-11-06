@@ -48,11 +48,5 @@ fixed-dayornight-mode = 1
 maximum-object		= 700
 random-mob-generator	= 1 9
 
-// Port stand-ins for the random-mob-generator (not ported yet), so the map
-// isn't empty: the port's old hand-written spawns (centre +- radius).
-// Remove these once the random mob generator is in.
-spot-mob-generator = 101  1  150 100 250 200  Ogre  8
-spot-mob-generator = 102  1  160 160 240 240  Liche  4
-spot-mob-generator = 103  1  120 120 180 180  Stalker  3
 
 [END-MAP-INFO]

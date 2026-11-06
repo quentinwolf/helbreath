@@ -173,6 +173,11 @@ func (e *Engine) validateSpellTarget(p *player.Player, spell *magic.SpellDef, tx
 	if reason := statusSpellCheck(p, spell, tx, ty); reason != "" {
 		return reason
 	}
+	// Original PlayerMagicHandler: no attack magic from a no-attack area
+	offensive := spell.DealsDamage() || spell.IsField() || spell.Type == magic.SpellTypeDebuff
+	if offensive && mapdata.IsNoAttackTile(p.MapName, p.X, p.Y) {
+		return "You can't cast attack spells in a safe area"
+	}
 	if spell.IsField() && fieldFreeMaps[p.MapName] {
 		return "You cannot cast that in town"
 	}
@@ -386,6 +391,9 @@ func (e *Engine) spellHurtNPC(p *player.Player, n *npc.NPC, dmg int, gm *mapdata
 // spellHurtPlayer deals a caster's spell damage to a player. freeze > 0 also
 // freezes them (Ice spells) for that long at the given level.
 func (e *Engine) spellHurtPlayer(p, t *player.Player, dmg int, freeze time.Duration, freezeLevel int, gm *mapdata.GameMap) {
+	if mapdata.IsNoAttackTile(t.MapName, t.X, t.Y) {
+		return // original Effect_Damage_Spot: players in a no-attack area aren't hurt
+	}
 	t.HP -= dmg
 	killed := t.HP <= 0
 	if killed {

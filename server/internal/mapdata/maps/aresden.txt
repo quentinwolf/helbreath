@@ -118,6 +118,9 @@ teleport-loc     =     127    166    gshop_1             50     39     4
 teleport-loc     =     128    166    gshop_1             50     39     4
 teleport-loc     =     129    166    gshop_1             50     39     4
 teleport-loc     =     130    166    gshop_1             50     39     4
+teleport-loc     =     184    91     cath_1              40     40     0
+teleport-loc     =     185    91     cath_1              40     40     0
+teleport-loc     =     184    92     cath_1              40     40     0
 
 
 //-WayPoint-Set---------Num-----X-----Y----;

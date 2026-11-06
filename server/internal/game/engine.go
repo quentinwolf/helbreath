@@ -76,6 +76,7 @@ type Engine struct {
 	events        *world.EventState
 	lastWorldSync time.Time
 	lastWeatherCheck time.Time
+	lastRandomMobs   time.Time
 
 	// Current world phase and weather cached for combat checks
 	CurrentWorldPhase int // world.DayPhase, DuskPhase, NightPhase, DawnPhase
@@ -236,6 +237,12 @@ func (e *Engine) processTick() {
 		e.broadcastWorldState()
 	}
 
+	// Random mob generator (original MobGenerator, every 600 ms)
+	if now.Sub(e.lastRandomMobs) >= randomMobInterval {
+		e.lastRandomMobs = now
+		e.runRandomMobs()
+	}
+
 	// Weather check every 60 seconds
 	if now.Sub(e.lastWeatherCheck) >= 60*time.Second {
 		e.lastWeatherCheck = now
@@ -273,8 +280,21 @@ func (e *Engine) processTick() {
 		}
 		return true
 	})
+	// Maps nobody is on sleep: their NPCs only die and respawn, they don't think
+	// or wander until a player arrives (the random mob generator fills maps with
+	// thousands of monsters, most of them far from anyone).
+	occupied := map[string]bool{}
+	e.players.Range(func(_, value any) bool {
+		if p, ok := value.(*player.Player); ok {
+			occupied[p.MapName] = true
+		}
+		return true
+	})
 	e.npcs.Range(func(key, value any) bool {
 		n := value.(*npc.NPC)
+		if n.State != npc.StateDead && !occupied[n.MapName] {
+			return true
+		}
 		e.processNPCTick(n, now)
 		return true
 	})
@@ -520,8 +540,9 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 
 	// Handle respawn
 	if n.State == npc.StateDead {
-		// Summoned NPCs are one-offs. Clients already got NpcDisappear on death.
-		if n.Summoned {
+		// Summoned and random-generator NPCs are one-offs. Clients already got
+		// NpcDisappear on death; the generator makes new random ones.
+		if n.Summoned || n.RandomMob {
 			e.npcs.Delete(n.ObjectID)
 			return
 		}
@@ -688,7 +709,8 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 			return
 		}
 		target := e.getPlayerByID(n.TargetID)
-		if target == nil {
+		if target == nil || mapdata.IsNoAttackTile(target.MapName, target.X, target.Y) {
+			// gone, or safe in a no-attack area (original iCalculateAttackEffect)
 			n.TargetID = 0
 			n.State = npc.StateIdle
 			return
@@ -821,6 +843,10 @@ func (e *Engine) findNearestPlayer(n *npc.NPC, gm *mapdata.GameMap) (*player.Pla
 
 		// God mode immunity: skip players in god mode (invulnerable admins)
 		if p.GodMode {
+			continue
+		}
+		// Players in a no-attack area can't be hurt, so monsters don't go for them
+		if mapdata.IsNoAttackTile(p.MapName, p.X, p.Y) {
 			continue
 		}
 

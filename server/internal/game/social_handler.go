@@ -6,6 +6,7 @@ import (
 
 	"github.com/juanrossi/hbonline/server/internal/guild"
 	"github.com/juanrossi/hbonline/server/internal/items"
+	"github.com/juanrossi/hbonline/server/internal/mapdata"
 	"github.com/juanrossi/hbonline/server/internal/network"
 	"github.com/juanrossi/hbonline/server/internal/party"
 	"github.com/juanrossi/hbonline/server/internal/player"
@@ -769,6 +770,11 @@ func (e *Engine) sendTradeComplete(p *player.Player, success bool, msg string) {
 
 // handlePvPAttack processes a player-vs-player attack.
 func (e *Engine) handlePvPAttack(attacker, target *player.Player) {
+	// Original iCalculateAttackEffect: no melee from or into a no-attack area
+	if mapdata.IsNoAttackTile(attacker.MapName, attacker.X, attacker.Y) || mapdata.IsNoAttackTile(target.MapName, target.X, target.Y) {
+		e.sendNotification(attacker, "You can't attack in a safe area", 2)
+		return
+	}
 	if sameSide(attacker, target) {
 		e.sendNotification(attacker, sameSideMessage(attacker), 2)
 		return

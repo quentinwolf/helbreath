@@ -43,27 +43,6 @@ func itoa(n int) string {
 	return string(buf[i:])
 }
 
-// NoAttackArea defines a rectangular no-attack zone on a map.
-type NoAttackArea struct {
-	X1, Y1, X2, Y2 int
-}
-
-// BuildNoAttackAreas is every map's no-attack-area rectangles from its config
-// file, by lower-case map name. The original files mark "none" with a
-// rectangle of -10s; those are left out. (Not enforced yet: docs/STATUS.md.)
-func BuildNoAttackAreas() map[string][]NoAttackArea {
-	areas := map[string][]NoAttackArea{}
-	for lower, c := range Configs() {
-		for _, r := range c.NoAttack {
-			if r.X2 < 0 || r.Y2 < 0 {
-				continue
-			}
-			areas[lower] = append(areas[lower], NoAttackArea{r.X1, r.Y1, r.X2, r.Y2})
-		}
-	}
-	return areas
-}
-
 // BuildTeleportConfig is the doors (teleport-loc) of every map config in use.
 func BuildTeleportConfig() TeleportConfig {
 	return DoorsFrom(Configs())

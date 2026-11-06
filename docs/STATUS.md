@@ -24,9 +24,9 @@ Legend: **Done** = works like the original. **Partial** = works, with listed gap
 | Doors / teleports | Done | `teleport-loc` from the map configs; maps saved by the editor have `exact-doors = 1` (exact tiles). Missing destination maps: arefarm, elvfarm, gldhall_1/2, inferniaB (stand-in exits on default and 2ndmiddle). Doors to `-1 -1` use the map centre, not `initial-point` |
 | Monster spawns (`spot-mob-generator`) | Done | From the map configs (type 1 rectangles; `dir=` / `respawn=` options). Type 2 (waypoint routes) not ported |
 | Town NPCs (`npc` lines) | Partial | Stand on their first waypoint; walking between waypoints not ported |
-| Random mob generator | Missing | Random monsters anywhere on a map by level table (towns: Slime, Giant Ant, Rabbit, Cat, Orc). Hunt zones, dungeons and 2ndmiddle use stand-in spot generators (numbered 101+) |
-| `maximum-object` | Partial | Only scales spot generator counts |
-| No-attack areas | Missing | Read from the map configs, not enforced yet |
+| Random mob generator | Done | `random-mob-generator = 1 <level>`: every 600 ms a map below `maximum-object - 30` monsters gets a leader rolled from the original level table (`random_mobs_table.go`, ported from HGServer) plus 0-4 of the same, anywhere walkable outside `npc-avoidrect`; removed on death, the generator refills. `RandomMobDensity` (difficulty.go) scales the cap. Not ported: special abilities, berserk (level 21 Unicorns), followers following their leader, crusade/special-event spawns. Maps nobody is on don't run NPC AI (performance) |
+| `maximum-object` | Done | Caps spot generators and the random mob generator |
+| No-attack areas | Done | As HGServer: no attack spells cast from inside; players inside take no melee or spell damage (players or monsters) and monsters don't target them. `-10` rectangle = whole map (town buildings). Not ported: debuffs (Hold, Confuse...) landing on players inside |
 | Map rules (`initial-point`, `level-limit`, `pk-mode`, `limited-cast`, `drop-type`, `RecallImpossible`, `CitizenLimit`) | Missing | In the map configs, not read yet. Safe zones are a hard-coded list (`maptype.go`) |
 | Waypoints, `npc-avoidrect` | Missing | |
 | Fish points, mineral points | Missing | Fishing/Mining skills succeed anywhere and give a fixed item |
@@ -106,7 +106,19 @@ Legend: **Done** = works like the original. **Partial** = works, with listed gap
 1. ~~One plain-text config per map~~ Done: [map-config.md](map-config.md).
 2. ~~Map editor reads/writes those files~~ Done (doors, spawns; other settings shown). Next for it:
    editing no-attack areas and fish / mineral / start points.
-3. No-attack areas enforced, random mob generator (then drop the 101+ stand-ins), map rules
-   (`initial-point` for `-1 -1` doors and respawn, level limits, recall, safe zones from the files).
-4. Fishing and mining at their points.
+3. ~~No-attack areas, random mob generator~~ Done. Still to do: map rules (`initial-point` for
+   `-1 -1` doors and respawn, level limits, recall, safe zones from the files).
+4. **TODO: fishing and mining** (researched, not started), from HGServer:
+   - Fish: `FishGenerator` puts fish (dynamic objects) near random `fish-point`s, up to `max-fish`,
+     1 in 10 per map per run: RedCarp, GreenCarp, GoldCarp, CrucianCarp, BlueSeaBream, RedSeaBream,
+     Salmon, GrayMullet, rarely a PowerGreenPotion etc., each with a difficulty and a lifetime
+     (`iCreateFish`, `bDeleteFish`). Casting a rod at one (`iCheckFish`, `FishProcessor`,
+     `ReqGetFishThisTimeHandler`, Game.cpp ~33486-33960) rolls Fishing skill vs difficulty; the
+     client shows a catch-chance dialog. Needs fish objects + dialog in the client.
+   - Mining: `MineralGenerator` (Game.cpp ~35918) puts mineral rocks on random `mineral-point`s
+     (1 in 4 per run, up to `max-mineral`, `mineral-generator` level); digging with a pickaxe
+     (`_CheckMiningAction` ~36001) gives ores/gems by level until the rock is used up
+     (`bDeleteMineral`). Needs rock objects in the client.
+   - Today Fishing/Mining skills succeed anywhere and give a fixed item: replace that. Check the
+     fish/ore items exist in Item.cfg data and their sprites.
 5. Crusade, Energy Sphere, Heldenian, Apocalypse.

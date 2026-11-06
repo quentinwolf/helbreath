@@ -38,6 +38,7 @@ type MapConfig struct {
 	Teleports   []TeleportLoc
 	Waypoints   map[int]Point
 	NoAttack    []NumberedRect
+	NpcAvoid    []NumberedRect // npc-avoidrect: where random monsters don't spawn
 	SpotMobs    []SpotMobGenerator
 	NPCs        []NpcSetting
 	FishPoints  []IndexedPoint
@@ -338,6 +339,12 @@ func (c *MapConfig) apply(l ConfigLine) error {
 			return err
 		}
 		c.NPCs = append(c.NPCs, NpcSetting{Name: v[0], MoveType: mt, Waypoints: ns, SpawnOptions: opts, Line: l.No, Comment: l.Comment})
+	case "npc-avoidrect":
+		n, err := ints(5)
+		if err != nil {
+			return err
+		}
+		c.NpcAvoid = append(c.NpcAvoid, NumberedRect{n[0], Rect{n[1], n[2], n[3], n[4]}})
 	case "fish-point":
 		n, err := ints(3)
 		if err != nil {
@@ -406,6 +413,47 @@ func numbers(key string, vals ...string) ([]int, error) {
 		out[i] = n
 	}
 	return out, nil
+}
+
+// IsNoAttack reports whether (x, y) is in one of the map's no-attack areas.
+// As in the original (CMap::_SetupNoAttackArea), a rectangle whose top is -10
+// ("no-attack-area = 1 -10 -10 -10 -10", as in town buildings) makes the whole
+// map one, and other rectangles count only with a top above 0.
+func (c *MapConfig) IsNoAttack(x, y int) bool {
+	for _, r := range c.NoAttack {
+		if r.Y1 == -10 || (r.Y1 > 0 && r.Contains(x, y)) {
+			return true
+		}
+	}
+	return false
+}
+
+// InNpcAvoid reports whether random monsters may not spawn at (x, y).
+func (c *MapConfig) InNpcAvoid(x, y int) bool {
+	for _, r := range c.NpcAvoid {
+		if r.Contains(x, y) {
+			return true
+		}
+	}
+	return false
+}
+
+// WholeMapNoAttack reports whether the whole map is a no-attack area.
+func (c *MapConfig) WholeMapNoAttack() bool {
+	for _, r := range c.NoAttack {
+		if r.Y1 == -10 {
+			return true
+		}
+	}
+	return false
+}
+
+// IsNoAttackTile reports whether (x, y) on mapName is in a no-attack area:
+// nobody standing there can cast attack spells, and a player standing there
+// can't be hurt by melee or spells.
+func IsNoAttackTile(mapName string, x, y int) bool {
+	c := Configs().Get(mapName)
+	return c != nil && c.IsNoAttack(x, y)
 }
 
 // NpcPosition is where an npc line puts its NPC: its first waypoint.

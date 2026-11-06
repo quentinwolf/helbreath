@@ -113,6 +113,9 @@ teleport-loc     =     89     175    elvwrhus            56     36     4
 teleport-loc     =     93     175    elvwrhus            56     36     4
 teleport-loc     =     94     175    elvwrhus            56     36     4
 teleport-loc     =     94     176    elvwrhus            56     36     4
+teleport-loc     =     130    75     cath_2              40     40     0
+teleport-loc     =     131    75     cath_2              40     40     0
+teleport-loc     =     130    76     cath_2              40     40     0
 
 //-WayPoint-Set---------Num-----X-----Y----;
 waypoint          =     0        45    55

@@ -66,11 +66,5 @@ waypoint          =     9       198   105
 maximum-object		= 350
 random-mob-generator	= 1  16
 
-// Port stand-ins for the random-mob-generator (not ported yet), so the map
-// isn't empty: the port's old hand-written spawns (centre +- radius).
-// Remove these once the random mob generator is in.
-spot-mob-generator = 101  1  70 70 130 130  Slime  12
-spot-mob-generator = 102  1  75 75 125 125  Skeleton  8
-spot-mob-generator = 103  1  60 100 100 140  Orc  4
 
 [END-MAP-INFO]

@@ -52,11 +52,11 @@ spot-mob-generator = 1  1  106 43 123 55  Slime  20
 | `waypoint` | num x y | **Used** (positions for `npc` lines) |
 | `npc` | name move-type wp1 … wp10 prefix: a town NPC on its waypoints (move type 1 in order, 2 random) | **Used** (stands on wp1; walking between waypoints not ported) |
 | `spot-mob-generator` | num type left top right bottom monster max | **Used** for type 1: up to *max* alive, spawning and wandering in the rectangle. Type 2 (waypoint routes) not ported |
-| `maximum-object` | n: monster cap for the map | **Used**: when the rectangles add up to more, each gets its share |
+| `maximum-object` | n: monster cap for the map | **Used**: when the spot rectangles add up to more, each gets its share; the random mob generator fills up to n - 30 |
 | `fixed-dayornight-mode` | 1: always day, never weather (indoors, dungeons) | **Used** |
-| `random-mob-generator` | on level: random monsters anywhere by level table | Kept |
-| `npc-avoidrect` | num rect: where random monsters don't spawn | Kept |
-| `no-attack-area` | num rect (`-10 -10 -10 -10` = none) | Kept (not enforced) |
+| `random-mob-generator` | on level: random monsters anywhere by the original's level table (1 = towns: Slime, Giant Ant, Rabbit, Cat, Orc) up to `maximum-object` - 30 | **Used** |
+| `npc-avoidrect` | num rect: where random monsters don't spawn | **Used** |
+| `no-attack-area` | num rect. `-10 -10 -10 -10` = **the whole map** (town buildings); other rectangles count only with a top above 0 | **Used**: nobody inside can cast attack spells; a player inside can't be hurt by melee or spells (players or monsters), and monsters don't go for them |
 | `level-limit`, `upper-level-limit` | lowest / highest level allowed in | Kept |
 | `pk-mode`, `CitizenLimit`, `RecallImpossible`, `limited-cast`, `drop-type`, `type`, `not-permanent-map` | map rules | Kept |
 | `fish-point`, `max-fish` | num x y; n | Kept |
@@ -74,8 +74,6 @@ spot-mob-generator = 1  1  106 43 123 55  Slime  20
 - 27 maps only this port has (event maps, barracks, `whouse`...): their doors and fixed-day flag,
   carried over from the port's old hand-typed tables.
 - Port additions are marked with a comment, for example:
-  - stand-in spot generators (numbered from 101) on maps whose original relied on the random
-    mob generator (hunt zones, dungeons, 2ndmiddle): remove them when that's ported;
   - stand-in exits on `default` and `2ndmiddle`, whose original exits lead to the farms
     (`arefarm`, `elvfarm`) the port doesn't have yet;
   - City Hall: William moved to 44,43 and Kennedy added; three shopkeepers on `default`.

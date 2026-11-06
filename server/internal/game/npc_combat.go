@@ -135,6 +135,9 @@ func (e *Engine) npcCastSpell(n *npc.NPC, spell *magic.SpellDef, gm *mapdata.Gam
 	if target == nil {
 		return
 	}
+	if mapdata.IsNoAttackTile(target.MapName, target.X, target.Y) {
+		return // the spell can't hurt a player in a no-attack area
+	}
 	if target.GodMode {
 		dmg = 0
 	} else if target.Effects != nil && target.Effects.HasEffect(magic.EffectMagicProtection) {

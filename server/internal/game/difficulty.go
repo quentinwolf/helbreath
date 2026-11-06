@@ -18,6 +18,10 @@ var (
 	// own low-level boost (killXP). 1 = the original rate (it was 5).
 	XPMultiplier = 1.0
 
+	// RandomMobDensity scales how full the random mob generator keeps a map:
+	// 1 = the original (up to maximum-object - 30 monsters), 0 = off.
+	RandomMobDensity = 1.0
+
 	// NPCDamageReduction reduces damage NPCs deal to players.
 	NPCDamageReduction = 3
 

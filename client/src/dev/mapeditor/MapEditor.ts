@@ -845,6 +845,7 @@ class MapEditorScene extends Phaser.Scene {
         if (s.maxObjects) parts.push(`up to ${s.maxObjects} monsters`);
         if (s.randomMobs) parts.push(`random monsters level ${s.randomMobs} (not ported yet)`);
         if (s.fixedDay) parts.push('indoors: always day, no weather');
+        if (s.noAttackAll) parts.push('the whole map is a no-attack area');
         if (s.levelLimit) parts.push(`level ${s.levelLimit}+`);
         if (s.upperLevelLimit) parts.push(`up to level ${s.upperLevelLimit}`);
         const n = (k: string, v: unknown[]) => (v.length ? `${v.length} ${k}` : '');
@@ -1392,6 +1393,7 @@ class MapEditorScene extends Phaser.Scene {
         if (!s) return [];
         const out: string[] = [];
         const inside = (r: number[]) => x >= r[1] && x <= r[3] && y >= r[2] && y <= r[4];
+        if (s.noAttackAll) out.push('no-attack (whole map)');
         for (const r of s.noAttack) if (inside(r)) out.push(`no-attack area ${r[0]}`);
         for (const r of s.npcAvoid) if (inside(r)) out.push(`no random monsters (${r[0]})`);
         const at = (list: [number, number, number][], what: string) => {
