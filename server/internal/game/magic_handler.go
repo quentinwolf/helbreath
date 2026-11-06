@@ -58,7 +58,7 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 		p.StartCooldown(spellDef.ID, spellDef.Cooldown)
 	}
 
-	offensive := spellDef.DealsDamage() || spellDef.Type == magic.SpellTypeDebuff
+	offensive := spellDef.DealsDamage() || spellDef.IsField() || spellDef.Type == magic.SpellTypeDebuff
 	if offensive && (tx != p.X || ty != p.Y) {
 		p.Direction = directionTo(p.X, p.Y, tx, ty)
 	}
@@ -79,6 +79,8 @@ func (e *Engine) handleSpellCast(client *network.Client, req *pb.SpellCastReques
 	switch {
 	case e.castStatusSpell(p, spellDef, tx, ty, targetID, gm):
 		// Recall, Summon Creature, Invisibility, Detect Invisibility, Polymorph
+	case spellDef.IsField():
+		e.castFieldSpell(p, spellDef, tx, ty, gm)
 	case spellDef.DealsDamage():
 		e.castDamageSpell(p, spellDef, tx, ty, gm)
 	case spellDef.Type == magic.SpellTypeHeal:
@@ -166,6 +168,9 @@ func (e *Engine) validateSpellTarget(p *player.Player, spell *magic.SpellDef, tx
 	}
 	if reason := statusSpellCheck(p, spell, tx, ty); reason != "" {
 		return reason
+	}
+	if spell.IsField() && fieldFreeMaps[p.MapName] {
+		return "You cannot cast that in town"
 	}
 	if spell.Type == magic.SpellTypeHeal {
 		return e.healSpellCheck(p, spell, tx, ty, targetID)
@@ -321,22 +326,7 @@ func (e *Engine) castDamageSpell(p *player.Player, spell *magic.SpellDef, tx, ty
 		if dmg < 1 {
 			dmg = 1
 		}
-		killed := n.TakeDamage(dmg)
-		e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgDamageEvent, &pb.DamageEvent{
-			AttackerId:  p.ObjectID,
-			TargetId:    n.ObjectID,
-			TargetType:  2,
-			Damage:      int32(dmg),
-			TargetHp:    int32(n.HP),
-			TargetMaxHp: int32(n.MaxHP),
-		})
-		if n.IsAlive() && n.TargetID == 0 {
-			n.TargetID = p.ObjectID
-			n.State = npc.StateChase
-		}
-		if killed {
-			e.handleNPCDeath(n, p, gm)
-		}
+		e.spellHurtNPC(p, n, dmg, gm)
 	}
 
 	for _, t := range playerVictims {
@@ -352,35 +342,66 @@ func (e *Engine) castDamageSpell(p *player.Player, spell *magic.SpellDef, tx, ty
 		if dmg <= 0 {
 			continue
 		}
-		t.HP -= dmg
-		killed := t.HP <= 0
-		if killed {
-			t.HP = 0
+		var freeze time.Duration
+		if spell.ApplyEffect == magic.EffectIce {
+			freeze = time.Duration(spell.Duration) * time.Second
 		}
-		e.broadcastToNearby(gm, t.X, t.Y, -1, network.MsgDamageEvent, &pb.DamageEvent{
-			AttackerId:  p.ObjectID,
-			TargetId:    t.ObjectID,
-			TargetType:  1,
-			Damage:      int32(dmg),
-			TargetHp:    int32(t.HP),
-			TargetMaxHp: int32(t.MaxHP),
-		})
-		e.cancelLogoutOnDamage(t)
-		if !killed && spell.ApplyEffect == magic.EffectIce && t.Effects != nil {
-			t.Effects.AddEffect(&magic.ActiveEffect{
-				Type:      magic.EffectIce,
-				Level:     max(spell.EffectLevel, 1),
-				ExpiresAt: time.Now().Add(time.Duration(spell.Duration) * time.Second),
-				SourceID:  p.ObjectID,
-			})
-		}
-		e.sendStatUpdate(t)
-		if killed {
-			e.onPlayerKilledByPlayer(p, t)
-		}
+		e.spellHurtPlayer(p, t, dmg, freeze, max(spell.EffectLevel, 1), gm)
 	}
 
 	log.Printf("Spell %s at (%d,%d): hit %d monsters, %d players", spell.Name, tx, ty, len(npcVictims), len(playerVictims))
+}
+
+// spellHurtNPC deals a caster's spell damage to a monster: damage number, it
+// turns on the caster, and loot/exp if it dies.
+func (e *Engine) spellHurtNPC(p *player.Player, n *npc.NPC, dmg int, gm *mapdata.GameMap) {
+	killed := n.TakeDamage(dmg)
+	e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgDamageEvent, &pb.DamageEvent{
+		AttackerId:  p.ObjectID,
+		TargetId:    n.ObjectID,
+		TargetType:  2,
+		Damage:      int32(dmg),
+		TargetHp:    int32(n.HP),
+		TargetMaxHp: int32(n.MaxHP),
+	})
+	if n.IsAlive() && n.TargetID == 0 {
+		n.TargetID = p.ObjectID
+		n.State = npc.StateChase
+	}
+	if killed {
+		e.handleNPCDeath(n, p, gm)
+	}
+}
+
+// spellHurtPlayer deals a caster's spell damage to a player. freeze > 0 also
+// freezes them (Ice spells) for that long at the given level.
+func (e *Engine) spellHurtPlayer(p, t *player.Player, dmg int, freeze time.Duration, freezeLevel int, gm *mapdata.GameMap) {
+	t.HP -= dmg
+	killed := t.HP <= 0
+	if killed {
+		t.HP = 0
+	}
+	e.broadcastToNearby(gm, t.X, t.Y, -1, network.MsgDamageEvent, &pb.DamageEvent{
+		AttackerId:  p.ObjectID,
+		TargetId:    t.ObjectID,
+		TargetType:  1,
+		Damage:      int32(dmg),
+		TargetHp:    int32(t.HP),
+		TargetMaxHp: int32(t.MaxHP),
+	})
+	e.cancelLogoutOnDamage(t)
+	if !killed && freeze > 0 && t.Effects != nil {
+		t.Effects.AddEffect(&magic.ActiveEffect{
+			Type:      magic.EffectIce,
+			Level:     freezeLevel,
+			ExpiresAt: time.Now().Add(freeze),
+			SourceID:  p.ObjectID,
+		})
+	}
+	e.sendStatUpdate(t)
+	if killed {
+		e.onPlayerKilledByPlayer(p, t)
+	}
 }
 
 // handleBuffSpell handles self-buff spells.

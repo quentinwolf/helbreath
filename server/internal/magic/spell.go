@@ -96,6 +96,79 @@ type SpellDef struct {
 	EffectLevel    int        // intensity of the effect (1-3)
 	TickDamage     int        // for poison: damage per tick
 	TickIntervalMs int        // for poison: ms between ticks
+
+	// Lasting fields (CfgType 14, the original's DEF_MAGICTYPE_CREATE_DYNAMIC:
+	// Fire Wall, Fire Field, Poison Cloud, Cloud Kill, Spike Field, Ice Storm).
+	// The cast itself does no damage; it leaves field tiles that hurt whoever
+	// is in or next to them for Duration seconds.
+	Field FieldSpec
+}
+
+// FieldKind is the original's DEF_DYNAMICOBJECT_* number (Magic.cfg sValue10).
+type FieldKind int
+
+const (
+	FieldNone        FieldKind = 0
+	FieldFire        FieldKind = 1  // 1d6 a second to the tile and its neighbours
+	FieldIceStorm    FieldKind = 8  // 3d3+5 a second over 5x5, freezes players
+	FieldSpike       FieldKind = 9  // 2d4 to a player stepping onto it
+	FieldPoisonCloud FieldKind = 10 // 1d6 (1d8 if Power >= 20) a second to 3x3, poisons players
+)
+
+// FieldLayout is how the tiles are laid out (Magic.cfg sValue11).
+type FieldLayout int
+
+const (
+	FieldSingle FieldLayout = 0 // one tile at the target (Ice Storm)
+	FieldWall   FieldLayout = 1 // a line across the cast direction, Size tiles each side
+	FieldSquare FieldLayout = 2 // a square, Size tiles each side of the target
+)
+
+// FieldSpec describes a lasting field. Kind 0 = not a field spell.
+type FieldSpec struct {
+	Kind   FieldKind
+	Layout FieldLayout
+	Size   int // Magic.cfg sValue12
+	Power  int // Magic.cfg sValue5 (poison strength)
+}
+
+// IsField reports whether the spell leaves a lasting field.
+func (s *SpellDef) IsField() bool { return s.Field.Kind != FieldNone }
+
+// FieldTiles is where a field spell cast from (cx,cy) at (tx,ty) puts its
+// tiles, as the original server laid them out. The wall runs across the
+// direction from caster to target (matches the client's FireWall).
+func (s *SpellDef) FieldTiles(cx, cy, tx, ty int) [][2]int {
+	tiles := [][2]int{{tx, ty}}
+	switch s.Field.Layout {
+	case FieldWall:
+		dx, dy := sign(tx-cx), sign(ty-cy)
+		rx, ry := -dy, dx
+		if rx == 0 && ry == 0 {
+			rx = 1
+		}
+		for i := 1; i <= s.Field.Size; i++ {
+			tiles = append(tiles, [2]int{tx + i*rx, ty + i*ry}, [2]int{tx - i*rx, ty - i*ry})
+		}
+	case FieldSquare:
+		tiles = tiles[:0]
+		for y := ty - s.Field.Size; y <= ty+s.Field.Size; y++ {
+			for x := tx - s.Field.Size; x <= tx+s.Field.Size; x++ {
+				tiles = append(tiles, [2]int{x, y})
+			}
+		}
+	}
+	return tiles
+}
+
+func sign(v int) int {
+	switch {
+	case v > 0:
+		return 1
+	case v < 0:
+		return -1
+	}
+	return 0
 }
 
 // DealsDamage reports whether the spell damages whatever it lands on.

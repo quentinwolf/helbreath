@@ -263,7 +263,6 @@ func (h hitPattern) damages() bool {
 func spellHitPattern(s rawSpell) hitPattern {
 	g1 := dice{s.Eff1, s.Eff2, s.Eff3}
 	g2 := dice{s.Eff4, s.Eff5, s.Eff6}
-	g3 := dice{s.Eff7, s.Eff8, s.Eff9}
 	box := hitPattern{areaX: s.Range1, areaY: s.Range2}
 
 	switch s.CfgType {
@@ -279,18 +278,40 @@ func spellHitPattern(s rawSpell) hitPattern {
 		box.line, box.centre, box.area, box.lineDice = true, g1, g2, g2
 	case 30: // DAMAGE_LINEAR_SPDOWN: box gets g1, line gets g2
 		box.line, box.area, box.lineDice = true, g1, g2
-	case 14: // CREATE_DYNAMIC (Fire Wall, Spike Field, clouds): a lasting field in
-		// the original; one hit with its first non-empty effect group for now
-		for _, g := range []dice{g1, g2, g3} {
-			if !g.zero() && g.sides > 0 {
-				box.area = g
-				break
-			}
-		}
+	case 14: // CREATE_DYNAMIC (Fire Wall, Spike Field, clouds): no hit on cast; the
+		// field it leaves does the damage (SpellDef.Field). g3 is the field's
+		// kind/layout/size, not dice.
+		return hitPattern{}
 	default:
 		return hitPattern{}
 	}
 	return box
+}
+
+// fieldKindName is the magic.FieldKind constant for a DEF_DYNAMICOBJECT_* number.
+func fieldKindName(kind int) string {
+	switch kind {
+	case 1:
+		return "FieldFire"
+	case 8:
+		return "FieldIceStorm"
+	case 9:
+		return "FieldSpike"
+	case 10:
+		return "FieldPoisonCloud"
+	}
+	return fmt.Sprintf("FieldKind(%d)", kind)
+}
+
+// fieldLayoutName is the magic.FieldLayout constant for Magic.cfg sValue11.
+func fieldLayoutName(layout int) string {
+	switch layout {
+	case 1:
+		return "FieldWall"
+	case 2:
+		return "FieldSquare"
+	}
+	return "FieldSingle"
 }
 
 // mapSpellType converts the original Helbreath CfgType to our SpellType string.
@@ -303,6 +324,8 @@ func mapSpellType(s rawSpell) string {
 	}
 
 	switch s.CfgType {
+	case 14: // CREATE_DYNAMIC: a lasting damage field
+		return "SpellTypeAOE"
 	case 5: // SPDOWN_AREA (Staminar Drain): drains stamina, no damage
 		return "SpellTypeDebuff"
 
@@ -737,6 +760,12 @@ func generate(spells []rawSpell) {
 		}
 		if duration > 0 {
 			p("\t\tDuration: %d,\n", duration)
+		}
+		if s.CfgType == 14 {
+			// sValue10 = DEF_DYNAMICOBJECT_* kind, sValue11 = layout,
+			// sValue12 = size, sValue5 = strength (poison level)
+			p("\t\tField: FieldSpec{Kind: %s, Layout: %s, Size: %d, Power: %d},\n",
+				fieldKindName(s.Eff7), fieldLayoutName(s.Eff8), s.Eff9, s.Eff2)
 		}
 		if buffStat > 0 {
 			p("\t\tBuffStat: %d, BuffAmount: %d,\n", buffStat, buffAmount)

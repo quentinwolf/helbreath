@@ -61,6 +61,11 @@ type Engine struct {
 	lastBuffCheck   time.Time
 	lastEffectCheck time.Time
 
+	// Lasting spell fields (Fire Wall, Poison Cloud...), see fields.go
+	fieldsMu      sync.Mutex
+	fields        []*magicField
+	lastFieldTick time.Time
+
 	// Social systems
 	guilds  *guild.GuildRegistry
 	parties *party.PartyManager
@@ -206,6 +211,12 @@ func (e *Engine) processTick() {
 	if now.Sub(e.lastEffectCheck) >= 1*time.Second {
 		e.lastEffectCheck = now
 		e.processEffectTicks(now)
+	}
+
+	// Lasting spell fields burn once a second, as the original's DynamicObjectEffectProcessor
+	if now.Sub(e.lastFieldTick) >= 1*time.Second {
+		e.lastFieldTick = now
+		e.processFields(now)
 	}
 
 	// World state sync every 30 seconds
@@ -1591,6 +1602,7 @@ func (e *Engine) handleMotion(client *network.Client, req *pb.MotionRequest) {
 		p.Action = action
 		p.LastMoveTime = now
 		gm.SetOwner(p.X, p.Y, p.ObjectID)
+		e.fieldStepOn(p, gm) // Spike Field
 
 		// Update sector if changed
 		newSectorX := p.X / mapdata.SectorSize
