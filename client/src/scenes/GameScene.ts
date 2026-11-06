@@ -77,6 +77,14 @@ import { EntityLabel } from '../game/ui/EntityLabel';
 // Status bits from the server (PlayerAppear/EntityInfo.status), as the original's iStatus.
 const STATUS_INVISIBLE = 0x10;
 const STATUS_POLYMORPH = 0x100;
+/** Berserk: the body glows red (the original's status 0x20). */
+const STATUS_BERSERK = 0x20;
+/**
+ * The original redraws a berserk body additively with RGB (0, -5, -5) on top of
+ * everything: a full-strength glow, a little short on green and blue. A bit redder
+ * here, and pulsing, so it reads as berserk rather than just bright.
+ */
+const BERSERK_GLOW_TINT = 0xff9a9a;
 /** A fallen player lying where they died until they click Restart. */
 const STATUS_DEAD = 0x1000;
 /** Notification type: someone offers to Resurrect us (message = their name). */
@@ -543,6 +551,8 @@ export class GameScene extends Phaser.Scene {
   private suppressedLayers = new Set<number>();
   /** Zombie sprites standing in for polymorphed players, by object ID. */
   private morphs = new Map<number, { asset: GameAsset; sheet: number }>();
+  /** Berserk glows: an additive copy of each berserk player's body sprite. */
+  private berserkGlows = new Map<number, Phaser.GameObjects.Sprite>();
   /** Hold Person / Paralyze: we can't walk or run (the original client's m_bParalyze). */
   private held = false;
   /** Confuse family on us (0 = none, else CONFUSE_*; 1 = Confuse Language, nothing to draw). */
@@ -612,6 +622,7 @@ export class GameScene extends Phaser.Scene {
     this.loadingMonsterSounds.clear();
     this.spriteWaiters.clear();
     this.morphs.clear(); // their sprites went down with the old scene
+    this.berserkGlows.clear();
     this.suppressedLayers.clear();
     // Their sprites and labels went down with the old scene. An NPC that moved
     // between the map change and this restart was re-added to the old map, and
@@ -5032,14 +5043,20 @@ export class GameScene extends Phaser.Scene {
           this.updatePlayerAnimation(this.playerAssets, this.playerState, Math.max(0, this.playerDirection - 1));
         }
       });
+      this.applyBerserkGlow(this.playerObjectId, this.playerAssets,
+        (this.localStatus & STATUS_BERSERK) !== 0 && !polymorphed);
     }
+    const seen = new Set<number>([this.playerObjectId]);
     for (const rp of this.remotePlayers.values()) {
       if (!rp.assets) continue;
+      seen.add(rp.objectId);
       const polymorphed = (rp.status & STATUS_POLYMORPH) !== 0;
       const mode = this.remoteStatusMode(rp);
       this.applyStatusVisuals(rp.objectId, rp.assets, rp.nameText, mode,
         polymorphed, rp.isMoving ? 8 : 0,
         rp.direction, rp.visualX, rp.visualY, rp.tileY);
+      this.applyBerserkGlow(rp.objectId, rp.assets,
+        (rp.status & STATUS_BERSERK) !== 0 && !polymorphed && mode !== 'hidden');
       // A disguised player's name shows only to their own side (travellers to travellers)
       if (polymorphed && rp.side !== this.mySide) rp.nameText.setVisible(false);
       this.trackSuppressed(rp.objectId, polymorphed || mode === 'hidden', () => {
@@ -5049,6 +5066,36 @@ export class GameScene extends Phaser.Scene {
         }
       });
     }
+    // Players who left view (or the game) take their glow with them
+    for (const [id, glow] of this.berserkGlows) {
+      if (!seen.has(id)) { glow.destroy(); this.berserkGlows.delete(id); }
+    }
+  }
+
+  /**
+   * Berserk (original DrawObject_*: PutTransSpriteRGB(body, 0, -5, -5) after every
+   * other layer): an additive, slightly red copy of the body's current frame on top
+   * of the player. Runs every frame so it follows the body's animation.
+   */
+  private applyBerserkGlow(objectId: number, assets: PlayerAssets, on: boolean): void {
+    let glow = this.berserkGlows.get(objectId);
+    const body = assets.layers[0]?.sprite;
+    if (!on || !body || !body.visible || !body.active) {
+      if (glow) { glow.destroy(); this.berserkGlows.delete(objectId); }
+      return;
+    }
+    if (!glow) {
+      glow = this.add.sprite(0, 0, body.texture.key).setBlendMode(Phaser.BlendModes.ADD).setTint(BERSERK_GLOW_TINT);
+      this.berserkGlows.set(objectId, glow);
+    }
+    if (glow.texture.key !== body.texture.key || glow.frame.name !== body.frame.name) {
+      glow.setTexture(body.texture.key, body.frame.name);
+    }
+    let top = body.depth;
+    for (const layer of assets.layers) top = Math.max(top, layer.sprite.depth);
+    glow.setOrigin(body.originX, body.originY).setPosition(body.x, body.y)
+      .setScale(body.scaleX, body.scaleY).setFlip(body.flipX, body.flipY)
+      .setDepth(top + 0.5).setAlpha(body.alpha * (0.75 + 0.25 * Math.sin(this.time.now / 180))).setVisible(true);
   }
 
   /**

@@ -440,6 +440,9 @@ func (e *Engine) buffPlayer(caster, p *player.Player, spell *magic.SpellDef, gm 
 			eff.LastTick = time.Now()
 		}
 		p.Effects.AddEffect(eff)
+		if spell.ApplyEffect == magic.EffectBerserk {
+			e.refreshPlayerAppearance(p) // everyone sees the glow
+		}
 		log.Printf("Player %s gained effect %s (level %d for %ds)", p.Name, spell.Name, spell.EffectLevel, spell.Duration)
 	}
 
@@ -926,7 +929,7 @@ func (e *Engine) processEffectTicks(now time.Time) {
 				// Notify player about effect expiring
 				effectName := effectTypeName(evt.EffectType)
 				e.sendNotification(p, effectName+" has worn off", 0)
-				if evt.EffectType == magic.EffectInvisibility || evt.EffectType == magic.EffectPolymorph {
+				if evt.EffectType == magic.EffectInvisibility || evt.EffectType == magic.EffectPolymorph || evt.EffectType == magic.EffectBerserk {
 					e.refreshPlayerAppearance(p)
 				}
 				e.sendStatusOff(p, evt.EffectType)

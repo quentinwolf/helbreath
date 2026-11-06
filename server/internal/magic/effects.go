@@ -204,6 +204,7 @@ func (et *EffectTracker) GetEffectLevelAt(t EffectType, now time.Time) int {
 // original client's iStatus flags.
 const (
 	StatusInvisible = 0x10   // drawn ghosted for yourself and your faction, hidden from others
+	StatusBerserk   = 0x20   // Berserk: the body glows red (the original client's 0x20)
 	StatusPolymorph = 0x100  // drawn as a Zombie (the original sets the owner type to 18)
 	StatusDead      = 0x1000 // a fallen player waiting to Restart (drawn lying down)
 )
@@ -222,6 +223,9 @@ func (et *EffectTracker) StatusBits(now time.Time) int32 {
 	}
 	if et.HasEffectAt(EffectPolymorph, now) {
 		s |= StatusPolymorph
+	}
+	if et.HasEffectAt(EffectBerserk, now) {
+		s |= StatusBerserk
 	}
 	return s
 }
