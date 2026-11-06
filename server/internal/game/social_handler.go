@@ -921,7 +921,7 @@ func (e *Engine) handleGuildChat(p *player.Player, message string) {
 	members := myGuild.MemberList()
 	for _, m := range members {
 		if target := e.getPlayerByName(m.Name); target != nil {
-			target.Send(data)
+			e.sendChat(target, chatMsg, data)
 		}
 	}
 }

@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	spellStaminarDrain   = 11
+	spellStaminaDrain   = 11
 	spellHoldPerson      = 25
 	spellPossession      = 26
 	spellParalyze        = 35
@@ -88,14 +88,14 @@ func TestHoldPersonNotOnOwnSide(t *testing.T) {
 	}
 }
 
-func TestStaminarDrain(t *testing.T) {
-	e, p, v := debuffSetup(t, spellStaminarDrain)
+func TestStaminaDrain(t *testing.T) {
+	e, p, v := debuffSetup(t, spellStaminaDrain)
 	v.SP, v.MaxSP = 200, 200
 	near := makeFullTestPlayer(3, "Near")
 	near.Side, near.X, near.Y, near.SP, near.MaxSP = 2, 56, 52, 200, 200 // inside the 3-tile box
 	addPlayerToEngine(e, near)
 
-	castAt(e, p, spellStaminarDrain, v.ObjectID, v.X, v.Y)
+	castAt(e, p, spellStaminaDrain, v.ObjectID, v.X, v.Y)
 
 	// Clicked player: 4d6+20 + 2d6+15 = 41..71
 	if d := 200 - v.SP; d < 41 || d > 71 {
@@ -135,22 +135,34 @@ func TestIllusionRemembersTheCaster(t *testing.T) {
 func TestConfuseLanguageScramblesTheTargetsChat(t *testing.T) {
 	e, p, v := debuffSetup(t, spellConfuseLanguage)
 	castAt(e, p, spellConfuseLanguage, v.ObjectID, v.X, v.Y)
-	scrambled := 0
-	for i := 0; i < 60; i++ {
-		if out := confusedSpeech(v, "hello there friend"); out != "hello there friend" {
-			scrambled++
-			if strings.ContainsAny(out, "abcdefghijklmnopqrstuvwxyz") {
-				t.Fatalf("scrambled speech should be gibberish, got %q", out)
-			}
-		}
+	if !confusedLanguage(v) {
+		t.Fatal("victim should be under Confuse Language")
 	}
-	if scrambled < 20 || scrambled > 58 {
-		t.Errorf("about 2 messages in 3 should be scrambled, got %d of 60", scrambled)
+	other := makeFullTestPlayer(3, "Other")
+	other.AdminLevel = 0
+	p.AdminLevel = 1
+
+	if understands(v, other, other.ObjectID) {
+		t.Error("a confused player can't read an ordinary player's chat")
+	}
+	if !understands(v, v, v.ObjectID) {
+		t.Error("a confused player still reads their own lines")
+	}
+	if !understands(v, p, p.ObjectID) {
+		t.Error("a GM's chat is always readable")
+	}
+	if !understands(other, v, v.ObjectID) {
+		t.Error("everyone else reads the confused player fine")
+	}
+	twin := makeFullTestPlayer(4, "Twin")
+	twin.Effects.AddEffect(v.Effects.GetEffect(magic.EffectConfusion))
+	if !understands(v, twin, twin.ObjectID) {
+		t.Error("two confused players understand each other")
 	}
 
-	v.AdminLevel = 1
-	if confusedSpeech(v, "gm talking") != "gm talking" {
-		t.Error("a GM's chat is never scrambled")
+	out := gibberish("hello there friend")
+	if strings.ContainsAny(out, "abcdefghijklmnopqrstuvwxyz") || len(strings.Fields(out)) != 3 {
+		t.Errorf("gibberish should keep the 3 words but no letters, got %q", out)
 	}
 }
 

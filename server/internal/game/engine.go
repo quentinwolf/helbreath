@@ -1853,7 +1853,6 @@ func (e *Engine) handleChat(client *network.Client, req *pb.ChatRequest) {
 		e.sendNotification(p, "You are muted", 2)
 		return
 	}
-	msg = confusedSpeech(p, msg) // Confuse Language
 
 	chatMsg := &pb.ChatMessage{
 		ObjectId:   p.ObjectID,
@@ -2189,9 +2188,18 @@ func (e *Engine) broadcastToNearby(gm *mapdata.GameMap, x, y int, excludeID int3
 			continue
 		}
 		if val, ok := e.players.Load(id); ok {
-			val.(*player.Player).Send(data)
+			e.sendTo(val.(*player.Player), msg, data)
 		}
 	}
+}
+
+// sendTo sends an encoded message, routing chat through sendChat (Confuse Language).
+func (e *Engine) sendTo(p *player.Player, msg proto.Message, data []byte) {
+	if cm, ok := msg.(*pb.ChatMessage); ok {
+		e.sendChat(p, cm, data)
+		return
+	}
+	p.Send(data)
 }
 
 func (e *Engine) broadcastToMap(mapName string, msgType byte, msg proto.Message) {
@@ -2203,7 +2211,7 @@ func (e *Engine) broadcastToMap(mapName string, msgType byte, msg proto.Message)
 	e.players.Range(func(key, value any) bool {
 		p := value.(*player.Player)
 		if p.MapName == mapName {
-			p.Send(data)
+			e.sendTo(p, msg, data)
 		}
 		return true
 	})
@@ -2214,7 +2222,7 @@ func (e *Engine) sendWhisper(targetName string, msg *pb.ChatMessage) {
 		p := value.(*player.Player)
 		if p.Name == targetName {
 			data, _ := network.Encode(network.MsgChatMessage, msg)
-			p.Send(data)
+			e.sendChat(p, msg, data)
 			return false // stop iterating
 		}
 		return true
@@ -2231,7 +2239,7 @@ func (e *Engine) handlePartyChat(p *player.Player, chatMsg *pb.ChatMessage) {
 	data, _ := network.Encode(network.MsgChatMessage, chatMsg)
 	for _, memberID := range party.GetMemberIDs() {
 		if val, ok := e.players.Load(memberID); ok {
-			val.(*player.Player).Send(data)
+			e.sendChat(val.(*player.Player), chatMsg, data)
 		}
 	}
 }
@@ -2245,7 +2253,7 @@ func (e *Engine) broadcastToSide(side int, chatMsg *pb.ChatMessage) {
 	e.players.Range(func(_, value any) bool {
 		p := value.(*player.Player)
 		if p.Side == side {
-			p.Send(data)
+			e.sendChat(p, chatMsg, data)
 		}
 		return true
 	})
