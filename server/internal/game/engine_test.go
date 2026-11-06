@@ -41,6 +41,7 @@ func makeTestEngine() *Engine {
 		lastWorldSync:    now,
 		lastWeatherCheck: now,
 	}
+	e.delayed.instant = true // spells hit at once in tests (TestSpellHitsWhenTheEffectLands checks the delay)
 	return e
 }
 

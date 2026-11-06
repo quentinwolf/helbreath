@@ -53,6 +53,7 @@ Legend: **Done** = works like the original. **Partial** = works, with listed gap
 |---|---|---|
 | Spell data | Done | `magicimport` from Equilibrium Magic.cfg; tile-based casting |
 | Spell visuals | Done | Most from ErkoKnoll (MIT), several straight from Client.cpp. Heal/buff effects are single-sheet guesses; Armor Break should be subtractive |
+| Spell hit timing | Changed | Damage spells hit when their effect lands (meteor ~450 ms, bolts/fireballs by distance; `spell_timing.go`, timings from the client effects). The original applied damage at once; its client sent the cast after the casting motion, so it looked right there |
 | Field spells | Done | Fire/Poison/Ice/Spike fields last 30 s. Fire spreading, weather shortening fire, NPC poison/freeze from fields not ported |
 | Debuffs (Hold, Paralyze, Stamina Drain, Possession, Confuse family) | Done | Illusion Movement doesn't reverse attack direction; no-attack-area checks missing |
 | Recall | Done | |

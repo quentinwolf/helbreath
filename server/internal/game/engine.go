@@ -77,6 +77,7 @@ type Engine struct {
 	lastWorldSync time.Time
 	lastWeatherCheck time.Time
 	lastRandomMobs   time.Time
+	delayed          delayedActions // spell hits waiting for their effect (spell_timing.go)
 
 	// Current world phase and weather cached for combat checks
 	CurrentWorldPhase int // world.DayPhase, DuskPhase, NightPhase, DawnPhase
@@ -236,6 +237,9 @@ func (e *Engine) processTick() {
 		e.lastWorldSync = now
 		e.broadcastWorldState()
 	}
+
+	// Spell hits whose effect has now landed
+	e.runDelayed(now)
 
 	// Random mob generator (original MobGenerator, every 600 ms)
 	if now.Sub(e.lastRandomMobs) >= randomMobInterval {

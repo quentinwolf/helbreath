@@ -896,6 +896,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    // NPCs still drawn as a placeholder circle: retry their sprite once a second
+    if (time - this.lastFallbackSweep > 1000) {
+      this.lastFallbackSweep = time;
+      this.retryFallbackNpcs();
+    }
+
     // Update knockback visual interpolation
     this.updateKnockback(time);
 
@@ -1660,6 +1666,39 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private lastFallbackSweep = 0;
+
+  /**
+   * NPCs still on the placeholder circle (their sprite's load callback can be
+   * missed, e.g. across a scene restart): load the sprite again if needed, and
+   * swap it in once it's there.
+   */
+  private retryFallbackNpcs(): void {
+    for (const [, npcEntity] of this.npcs) {
+      if (npcEntity.asset) continue;
+      const spriteName = NPC_SPRITE_MAP[npcEntity.npcType];
+      if (spriteName && this.ensureSpriteLoaded(spriteName)) this.upgradeFallbackNpc(npcEntity, spriteName);
+    }
+  }
+
+  /** Replaces an NPC's placeholder circle with its sprite (once the sprite is loaded). */
+  private upgradeFallbackNpc(npcEntity: GameNPC, spriteName: string): void {
+    const sheetIndex = Math.max(0, npcEntity.direction - 1);
+    if (!this.anims.exists(`${spriteName}-${sheetIndex}`)) return;
+    try {
+      npcEntity.asset = new GameAsset(this, {
+        x: npcEntity.visualX,
+        y: npcEntity.visualY,
+        spriteName,
+        spriteSheetIndex: sheetIndex,
+        frameRate: 6,
+        animationType: AnimationType.FullFrame,
+      });
+      npcEntity.asset.setDepth(npcEntity.tileY * DEPTH_MULTIPLIER + 2);
+      if (npcEntity.fallbackSprite) npcEntity.fallbackSprite.setVisible(false);
+    } catch { /* ignore */ }
+  }
+
   /**
    * Called after a deferred sprite finishes loading.
    * Rebuilds any NPC or player visuals that were waiting for this sprite.
@@ -1667,28 +1706,7 @@ export class GameScene extends Phaser.Scene {
   private onDeferredSpriteReady(spriteName: string): void {
     // Refresh NPCs that use this sprite
     for (const [, npcEntity] of this.npcs) {
-      const npcSprite = NPC_SPRITE_MAP[npcEntity.npcType];
-      if (npcSprite === spriteName && !npcEntity.asset) {
-        // NPC was using fallback ellipse — try to create the real sprite now
-        const dirIdx = Math.max(0, npcEntity.direction - 1);
-        const sheetIndex = dirIdx;
-        const animKey = `${spriteName}-${sheetIndex}`;
-        if (this.anims.exists(animKey)) {
-          try {
-            npcEntity.asset = new GameAsset(this, {
-              x: npcEntity.visualX,
-              y: npcEntity.visualY,
-              spriteName,
-              spriteSheetIndex: sheetIndex,
-              frameRate: 6,
-              animationType: AnimationType.FullFrame,
-            });
-            npcEntity.asset.setDepth(npcEntity.tileY * DEPTH_MULTIPLIER + 2);
-            // Hide fallback ellipse
-            if (npcEntity.fallbackSprite) npcEntity.fallbackSprite.setVisible(false);
-          } catch { /* ignore */ }
-        }
-      }
+      if (NPC_SPRITE_MAP[npcEntity.npcType] === spriteName && !npcEntity.asset) this.upgradeFallbackNpc(npcEntity, spriteName);
     }
 
     // Refresh local player equipment if it uses this sprite
