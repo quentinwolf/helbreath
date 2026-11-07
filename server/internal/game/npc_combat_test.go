@@ -173,3 +173,73 @@ func TestMonsterKilledByGuardRespawnsWithoutLoot(t *testing.T) {
 		t.Error("a normal monster stays registered so it can respawn")
 	}
 }
+
+// A guard that chased past its leash used to stand at the leash edge for good:
+// each tick it re-targeted the monster beside it, hit the leash and dropped it.
+func TestGuardPastLeashWalksHome(t *testing.T) {
+	e := makeTestEngine()
+	e.maps["test"] = makeTestGameMap(200, 200)
+
+	guard := npc.NewNPC(1, npc.NpcTypes[1014], "test", 50, 50)
+	leash := guard.LeashRange()
+	guard.X = 50 + leash + 1
+	monster := npc.NewNPC(2, npc.NpcTypes[10], "test", guard.X+1, 50)
+	monster.HP, monster.MaxHP = 100000, 100000
+	guard.State, guard.TargetID = npc.StateChase, monster.ObjectID
+	e.npcs.Store(guard.ObjectID, guard)
+	e.npcs.Store(monster.ObjectID, monster)
+
+	startDist := guard.DistanceTo(guard.SpawnX, guard.SpawnY)
+	now := time.Now()
+	for i := 0; i < 60; i++ {
+		now = now.Add(500 * time.Millisecond)
+		e.processNPCTick(guard, now)
+	}
+	if d := guard.DistanceTo(guard.SpawnX, guard.SpawnY); d >= startDist {
+		t.Fatalf("guard should walk home after a leash drop, still %d tiles out (was %d)", d, startDist)
+	}
+}
+
+func TestPassiveMonstersStartNoFights(t *testing.T) {
+	e := makeTestEngine()
+	gm := makeTestGameMap(100, 100)
+	e.maps["test"] = gm
+
+	p := makeFullTestPlayer(1, "Walker")
+	p.Side, p.PKCount = npc.SideElvine, 0 // the guard's own town
+	p.X, p.Y = 51, 50
+	addPlayerToEngine(e, p)
+	gm.AddPlayerToSector(p.X, p.Y, p.ObjectID)
+
+	cat := npc.NewNPC(100, npc.NpcTypes[56], "test", 50, 50)
+	guard := npc.NewNPC(101, npc.NpcTypes[1014], "test", 52, 50)
+	e.npcs.Store(cat.ObjectID, cat)
+	e.npcs.Store(guard.ObjectID, guard)
+
+	if npcHostileToNPC(guard, cat) || npcHostileToNPC(cat, guard) {
+		t.Error("guards and cats should leave each other alone")
+	}
+	if cat.StatusBits() != 0 {
+		t.Errorf("a cat should show as Neutral, status %#x", cat.StatusBits())
+	}
+	now := time.Now()
+	for i := 0; i < 20; i++ {
+		now = now.Add(500 * time.Millisecond)
+		e.processNPCTick(cat, now)
+		e.processNPCTick(guard, now)
+	}
+	if cat.TargetID != 0 || guard.TargetID != 0 {
+		t.Errorf("nobody should start a fight: cat targets %d, guard targets %d", cat.TargetID, guard.TargetID)
+	}
+
+	// Hit back once attacked (what a player's hit does)
+	cat.TargetID, cat.State = p.ObjectID, npc.StateChase
+	cat.X, cat.Y = 50, 50
+	for i := 0; i < 10 && cat.State != npc.StateAttack; i++ {
+		now = now.Add(500 * time.Millisecond)
+		e.processNPCTick(cat, now)
+	}
+	if cat.TargetID != p.ObjectID {
+		t.Error("an attacked cat should fight back")
+	}
+}

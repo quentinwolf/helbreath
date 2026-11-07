@@ -55,6 +55,10 @@ type NpcType struct {
 	// Stationary NPCs never walk (original NPC.cfg action limit 2, 3 or 5:
 	// shopkeepers and officers)
 	Stationary bool
+	// Passive monsters (Rabbit, Cat) never start a fight: they only hit back at
+	// whoever attacks them, guards and summons leave them alone, and they show
+	// as Neutral. Zac's design (the original had them hostile).
+	Passive bool
 
 	// Dice-based damage (C++ port — authoritative for combat)
 	DiceThrow   int // number of dice for attack
@@ -95,10 +99,10 @@ var NpcTypes = map[int]*NpcType{
 		DiceThrow: 1, DiceRange: 4, Size: SizeSmall, Side: SideMonster, RespawnDelay: 5 * time.Second},
 	55: {ID: 55, Name: "Rabbit", SpriteType: 55, HP: 40, MinDamage: 1, MaxDamage: 5, Defense: 20, DEX: 35, XP: 37,
 		AggroRange: 0, MoveSpeed: 1500, AttackSpeed: 1500, WanderRange: 8,
-		DiceThrow: 1, DiceRange: 5, Size: SizeSmall, Side: SideMonster, CanFlee: true, FleeHPPct: 50, RespawnDelay: 5 * time.Second},
+		DiceThrow: 1, DiceRange: 5, Size: SizeSmall, Side: SideMonster, Passive: true, CanFlee: true, FleeHPPct: 50, RespawnDelay: 5 * time.Second},
 	56: {ID: 56, Name: "Cat", SpriteType: 56, HP: 40, MinDamage: 2, MaxDamage: 8, Defense: 40, DEX: 45, XP: 105,
 		AggroRange: 5, MoveSpeed: 1500, AttackSpeed: 1500, WanderRange: 8,
-		DiceThrow: 2, DiceRange: 4, Size: SizeSmall, Side: SideMonster, RespawnDelay: 5 * time.Second},
+		DiceThrow: 2, DiceRange: 4, Size: SizeSmall, Side: SideMonster, Passive: true, RespawnDelay: 5 * time.Second},
 	16: {ID: 16, Name: "Giant-Ant", SpriteType: 16, HP: 30, MinDamage: 2, MaxDamage: 6, Defense: 30, DEX: 40, XP: 98,
 		AggroRange: 2, MoveSpeed: 1200, AttackSpeed: 1200, WanderRange: 8,
 		DiceThrow: 2, DiceRange: 3, Size: SizeSmall, Side: SideMonster, RespawnDelay: 5 * time.Second},
@@ -372,6 +376,10 @@ type NPC struct {
 	// NPC like the original's m_cTurn, so it follows a wall instead of
 	// flipping back and forth beside it (+1 clockwise, -1 anticlockwise).
 	Turn int
+	// Returning: dropped a chase at the end of its leash and walking home. It
+	// ignores enemies until it is back in its home area, or it would turn round
+	// at the leash edge every tick and stand there for good.
+	Returning bool
 }
 
 // NewNPC creates a new NPC from a spawn point.
@@ -467,6 +475,7 @@ func (n *NPC) Respawn() {
 	n.State = StateIdle
 	n.TargetID = 0
 	n.Action = 0
+	n.Returning = false
 	// A new life: spells on the old one (Polymorph, Hold) are gone
 	n.PolymorphUntil = time.Time{}
 	n.HeldUntil = time.Time{}
@@ -517,6 +526,9 @@ func (n *NPC) StatusBits() int32 {
 	side := n.Type.Side
 	if n.MasterID != 0 {
 		side = n.MasterSide
+	}
+	if n.Type.Passive && n.MasterID == 0 {
+		return 0 // shown as Neutral
 	}
 	switch side {
 	case SideMonster:

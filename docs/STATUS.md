@@ -71,7 +71,8 @@ Legend: **Done** = works like the original. **Partial** = works, with listed gap
 |---|---|---|
 | NPC data | Done | `npcimport` from NPC.cfg, plain names |
 | Movement | Done | Original step timing, stationary shopkeepers, per-NPC turn side |
-| AI, guards, faction targeting | Partial | See `docs/server/phase2-monster-ai.md` for open items |
+| AI, guards, faction targeting | Partial | See `docs/server/phase2-monster-ai.md` for open items. An NPC that drops a chase at its leash walks home ignoring enemies until it is back in its home area |
+| Rabbits and cats | Changed | Passive (Zac's design; the original had them hostile): they never start a fight, hit back when attacked, guards and summons ignore them, name shows Neutral |
 | Sounds | Done | |
 | Human-looking NPC types 1-6 | Missing | Need player-style rendering |
 | Sprites | Partial | Gate.pak, Energy-Sphere.apk not converted; AirEl/IceEl/Willowisp have no sprites |

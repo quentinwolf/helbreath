@@ -195,8 +195,9 @@ func npcHostileToNPC(a, b *npc.NPC) bool {
 		return false
 	}
 	// A summoned creature fights for its master: it and wild monsters are enemies.
-	wildA := a.Type.Side == npc.SideMonster && a.MasterID == 0
-	wildB := b.Type.Side == npc.SideMonster && b.MasterID == 0
+	// Passive monsters (Rabbit, Cat) are left out of NPC fights entirely.
+	wildA := a.Type.Side == npc.SideMonster && a.MasterID == 0 && !a.Type.Passive
+	wildB := b.Type.Side == npc.SideMonster && b.MasterID == 0 && !b.Type.Passive
 	if (a.MasterID != 0 && wildB) || (wildA && b.MasterID != 0) {
 		return true
 	}

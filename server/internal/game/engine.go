@@ -599,6 +599,16 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 	if enemy, d := e.findNearestEnemyNPC(n, aggroRange); enemy != nil && d < foundDist {
 		foundID, foundDist = enemy.ObjectID, d
 	}
+	// Back home after a leash drop: free to pick fights again
+	if n.Returning && n.InHomeArea(n.X, n.Y) {
+		n.Returning = false
+	}
+	// Passive monsters never start a fight; a returning NPC ignores enemies
+	// until it's home (otherwise it re-targets, hits the leash and drops the
+	// target again every tick, standing still at the leash edge for good)
+	if n.Type.Passive || n.Returning {
+		foundID, foundDist = 0, 999
+	}
 
 	switch n.State {
 	case npc.StateIdle:
@@ -650,6 +660,7 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 		// Give up if too far from spawn
 		if n.DistanceTo(n.SpawnX, n.SpawnY) > n.LeashRange() {
 			e.npcDropTarget(n, gm)
+			n.Returning = !n.InHomeArea(n.X, n.Y)
 			return
 		}
 
