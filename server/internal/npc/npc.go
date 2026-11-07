@@ -342,6 +342,9 @@ type NPC struct {
 	// Wandering walks to a picked spot instead of a random step each tile
 	WanderDestX, WanderDestY int
 	HasWanderDest            bool
+	// Closest (squared distance) it has got to the destination, and steps since
+	// it last got closer: stuck behind a wall, it picks another destination.
+	WanderBest, WanderStall int
 	// Spawn rectangle from the original map data (Area.Set false = wander
 	// around the spawn point by WanderRange instead)
 	Area Rect

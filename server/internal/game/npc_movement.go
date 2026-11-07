@@ -58,21 +58,36 @@ func npcPickWanderDest(n *npc.NPC, gm *mapdata.GameMap) bool {
 			continue
 		}
 		if n.DistanceTo(x, y) >= 2 && gm.IsWalkable(x, y) {
-			n.WanderDestX, n.WanderDestY, n.HasWanderDest = x, y, true
+			setWanderDest(n, x, y)
 			return true
 		}
 	}
 	return false
 }
 
+func setWanderDest(n *npc.NPC, x, y int) {
+	n.WanderDestX, n.WanderDestY, n.HasWanderDest = x, y, true
+	n.WanderBest, n.WanderStall = -1, 0
+}
+
+// wanderStallSteps: a wandering NPC that takes this many steps without getting
+// any closer to its destination gives up on it and picks another. Stepping
+// round a wall toward a spot behind it otherwise turns into a back-and-forth
+// that never ends (the original's greedy stepping has the same trap).
+const wanderStallSteps = 8
+
 // npcWanderStep takes one wandering step. It returns false when the NPC is done
 // walking for now (arrived, or stuck) and should stand idle.
 func (e *Engine) npcWanderStep(n *npc.NPC, gm *mapdata.GameMap) bool {
-	if !n.InHomeArea(n.X, n.Y) {
-		// Strayed after a chase: head home
-		n.WanderDestX, n.WanderDestY, n.HasWanderDest = n.SpawnX, n.SpawnY, true
-	} else if !n.HasWanderDest && !npcPickWanderDest(n, gm) {
-		return false
+	if !n.HasWanderDest {
+		// A spot in the wander area; one that strayed after a chase heads back
+		// into it (to the spawn point if no spot can be found)
+		if !npcPickWanderDest(n, gm) {
+			if n.InHomeArea(n.X, n.Y) {
+				return false
+			}
+			setWanderDest(n, n.SpawnX, n.SpawnY)
+		}
 	}
 	if n.X == n.WanderDestX && n.Y == n.WanderDestY {
 		n.HasWanderDest = false
@@ -85,6 +100,15 @@ func (e *Engine) npcWanderStep(n *npc.NPC, gm *mapdata.GameMap) bool {
 	if n.X == n.WanderDestX && n.Y == n.WanderDestY {
 		n.HasWanderDest = false
 		return false // arrived: the stop goes out after this step and the client finishes it
+	}
+	// Progress check: squared distance, so moving diagonally along a wall that
+	// still gains ground counts as getting closer
+	dx, dy := n.WanderDestX-n.X, n.WanderDestY-n.Y
+	if d := dx*dx + dy*dy; n.WanderBest < 0 || d < n.WanderBest {
+		n.WanderBest, n.WanderStall = d, 0
+	} else if n.WanderStall++; n.WanderStall >= wanderStallSteps {
+		n.HasWanderDest = false // stuck behind something: try somewhere else
+		return false
 	}
 	return true
 }

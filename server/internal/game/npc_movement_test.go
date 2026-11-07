@@ -103,3 +103,39 @@ func TestStepTowardFollowsAWallWithoutFlipping(t *testing.T) {
 		t.Errorf("never got round the wall, at %d,%d", n.X, n.Y)
 	}
 }
+
+// A wanderer heading for a spot behind a wall used to step back and forth along
+// the wall for good; after a few steps without getting closer it picks another spot.
+func TestWandererBehindWallPicksNewDestination(t *testing.T) {
+	for _, turn := range []int{1, -1} {
+		e := makeTestEngine()
+		gm := makeTestGameMap(60, 60)
+		e.maps["test"] = gm
+		// A pocket open to the west: a wall at x = 30 (rows 25-35) and walls along
+		// rows 25 and 35 from x = 22. The NPC is inside, its destination straight
+		// east behind the wall: it slides into a corner and steps in and out of it.
+		for y := 25; y <= 35; y++ {
+			gm.Tiles[y][30].Walkable = false
+		}
+		for x := 22; x <= 30; x++ {
+			gm.Tiles[25][x].Walkable = false
+			gm.Tiles[35][x].Walkable = false
+		}
+		n := npc.NewNPC(1, npc.NpcTypes[55], "test", 28, 30)
+		n.Turn = turn
+		n.Area = npc.Rect{X1: 1, Y1: 1, X2: 58, Y2: 58, Set: true}
+		e.npcs.Store(n.ObjectID, n)
+		setWanderDest(n, 33, 30)
+
+		gaveUp := false
+		for i := 0; i < 100 && !gaveUp; i++ {
+			gaveUp = !e.npcWanderStep(n, gm)
+		}
+		if !gaveUp {
+			t.Fatalf("turn %d: NPC should give up on a destination it can't get closer to, still at %d,%d", turn, n.X, n.Y)
+		}
+		if n.HasWanderDest {
+			t.Errorf("turn %d: the stuck destination should be dropped", turn)
+		}
+	}
+}
