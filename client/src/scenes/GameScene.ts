@@ -21,6 +21,7 @@ import { AnimationType } from '../game/objects/GameAsset';
 import {
   DEPTH_MULTIPLIER,
   HIGH_DEPTH,
+  LABEL_DEPTH,
   DEFAULT_MOVEMENT_SPEED,
   MOVEMENT_COMMAND_THROTTLE_MS,
   IDLE_ANIMATION_FPS,
@@ -2562,7 +2563,7 @@ export class GameScene extends Phaser.Scene {
       backgroundColor: '#000000aa',
       padding: { x: 4, y: 2 },
       stroke: '#000000', strokeThickness: 1,
-    }).setOrigin(0.5, 1).setDepth(10000);
+    }).setOrigin(0.5, 1).setDepth(LABEL_DEPTH + 100000); // above name labels and map objects
 
     this.chatBubbles.push({ text: chatText, expiry: Date.now() + 5000, objectId: data.objectId });
   }

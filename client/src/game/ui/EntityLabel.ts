@@ -1,4 +1,5 @@
 import type { Scene } from 'phaser';
+import { LABEL_DEPTH } from '../../Config';
 
 /**
  * The name label under a player or NPC, as the original client drew it
@@ -6,6 +7,9 @@ import type { Scene } from 'phaser';
  * (its feet), and 14 px below a coloured line saying what it is to you:
  * "(Enemy)" / "Neutral" / "(Friendly)" for NPCs, "Traveller" / "Aresden
  * Combatant" / "Criminal"... for players.
+ *
+ * Labels draw in their own layer above the map objects (LABEL_DEPTH), so trees
+ * and roofs never hide them.
  */
 export class EntityLabel {
     private readonly name: Phaser.GameObjects.Text;
@@ -18,6 +22,7 @@ export class EntityLabel {
         };
         this.name = scene.add.text(x, y, name, style).setVisible(false);
         this.tag = scene.add.text(x, y + 14, '', style).setVisible(false);
+        this.setDepth(0);
     }
 
     get visible(): boolean { return this.name.visible; }
@@ -35,9 +40,11 @@ export class EntityLabel {
         return this;
     }
 
+    /** depth is the owner's world depth: it orders labels among themselves,
+     * all above the map objects. */
     setDepth(depth: number): this {
-        this.name.setDepth(depth);
-        this.tag.setDepth(depth);
+        this.name.setDepth(LABEL_DEPTH + depth);
+        this.tag.setDepth(LABEL_DEPTH + depth);
         return this;
     }
 

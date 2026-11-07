@@ -4,6 +4,10 @@ export const HIGH_DEPTH = 5000000;
 /** Spell effects draw above every map object and character (the original client's
  * DrawEffects runs after DrawObjects), keeping their own top-to-bottom order. */
 export const EFFECT_LAYER_DEPTH = 4000000;
+/** Name labels and chat bubbles draw above every map object and spell effect,
+ * so a monster or player behind a tree or a building's roof can still be found
+ * by hovering. Labels keep their own top-to-bottom order above this. */
+export const LABEL_DEPTH = 4500000;
 
 // ---------------------------------------------------------------------------
 // Movement
