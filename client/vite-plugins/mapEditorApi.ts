@@ -4,7 +4,7 @@
 //   GET  /__map-editor/state               server maps with their doors, spawns and map config settings,
 //                                          walkable.json, client map files
 //   GET  /__map-editor/server-map?file=X   a .amd file from the server's map folder (assets/MAPDATA)
-//   POST /__map-editor/save                {doors, spawns, walkable}: doors and spawns go into the maps'
+//   POST /__map-editor/save                {doors, spawns, settings, walkable}: doors, spawns and settings go into the maps'
 //                                          configs (server/internal/mapdata/maps/<map>.txt, through the Go
 //                                          tool mapconfigsave); walkable.json is written here
 import type { Plugin } from 'vite';
@@ -107,6 +107,7 @@ export function mapEditorApi(): Plugin {
                     } else if (route === 'save' && req.method === 'POST') {
                         const body = JSON.parse(await readBody(req)) as {
                             doors?: Record<string, unknown[]>; spawns?: Record<string, unknown[]>; walkable?: WalkOverrides;
+                            settings?: Record<string, Record<string, string>>;
                         };
                         if (body.walkable && (body.walkable.version !== 1 || typeof body.walkable.maps !== 'object')) {
                             return send(res, 400, { error: 'walkable.json needs version 1 and maps' });
@@ -114,8 +115,8 @@ export function mapEditorApi(): Plugin {
                         // Map configs first: the Go tool checks every changed file the way the
                         // server reads it and writes none if one has a problem.
                         let written: string[] = [];
-                        if (body.doors || body.spawns) {
-                            const r = await runSave({ doors: body.doors ?? {}, spawns: body.spawns ?? {} });
+                        if (body.doors || body.spawns || body.settings) {
+                            const r = await runSave({ doors: body.doors ?? {}, spawns: body.spawns ?? {}, settings: body.settings ?? {} });
                             if (r.errors.length) return send(res, 200, { ok: false, errors: r.errors, written: [] });
                             written = r.written;
                         }

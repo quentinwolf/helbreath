@@ -124,6 +124,22 @@ are also built into the server binary (`go:embed`). If the folder doesn't exist,
 deployed server without the source tree, the server uses those built-in copies and doesn't
 reload. `go test ./server/internal/mapdata/` checks the built-in copies load.
 
+## Map settings
+
+The Map settings section edits the current map's one-line settings, saved into its `maps/<map>.txt` with the
+other changes (values change in place, keeping the file's spacing and comments):
+
+- **Maximum monsters** (`maximum-object`): most monsters on the map, spot generators and random ones together.
+  Guards and town NPCs don't count.
+- **Random monsters** (`random-mob-generator`): Off or the original level table (1-21).
+- **Random monsters at most** (`random-mob-max`, port setting): empty = 20% of maximum monsters.
+- **Random monsters in packs** (`random-mob-groups`, port setting): packs of the same monster, as the original.
+- **Indoors** (`fixed-dayornight-mode`): always day, no weather.
+
+The note under the form shows how many monsters the spot generators keep up and how many random ones fit.
+A running server picks the change up within a second; a lowered cap removes random monsters nobody is near.
+Settings changes aren't in undo/redo: use Discard settings changes.
+
 ## Walkability (walkable.json)
 
 Walkability edits go to `server/internal/mapdata/walkable.json`. Like the doors file, it

@@ -29,6 +29,16 @@ export interface MapSettings {
     maxObjects?: number;
     /** Random mob generator level, 0 / missing = off. */
     randomMobs?: number;
+    /** random-mob-max (port setting), missing = not set (a share of maxObjects). */
+    randomMobMax?: number;
+    /** random-mob-groups = 1: random monsters in packs. */
+    randomMobGroups?: boolean;
+    /** Random monsters the server allows at once (0 when the generator is off). */
+    randomMobCap?: number;
+    /** The default cap as a share of maxObjects (0.2). */
+    randomMobShare?: number;
+    /** Monsters the spot mob generators keep up. */
+    spotMonsters?: number;
     levelLimit?: number;
     upperLevelLimit?: number;
     /** num, x, y */

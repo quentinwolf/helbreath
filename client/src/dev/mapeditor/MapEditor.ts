@@ -127,6 +127,10 @@ class MapEditorScene extends Phaser.Scene {
     private spawns = new Map<string, Spawn[]>(); // working copies, by lower-case map
     private spawnSource = new Map<string, 'builtin' | 'json'>();
     private spawnDirty = new Set<string>();
+    // Map settings edits (maximum-object, random monsters...): key -> value as
+    // written in the config, "" removes the line. Not in undo/redo.
+    private settingsEdits = new Map<string, Record<string, string>>();
+    private settingsFormMap = ''; // the map the settings form was built for
     // One history for all maps: each step is the map it changed and that map's state before.
     private undo: { map: string; snap: Snapshot }[] = [];
     private redo: { map: string; snap: Snapshot }[] = [];
@@ -241,6 +245,8 @@ class MapEditorScene extends Phaser.Scene {
         this.spawns.clear();
         this.spawnSource.clear();
         this.spawnDirty.clear();
+        this.settingsEdits.clear();
+        this.settingsFormMap = '';
         this.selectedSpawn = null;
         this.doors.clear();
         this.source.clear();
@@ -625,6 +631,7 @@ class MapEditorScene extends Phaser.Scene {
         this.drawArrivals();
         this.refreshMapSelect();
         this.refreshMapInfo();
+        this.refreshSettings();
         this.refreshWalkInfo();
         this.refreshDoorList();
         this.refreshArrivalList();
@@ -758,6 +765,16 @@ class MapEditorScene extends Phaser.Scene {
         $('backBtn').addEventListener('click', () => this.goBack());
         $('newDoorBtn').addEventListener('click', () => this.newDoor());
         $('saveBtn').addEventListener('click', () => this.save());
+        const form = $('settingsForm');
+        form.addEventListener('input', () => this.readSettingsForm());
+        form.addEventListener('change', () => this.readSettingsForm());
+        form.addEventListener('click', (e) => {
+            if ((e.target as HTMLElement).id === 'settingsRevertBtn') {
+                this.settingsEdits.delete(this.current.toLowerCase());
+                this.settingsFormMap = '';
+                this.refreshAll();
+            }
+        });
         $('revertBtn').addEventListener('click', () => this.revertMap());
         $('undoBtn').addEventListener('click', () => this.undoStep(false));
         $('redoBtn').addEventListener('click', () => this.undoStep(true));
@@ -799,7 +816,7 @@ class MapEditorScene extends Phaser.Scene {
         }
 
         window.addEventListener('beforeunload', (e) => {
-            if (this.dirty.size || this.walkDirty.size || this.spawnDirty.size) e.preventDefault();
+            if (this.dirty.size || this.walkDirty.size || this.spawnDirty.size || this.settingsEdits.size) e.preventDefault();
         });
         this.refreshDoorEditor();
         this.setWalkPaint('block');
@@ -810,7 +827,7 @@ class MapEditorScene extends Phaser.Scene {
         for (const opt of Array.from(select.options)) {
             const lower = opt.value.toLowerCase();
             const marks = [
-                this.dirty.has(lower) || this.walkDirty.has(lower) || this.spawnDirty.has(lower) ? '● unsaved'
+                this.dirty.has(lower) || this.walkDirty.has(lower) || this.spawnDirty.has(lower) || this.settingsEdits.has(lower) ? '● unsaved'
                     : this.walkKey(lower) ? 'walk edits' : '',
                 this.clientFiles.has(lower) ? '' : 'no picture',
             ].filter(Boolean);
@@ -842,9 +859,6 @@ class MapEditorScene extends Phaser.Scene {
         if (!s) return '';
         const parts: string[] = [];
         if (s.location && s.location.toLowerCase() !== info!.name.toLowerCase()) parts.push(`side ${s.location}`);
-        if (s.maxObjects) parts.push(`up to ${s.maxObjects} monsters`);
-        if (s.randomMobs) parts.push(`random monsters level ${s.randomMobs} (not ported yet)`);
-        if (s.fixedDay) parts.push('indoors: always day, no weather');
         if (s.noAttackAll) parts.push('the whole map is a no-attack area');
         if (s.levelLimit) parts.push(`level ${s.levelLimit}+`);
         if (s.upperLevelLimit) parts.push(`up to level ${s.upperLevelLimit}`);
@@ -852,6 +866,112 @@ class MapEditorScene extends Phaser.Scene {
         const pts = [n('no-attack', s.noAttack), n('waypoints', s.waypoints), n('fish', s.fishPoints), n('mineral', s.mineralPoints)].filter(Boolean);
         if (pts.length) parts.push(pts.join(', '));
         return parts.length ? `· ${esc(parts.join(' · '))}` : '';
+    }
+
+    // ---------------------------------------------------------------------
+    // Map settings (maximum-object, random monsters, indoors)
+    // ---------------------------------------------------------------------
+
+    /** A map's settings as config values: the file's, and with unsaved edits on top. */
+    private settingValues(lower: string): { saved: Record<string, string>; now: Record<string, string> } {
+        const s = this.infos.get(lower)?.settings;
+        const saved: Record<string, string> = {
+            'maximum-object': s?.maxObjects ? String(s.maxObjects) : '',
+            'random-mob-generator': s?.randomMobs ? `1 ${s.randomMobs}` : '',
+            'random-mob-max': s?.randomMobMax !== undefined ? String(s.randomMobMax) : '',
+            'random-mob-groups': s?.randomMobGroups ? '1' : '',
+            'fixed-dayornight-mode': s?.fixedDay ? '1' : '',
+        };
+        return { saved, now: { ...saved, ...this.settingsEdits.get(lower) } };
+    }
+
+    private refreshSettings(): void {
+        const form = $('settingsForm');
+        const lower = this.current.toLowerCase();
+        const info = this.infos.get(lower);
+        if (!info?.config) {
+            form.innerHTML = '<div class="note">This map has no map config, so it has no settings to edit.</div>';
+            this.settingsFormMap = '';
+            $('settingsSummary').textContent = '';
+            return;
+        }
+        const { now } = this.settingValues(lower);
+        if (this.settingsFormMap !== lower) {
+            // Built once per map, so typing keeps focus
+            this.settingsFormMap = lower;
+            const level = Number(now['random-mob-generator'].split(' ')[1] ?? 0) || 0;
+            const levels = ['<option value="0">Off</option>',
+                ...Array.from({ length: 21 }, (_, i) => `<option value="${i + 1}">Level ${i + 1}</option>`)].join('');
+            form.innerHTML = `
+                <div class="row"><label for="setMaxObjects" title="maximum-object: most monsters on the map at once, spot generators and random ones together (guards and town NPCs don't count)">Maximum monsters</label>
+                    <input id="setMaxObjects" type="number" min="0" step="10" value="${esc(now['maximum-object'])}" placeholder="none"></div>
+                <div class="row"><label for="setRandomLevel" title="random-mob-generator: monsters from the original level table appear anywhere outside the no-random-monster areas">Random monsters</label>
+                    <select id="setRandomLevel">${levels}</select></div>
+                <div class="row"><label for="setRandomMax" title="random-mob-max: most random monsters at once. Empty = a share of maximum monsters">Random monsters at most</label>
+                    <input id="setRandomMax" type="number" min="0" value="${esc(now['random-mob-max'])}" placeholder="default"></div>
+                <div class="row"><label for="setRandomGroups" title="random-mob-groups = 1: a random monster brings up to 4 of the same with it, as the original">Random monsters in packs</label>
+                    <input id="setRandomGroups" type="checkbox" ${now['random-mob-groups'] ? 'checked' : ''}></div>
+                <div class="row"><label for="setFixedDay" title="fixed-dayornight-mode = 1: indoors, always day and never weather">Indoors (always day)</label>
+                    <input id="setFixedDay" type="checkbox" ${now['fixed-dayornight-mode'] ? 'checked' : ''}></div>
+                <div id="settingsNote" class="note"></div>
+                <div class="row"><button id="settingsRevertBtn" class="danger" title="Throw away this map's unsaved settings changes">Discard settings changes</button></div>`;
+            $<HTMLSelectElement>('setRandomLevel').value = String(level);
+        }
+        this.refreshSettingsNote();
+    }
+
+    /** The form into settingsEdits (only values that differ from the file). */
+    private readSettingsForm(): void {
+        const lower = this.current.toLowerCase();
+        if (this.settingsFormMap !== lower) return;
+        const num = (id: string) => {
+            const v = $<HTMLInputElement>(id).value.trim();
+            return v === '' || !Number.isFinite(Number(v)) ? '' : String(Math.max(0, Math.round(Number(v))));
+        };
+        const level = Number($<HTMLSelectElement>('setRandomLevel').value);
+        const form: Record<string, string> = {
+            'maximum-object': num('setMaxObjects'),
+            'random-mob-generator': level > 0 ? `1 ${level}` : '',
+            'random-mob-max': num('setRandomMax'),
+            'random-mob-groups': $<HTMLInputElement>('setRandomGroups').checked ? '1' : '',
+            'fixed-dayornight-mode': $<HTMLInputElement>('setFixedDay').checked ? '1' : '',
+        };
+        const { saved } = this.settingValues(lower);
+        const changed: Record<string, string> = {};
+        for (const [k, v] of Object.entries(form)) if (v !== saved[k]) changed[k] = v;
+        if (Object.keys(changed).length) this.settingsEdits.set(lower, changed);
+        else this.settingsEdits.delete(lower);
+        this.refreshSettingsNote();
+        this.refreshMapSelect();
+        this.refreshSaveBar();
+    }
+
+    private refreshSettingsNote(): void {
+        const lower = this.current.toLowerCase();
+        const s = this.infos.get(lower)?.settings;
+        const note = document.getElementById('settingsNote');
+        if (!s || !note) return;
+        const { now } = this.settingValues(lower);
+        const maxObj = Number(now['maximum-object']) || 0;
+        const spot = s.spotMonsters ?? 0;
+        const level = Number(now['random-mob-generator'].split(' ')[1] ?? 0) || 0;
+        const share = s.randomMobShare ?? 0.2;
+        const lines: string[] = [];
+        lines.push(`Spot mob generators keep up ${spot} monster${spot === 1 ? '' : 's'}${maxObj ? ` of ${maxObj}` : ''}.`);
+        if (level) {
+            const cap = now['random-mob-max'] !== '' ? Number(now['random-mob-max']) : Math.floor(maxObj * share);
+            const room = maxObj ? Math.max(0, maxObj - spot) : cap;
+            const fits = Math.min(cap, room);
+            const how = now['random-mob-max'] === '' ? ` (${Math.round(share * 100)}% of maximum monsters)` : '';
+            const squeezed = fits < cap ? `, only ${room} fit under maximum monsters` : '';
+            lines.push(`Random monsters: up to ${fits} at once${how}${squeezed}, ${now['random-mob-groups'] ? 'in packs' : 'one at a time'}.`);
+        } else {
+            lines.push('No random monsters.');
+        }
+        const dirty = this.settingsEdits.has(lower);
+        note.innerHTML = `${dirty ? '<span class="tag dirty">unsaved</span> ' : ''}${lines.map(esc).join('<br>')}`;
+        $<HTMLButtonElement>('settingsRevertBtn').disabled = !dirty;
+        $('settingsSummary').textContent = `${level ? `random level ${level}` : 'no random monsters'}${dirty ? ' · unsaved' : ''}`;
     }
 
     private refreshWalkInfo(): void {
@@ -964,7 +1084,7 @@ class MapEditorScene extends Phaser.Scene {
     }
 
     private refreshSaveBar(): void {
-        const n = new Set([...this.dirty, ...this.walkDirty, ...this.spawnDirty]).size;
+        const n = new Set([...this.dirty, ...this.walkDirty, ...this.spawnDirty, ...this.settingsEdits.keys()]).size;
         $<HTMLButtonElement>('saveBtn').disabled = n === 0;
         $<HTMLButtonElement>('saveBtn').textContent = n ? `Save (${n} map${n === 1 ? '' : 's'})` : 'Save';
         const lower = this.current.toLowerCase();
@@ -1260,7 +1380,7 @@ class MapEditorScene extends Phaser.Scene {
 
     private async save(): Promise<void> {
         const status = $('saveStatus');
-        if (!this.dirty.size && !this.walkDirty.size && !this.spawnDirty.size) return;
+        if (!this.dirty.size && !this.walkDirty.size && !this.spawnDirty.size && !this.settingsEdits.size) return;
         const issues: string[] = [];
         const nameOf = (lower: string) => this.mapNames.get(lower) ?? lower;
 
@@ -1287,6 +1407,13 @@ class MapEditorScene extends Phaser.Scene {
             (spawns ??= {})[name] = this.spawnsOf(name).map(spawnToSpot);
         }
 
+        let settings: Record<string, Record<string, string>> | undefined;
+        for (const [lower, edit] of this.settingsEdits) {
+            const name = nameOf(lower);
+            if (!this.infos.get(lower)?.config) { issues.push(`${name}: has no map config to save settings in`); continue; }
+            (settings ??= {})[name] = edit;
+        }
+
         let walkable: WalkOverrides | undefined;
         if (this.walkDirty.size) {
             const maps: WalkOverrides['maps'] = { ...this.walkable.maps };
@@ -1311,24 +1438,26 @@ class MapEditorScene extends Phaser.Scene {
             const r = await getJSON<SaveResult>(`${API}save`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ doors, spawns, walkable }),
+                body: JSON.stringify({ doors, spawns, settings, walkable }),
             });
             if (!r.ok) {
                 const why = [...(r.errors ?? []), r.walkError ?? ''].filter(Boolean);
                 status.innerHTML = `<span class="sev-error">Not saved:</span><br>${why.map(esc).join('<br>')}`;
                 return;
             }
-            const n = new Set([...this.dirty, ...this.walkDirty, ...this.spawnDirty]).size;
+            const n = new Set([...this.dirty, ...this.walkDirty, ...this.spawnDirty, ...this.settingsEdits.keys()]).size;
             if (walkable) this.walkable = walkable;
             // The saved maps' configs as the server now reads them (exact doors, spawn lines)
             for (const m of r.maps ?? []) {
                 const lower = m.name.toLowerCase();
-                if (this.dirty.has(lower) || this.spawnDirty.has(lower)) this.infos.set(lower, m);
+                if (this.dirty.has(lower) || this.spawnDirty.has(lower) || this.settingsEdits.has(lower)) this.infos.set(lower, m);
             }
             // Saved maps keep their working copies; only the "unsaved" marks go.
             this.dirty.clear();
             this.walkDirty.clear();
             this.spawnDirty.clear();
+            this.settingsEdits.clear();
+            this.settingsFormMap = '';
             this.refreshAll();
             const files = [
                 ...r.written.map((m) => `maps/${m}.txt`),

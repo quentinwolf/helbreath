@@ -171,3 +171,7 @@ func checkConfigNames(c *mapdata.MapConfig) []error {
 	}
 	return errs
 }
+
+// MapSpawnsOf is one map config's spawns as the server makes them (for the
+// map editor's export).
+func MapSpawnsOf(c *mapdata.MapConfig) []SpawnEntry { return mapSpawns(c) }

@@ -94,10 +94,16 @@ type TeleportLoc struct {
 	Comment      string // the line's trailing comment
 }
 
-// RandomMobGenerator is random-mob-generator = <on 0/1> <level>.
+// RandomMobGenerator is random-mob-generator = <on 0/1> <level>, plus two port
+// settings: random-mob-max = <n> (most random monsters at once; without it a
+// share of maximum-object, game.RandomMobShare) and random-mob-groups = 1
+// (spawn in packs of the same monster, as the original; default one at a time).
 type RandomMobGenerator struct {
-	On    bool
-	Level int
+	On     bool
+	Level  int
+	Max    int
+	MaxSet bool
+	Groups bool
 }
 
 // SpotMobGenerator is spot-mob-generator = <num> <type> <left> <top> <right> <bottom> <monster> <max>.
@@ -155,7 +161,7 @@ var knownKeys = map[string]bool{
 	"heldeniantower": true, "heldenianmodemap": true, "heldenianwinningzone": true,
 	"heldeniangatedoor": true, "pk-mode": true, "limited-cast": true, "drop-type": true,
 	"not-permanent-map": true, "boss-rate": true, "extra-drop": true,
-	"exact-doors": true, // port setting
+	"exact-doors": true, "random-mob-max": true, "random-mob-groups": true, // port settings
 }
 
 // ParseMapConfig reads one config file. name is the map (the file's name
@@ -275,7 +281,20 @@ func (c *MapConfig) apply(l ConfigLine) error {
 		if err != nil {
 			return err
 		}
-		c.RandomMobs = RandomMobGenerator{On: n[0] != 0, Level: n[1]}
+		c.RandomMobs.On, c.RandomMobs.Level = n[0] != 0, n[1]
+	case "random-mob-max":
+		c.RandomMobs.MaxSet = true
+		if err := one(&c.RandomMobs.Max); err != nil {
+			return err
+		}
+		if c.RandomMobs.Max < 0 {
+			return fmt.Errorf("random-mob-max can't be negative")
+		}
+	case "random-mob-groups":
+		var on int
+		err := one(&on)
+		c.RandomMobs.Groups = on != 0
+		return err
 	case "teleport-loc":
 		if len(v) < 6 {
 			return fmt.Errorf("teleport-loc needs x y destination-map dest-x dest-y direction")

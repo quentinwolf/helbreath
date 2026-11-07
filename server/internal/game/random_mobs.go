@@ -11,36 +11,69 @@ import (
 )
 
 // The random mob generator (original Game.cpp MobGenerator): every 600 ms,
-// each map with random-mob-generator = 1 <level> that holds fewer than
-// maximum-object - 30 monsters gets one more group: a monster rolled from the
-// level's table (random_mobs_table.go) somewhere on the map outside its
-// npc-avoidrect areas, plus 0-4 of the same next to it. They wander the whole
-// map and are removed when they die; the generator tops the map up again.
+// each map with random-mob-generator = 1 <level> that has room gets one more
+// monster rolled from the level's table (random_mobs_table.go), somewhere on
+// the map outside its npc-avoidrect areas. They wander the whole map and are
+// removed when they die; the generator tops the map up again.
+//
+// Changed from the original (Zac's design): the original filled a map up to
+// maximum-object - 30 with random monsters in packs of up to 5. Here random
+// monsters have their own cap (RandomMobCap: random-mob-max, or RandomMobShare
+// of maximum-object), only monsters count toward maximum-object, so spot
+// generators always get their share, and they come one at a time unless the
+// map sets random-mob-groups = 1.
 
 const randomMobInterval = 600 * time.Millisecond
 
-// runRandomMobs adds one group to every map that has room (processTick).
+// runRandomMobs adds one group to every map that has room (processTick). A map
+// over its cap (the map editor lowered it, or turned the generator off) loses
+// one idle random monster nobody is near instead.
 func (e *Engine) runRandomMobs() {
-	if RandomMobDensity <= 0 {
-		return
-	}
-	live := map[string]int{}
+	random := map[string]int{}     // live random monsters per map
+	monsters := map[string]int{}   // all live wild monsters per map
+	spare := map[string]*npc.NPC{} // a random monster that can go unseen
 	e.npcs.Range(func(_, v any) bool {
-		if n, ok := v.(*npc.NPC); ok && n.State != npc.StateDead {
-			live[strings.ToLower(n.MapName)]++
+		n, ok := v.(*npc.NPC)
+		if !ok || n.State == npc.StateDead || n.Type.Side != npc.SideMonster || n.MasterID != 0 {
+			return true
+		}
+		m := strings.ToLower(n.MapName)
+		monsters[m]++
+		if n.RandomMob {
+			random[m]++
+			if spare[m] == nil && n.TargetID == 0 {
+				spare[m] = n
+			}
 		}
 		return true
 	})
 	for _, gm := range e.maps {
+		m := strings.ToLower(gm.Name)
 		c := mapdata.Configs().Get(gm.Name)
-		if c == nil || !c.RandomMobs.On {
+		limit := 0
+		if c != nil && c.RandomMobs.On {
+			limit = RandomMobCap(c)
+		}
+		if random[m] > limit {
+			if n := spare[m]; n != nil && len(gm.GetNearbyPlayerIDs(n.X, n.Y)) == 0 {
+				gm.ClearOwner(n.X, n.Y)
+				e.npcs.Delete(n.ObjectID)
+			}
 			continue
 		}
-		limit := int(float64(c.MaxObjects-30) * RandomMobDensity)
-		if live[strings.ToLower(gm.Name)] < limit {
+		if c != nil && c.RandomMobs.On && random[m] < limit && (c.MaxObjects <= 0 || monsters[m] < c.MaxObjects) {
 			e.spawnRandomGroup(gm, c)
 		}
 	}
+}
+
+// RandomMobCap is the most random monsters a map has at once: its
+// random-mob-max, or RandomMobShare of its maximum-object.
+func RandomMobCap(c *mapdata.MapConfig) int {
+	if c.RandomMobs.MaxSet {
+		return c.RandomMobs.Max
+	}
+	return int(float64(c.MaxObjects) * RandomMobShare)
 }
 
 // spawnRandomGroup adds one rolled monster and its followers; how many were made.
@@ -62,6 +95,9 @@ func (e *Engine) spawnRandomGroup(gm *mapdata.GameMap, c *mapdata.MapConfig) int
 	made := 0
 	if e.spawnRandomMob(gm, t, x, y) {
 		made++
+	}
+	if !c.RandomMobs.Groups {
+		return made // one at a time (the original's packs only with random-mob-groups = 1)
 	}
 	for i := randomMobFollowers(code, iDice); i > 0; i-- {
 		fx, fy := x+rand.Intn(3)-1, y+rand.Intn(3)-1
@@ -100,6 +136,10 @@ func (e *Engine) spawnRandomMob(gm *mapdata.GameMap, t *npc.NpcType, x, y int) b
 	objectID := e.nextObjID.Add(1)
 	n := npc.NewNPC(objectID, t, gm.Name, x, y)
 	n.RandomMob = true
+	// Roam the whole map like the original (DEF_MOVETYPE_RANDOM picks each
+	// destination 15+ tiles from the left/top edge, 35 from the right/bottom),
+	// not 8 tiles round the spawn point: that kept every pack on one spot
+	n.Area = npc.Rect{X1: 15, Y1: 15, X2: gm.Width - 36, Y2: gm.Height - 36, Set: true}
 	e.npcs.Store(objectID, n)
 	gm.SetOwner(x, y, objectID)
 	e.broadcastToNearby(gm, x, y, -1, network.MsgNpcAppear, n.ToNpcAppear())

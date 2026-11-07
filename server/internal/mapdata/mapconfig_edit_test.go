@@ -178,3 +178,36 @@ func TestEditCRLFAndSettingAdded(t *testing.T) {
 		t.Error("new lines go before [END-MAP-INFO]")
 	}
 }
+
+func TestEditMapConfigSettings(t *testing.T) {
+	src := "[MAP-INFO]\nmap-location = elvine\nmaximum-object\t\t= 600   // cap\nrandom-mob-generator\t= 1  1\n[END-MAP-INFO]\n"
+	out, err := EditMapConfig("x", []byte(src), MapEdit{Settings: map[string]string{
+		"maximum-object": "200", "random-mob-max": "40", "random-mob-groups": "1",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out, "maximum-object\t\t= 200   // cap\n") {
+		t.Errorf("value should change in place, keeping spacing and comment:\n%s", out)
+	}
+	c, errs := ParseMapConfig("x", []byte(out))
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	if c.MaxObjects != 200 || !c.RandomMobs.MaxSet || c.RandomMobs.Max != 40 || !c.RandomMobs.Groups || !c.RandomMobs.On {
+		t.Errorf("settings not read back: %+v %d", c.RandomMobs, c.MaxObjects)
+	}
+	// Removing them again gives back the original file
+	back, err := EditMapConfig("x", []byte(out), MapEdit{Settings: map[string]string{
+		"maximum-object": "600", "random-mob-max": "", "random-mob-groups": "",
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if back != src {
+		t.Errorf("round trip changed the file:\n%q\nwant\n%q", back, src)
+	}
+	if _, err := EditMapConfig("x", []byte(src), MapEdit{Settings: map[string]string{"pk-mode": "1"}}); err == nil {
+		t.Error("only editable settings can be set")
+	}
+}

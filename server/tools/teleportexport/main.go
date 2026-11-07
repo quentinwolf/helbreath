@@ -62,6 +62,11 @@ type settings struct {
 	FixedDay        bool     `json:"fixedDay,omitempty"`
 	MaxObjects      int      `json:"maxObjects,omitempty"`
 	RandomMobs      int      `json:"randomMobs,omitempty"` // level, 0 = off
+	RandomMobMax    *int     `json:"randomMobMax,omitempty"`    // random-mob-max, nil = not set
+	RandomMobGroups bool     `json:"randomMobGroups,omitempty"` // random-mob-groups = 1
+	RandomMobCap    int      `json:"randomMobCap"`              // random monsters the server allows
+	RandomMobShare  float64  `json:"randomMobShare"`            // default cap, share of maximum-object
+	SpotMonsters    int      `json:"spotMonsters"`              // monsters the spot generators keep up
 	LevelLimit      int      `json:"levelLimit,omitempty"`
 	UpperLevelLimit int      `json:"upperLevelLimit,omitempty"`
 	InitialPoints   [][3]int `json:"initialPoints"` // num, x, y
@@ -236,6 +241,18 @@ func settingsOf(c *mapdata.MapConfig) settings {
 		NoAttack: [][5]int{}, NpcAvoid: [][5]int{}, StrikePoints: [][3]int{}}
 	if c.RandomMobs.On {
 		s.RandomMobs = max(1, c.RandomMobs.Level)
+		s.RandomMobCap = game.RandomMobCap(c)
+	}
+	if c.RandomMobs.MaxSet {
+		v := c.RandomMobs.Max
+		s.RandomMobMax = &v
+	}
+	s.RandomMobGroups = c.RandomMobs.Groups
+	s.RandomMobShare = game.RandomMobShare
+	for _, e := range game.MapSpawnsOf(c) {
+		if t := npc.NpcTypes[e.NpcTypeID]; t != nil && t.Side == npc.SideMonster {
+			s.SpotMonsters += max(1, e.Count)
+		}
 	}
 	for _, p := range c.InitialPoints {
 		s.InitialPoints = append(s.InitialPoints, [3]int{p.Num, p.X, p.Y})

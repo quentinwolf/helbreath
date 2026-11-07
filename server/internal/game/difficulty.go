@@ -18,9 +18,11 @@ var (
 	// own low-level boost (killXP). 1 = the original rate (it was 5).
 	XPMultiplier = 1.0
 
-	// RandomMobDensity scales how full the random mob generator keeps a map:
-	// 1 = the original (up to maximum-object - 30 monsters), 0 = off.
-	RandomMobDensity = 1.0
+	// RandomMobShare is the default cap on a map's random monsters, as a share
+	// of its maximum-object (a map's random-mob-max overrides it); 0 = off.
+	// The original filled maps up to maximum-object - 30 (570 on Elvine), far
+	// more than the occasional wandering monster Zac remembers.
+	RandomMobShare = 0.20
 
 	// NPCDamageReduction reduces damage NPCs deal to players.
 	NPCDamageReduction = 3

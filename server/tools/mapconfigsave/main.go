@@ -6,7 +6,11 @@
 //
 //	{"doors":  {"<map>": [{"tiles": [[x, y], ...], "to": {"map": "...", "x": 0, "y": 0, "dir": 0}, "name": ""}]},
 //	 "spawns": {"<map>": [{"npc": 10, "count": 5, "x": 0, "y": 0, "radius": 0, "area": [x1, y1, x2, y2],
-//	                       "dir": 0, "respawn": 0, "note": "", "src": "spot:3"}]}}
+//	                       "dir": 0, "respawn": 0, "note": "", "src": "spot:3"}]},
+//	 "settings": {"<map>": {"maximum-object": "600", "random-mob-max": ""}}}
+//
+// settings: values as written in the file, "" removes the line
+// (mapdata.EditableSettings lists the keys).
 //
 // Each listed map's doors / spawns become exactly those given (doors also set
 // exact-doors = 1). Only the lines that change are rewritten. Every changed
@@ -55,8 +59,9 @@ type spawn struct {
 }
 
 type input struct {
-	Doors  map[string][]door  `json:"doors"`
-	Spawns map[string][]spawn `json:"spawns"`
+	Doors    map[string][]door            `json:"doors"`
+	Spawns   map[string][]spawn           `json:"spawns"`
+	Settings map[string]map[string]string `json:"settings"`
 }
 
 type result struct {
@@ -137,6 +142,14 @@ func save(dir string, in input) result {
 			list = append(list, e)
 		}
 		editFor(m).Spawns = &list
+	}
+	for m, set := range in.Settings {
+		for k := range set {
+			if _, ok := mapdata.EditableSettings[k]; !ok {
+				fail("%s: %s can't be set from the editor", m, k)
+			}
+		}
+		editFor(m).Settings = set
 	}
 	if len(res.Errors) > 0 {
 		return res

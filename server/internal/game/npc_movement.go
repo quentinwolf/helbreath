@@ -45,9 +45,18 @@ func npcPickWanderDest(n *npc.NPC, gm *mapdata.GameMap) bool {
 		}
 		area = npc.Rect{X1: n.SpawnX - r, Y1: n.SpawnY - r, X2: n.SpawnX + r, Y2: n.SpawnY + r, Set: true}
 	}
+	// Random-generator mobs roam the whole map but keep out of its
+	// npc-avoidrect areas (the town), as the original's DEF_MOVETYPE_RANDOM
+	var avoid *mapdata.MapConfig
+	if n.RandomMob {
+		avoid = mapdata.Configs().Get(gm.Name)
+	}
 	for try := 0; try < 10; try++ {
 		x := area.X1 + rand.Intn(area.X2-area.X1+1)
 		y := area.Y1 + rand.Intn(area.Y2-area.Y1+1)
+		if avoid != nil && avoid.InNpcAvoid(x, y) {
+			continue
+		}
 		if n.DistanceTo(x, y) >= 2 && gm.IsWalkable(x, y) {
 			n.WanderDestX, n.WanderDestY, n.HasWanderDest = x, y, true
 			return true

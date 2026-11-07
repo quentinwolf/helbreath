@@ -52,9 +52,11 @@ spot-mob-generator = 1  1  106 43 123 55  Slime  20
 | `waypoint` | num x y | **Used** (positions for `npc` lines) |
 | `npc` | name move-type wp1 … wp10 prefix: a town NPC on its waypoints (move type 1 in order, 2 random) | **Used** (stands on wp1; walking between waypoints not ported) |
 | `spot-mob-generator` | num type left top right bottom monster max | **Used** for type 1: up to *max* alive, spawning and wandering in the rectangle. Type 2 (waypoint routes) not ported |
-| `maximum-object` | n: monster cap for the map | **Used**: when the spot rectangles add up to more, each gets its share; the random mob generator fills up to n - 30 |
+| `maximum-object` | n: monster cap for the map | **Used**: when the spot rectangles add up to more, each gets its share; random monsters never take the map's monsters past it (guards and town NPCs don't count). The original's random generator filled up to n - 30 |
 | `fixed-dayornight-mode` | 1: always day, never weather (indoors, dungeons) | **Used** |
-| `random-mob-generator` | on level: random monsters anywhere by the original's level table (1 = towns: Slime, Giant Ant, Rabbit, Cat, Orc) up to `maximum-object` - 30 | **Used** |
+| `random-mob-generator` | on level: random monsters anywhere outside `npc-avoidrect` by the original's level table (1 = towns: Slime, Giant Ant, Rabbit, Cat, Orc), one at a time, up to `random-mob-max` | **Changed**: the original filled up to `maximum-object` - 30 in packs |
+| `random-mob-max` | n: most random monsters at once (port setting). Without it: 20% of `maximum-object` (`RandomMobShare`, difficulty.go) | **Used** |
+| `random-mob-groups` | 1: random monsters come in packs of up to 5, as the original (port setting) | **Used** |
 | `npc-avoidrect` | num rect: where random monsters don't spawn | **Used** |
 | `no-attack-area` | num rect. `-10 -10 -10 -10` = **the whole map** (town buildings); other rectangles count only with a top above 0 | **Used**: nobody inside can cast attack spells; a player inside can't be hurt by melee or spells (players or monsters), and monsters don't go for them |
 | `level-limit`, `upper-level-limit` | lowest / highest level allowed in | Kept |

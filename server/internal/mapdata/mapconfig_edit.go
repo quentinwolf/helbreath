@@ -38,6 +38,9 @@ type SpawnEdit struct {
 type MapEdit struct {
 	Doors  *[]DoorTile // the map's door tiles; also sets exact-doors = 1
 	Spawns *[]SpawnEdit
+	// Settings: one-line settings to set (key -> values as written, "" removes
+	// the line). Only EditableSettings keys.
+	Settings map[string]string
 	// MapExists says whether a door's destination exists. Doors to other maps
 	// (the original's doors to maps the port lacks) are left in the file untouched.
 	MapExists func(string) bool
@@ -63,7 +66,86 @@ func EditMapConfig(name string, text []byte, edit MapEdit) (string, error) {
 			return "", err
 		}
 	}
+	for k := range edit.Settings {
+		if _, ok := EditableSettings[k]; !ok {
+			return "", fmt.Errorf("%s can't be set from the editor", k)
+		}
+	}
+	for _, k := range editableOrder { // new lines land in this order
+		if v, ok := edit.Settings[k]; ok {
+			w.putSetting(k, strings.Join(strings.Fields(v), " "), EditableSettings[k])
+		}
+	}
 	return w.text(), nil
+}
+
+// EditableSettings are the settings the map editor can change, with the
+// comment written above a port setting when it's added.
+var EditableSettings = map[string]string{
+	"maximum-object":        "",
+	"random-mob-generator":  "",
+	"random-mob-max":        "most random monsters at once (without it: a share of maximum-object)",
+	"random-mob-groups":     "1 = random monsters come in packs, as the original",
+	"fixed-dayornight-mode": "",
+}
+
+var editableOrder = []string{"maximum-object", "random-mob-generator", "random-mob-max", "random-mob-groups", "fixed-dayornight-mode"}
+
+// withValue is a setting line with new values, keeping its spacing and comment.
+func withValue(text, value string) string {
+	eq := strings.Index(text, "=")
+	if eq < 0 {
+		return text
+	}
+	start := eq + 1
+	for start < len(text) && (text[start] == ' ' || text[start] == '	') {
+		start++
+	}
+	rest := ""
+	if c := strings.Index(text[start:], "//"); c >= 0 {
+		rest = text[start+c:]
+		// keep the gap before the comment
+		val := text[start : start+c]
+		rest = val[len(strings.TrimRight(val, " 	")):] + rest
+	}
+	return text[:start] + value + rest
+}
+
+// putSetting sets a setting's values: replaces its line (keeping the comment),
+// removes it when value is "", or adds it next to related settings.
+func (w *configWriter) putSetting(key, value, portComment string) {
+	for _, l := range w.c.Lines {
+		if l.Key != key {
+			continue
+		}
+		if value == "" {
+			w.remove(l.No)
+			// and the "// Port setting:" note the editor put above it
+			if l.No > 1 && strings.HasPrefix(strings.TrimSpace(w.lines[l.No-2]), "// Port setting:") {
+				w.remove(l.No - 1)
+			}
+		} else if strings.Join(l.Values, " ") != value {
+			w.replace(l.No, withValue(l.Text, value))
+		}
+		return
+	}
+	if value == "" {
+		return
+	}
+	at := 0
+	for _, near := range []string{"random-mob-generator", "maximum-object", "map-location"} {
+		if at = w.lastLineOf(near); at != 0 {
+			break
+		}
+	}
+	if at == 0 {
+		at = w.endLine()
+	}
+	lines := []string{key + " = " + value}
+	if portComment != "" {
+		lines = append([]string{"// Port setting: " + portComment}, lines...)
+	}
+	w.insertAfter(at, lines...)
 }
 
 // configWriter edits a file's lines: each original line can be kept, replaced
