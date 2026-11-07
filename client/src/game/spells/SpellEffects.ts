@@ -126,7 +126,7 @@ const SPELLS: Record<number, SpellEntry> = {
     5: { sprites: ['effect4'], play: (c) => new PoisonCloud(c.ctx.scene, c.tx, c.ty, { duration: 1500, radius: 3 }) },
     // Divine Revenge: an Equilibrium spell whose client art isn't in any source we have;
     // stand-in: bolts from the sky over its 5x5 area
-    78: { sprites: ['effect'], play: (c) => new LightningStrike(c.ctx.scene, c.ox, c.oy, c.tx, c.ty, { strikeInterval: 70, strikes: 8, radius: 2, lightningBoltConfig: boltConfig(c) }) },
+    78: { sprites: ['effect'], play: (c) => new LightningStrike(c.ctx.scene, c.ox, c.oy, c.tx, c.ty, { strikeInterval: 70, strikes: 8, radius: 3, lightningBoltConfig: boltConfig(c) }) },
     // Chill Wind / Mass Chill Wind
     45: { sprites: ['effect4', 'effect'], play: (c) => new ChillWind(c.ctx.scene, c.tx, c.ty, { dropDistance: 200, projectileSpeed: 1500, ...c.common }) },
     63: { sprites: ['effect5'], play: (c) => new MassChillWind(c.ctx.scene, c.tx, c.ty, { dropDistance: 200, projectileSpeed: 1500, ...c.common }) },
