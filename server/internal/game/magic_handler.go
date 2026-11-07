@@ -378,7 +378,7 @@ func (e *Engine) landDamageSpell(p *player.Player, spell *magic.SpellDef, hits m
 func (e *Engine) spellHurtNPC(p *player.Player, n *npc.NPC, dmg int, gm *mapdata.GameMap) {
 	killed := n.TakeDamage(dmg)
 	n.HeldUntil = time.Time{} // spell damage breaks Hold Person / Paralyze
-	e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgDamageEvent, &pb.DamageEvent{
+	e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgDamageEvent, &pb.DamageEvent{
 		AttackerId:  p.ObjectID,
 		TargetId:    n.ObjectID,
 		TargetType:  2,

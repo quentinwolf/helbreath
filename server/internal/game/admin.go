@@ -562,7 +562,7 @@ func (e *Engine) adminSummon(p *player.Player, args []string) {
 
 		// Broadcast NPC appear to nearby players
 		appear := n.ToNpcAppear()
-		e.broadcastToNearby(gm, x, y, -1, network.MsgNpcAppear, appear)
+		e.broadcastAroundNPC(gm, x, y, -1, network.MsgNpcAppear, appear)
 	}
 
 	e.sendNotification(p, fmt.Sprintf("Summoned %d x %s (type %d)", count, npcType.Name, typeID), 1)
@@ -626,7 +626,7 @@ func (e *Engine) adminClearNPC(p *player.Player) {
 
 		// Broadcast NPC disappear (same pattern as handleNPCDeath)
 		disappear := &pb.NpcDisappear{ObjectId: n.ObjectID}
-		e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgNpcDisappear, disappear)
+		e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgNpcDisappear, disappear)
 
 		killed++
 		return true

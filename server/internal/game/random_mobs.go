@@ -142,6 +142,6 @@ func (e *Engine) spawnRandomMob(gm *mapdata.GameMap, t *npc.NpcType, x, y int) b
 	n.Area = npc.Rect{X1: 15, Y1: 15, X2: gm.Width - 36, Y2: gm.Height - 36, Set: true}
 	e.npcs.Store(objectID, n)
 	gm.SetOwner(x, y, objectID)
-	e.broadcastToNearby(gm, x, y, -1, network.MsgNpcAppear, n.ToNpcAppear())
+	e.broadcastAroundNPC(gm, x, y, -1, network.MsgNpcAppear, n.ToNpcAppear())
 	return true
 }

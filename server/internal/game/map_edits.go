@@ -234,7 +234,7 @@ func (e *Engine) respawnMap(gm *mapdata.GameMap, entries []SpawnEntry) (removed,
 		}
 		if n.State != npc.StateDead {
 			gm.ClearOwner(n.X, n.Y)
-			e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgNpcDisappear, &pb.NpcDisappear{ObjectId: n.ObjectID})
+			e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgNpcDisappear, &pb.NpcDisappear{ObjectId: n.ObjectID})
 		}
 		e.npcs.Delete(key)
 		removed++

@@ -181,12 +181,18 @@ func (m *GameMap) RemovePlayerFromSector(x, y int, objectID int32) {
 
 // GetNearbyPlayerIDs returns all player object IDs in a 3x3 sector grid around (x,y).
 func (m *GameMap) GetNearbyPlayerIDs(x, y int) []int32 {
+	return m.GetPlayerIDsInSectors(x, y, 1)
+}
+
+// GetPlayerIDsInSectors returns the player object IDs in the sectors up to r
+// sectors from (x,y)'s ((2r+1)x(2r+1) sectors).
+func (m *GameMap) GetPlayerIDsInSectors(x, y, r int) []int32 {
 	cx := x / SectorSize
 	cy := y / SectorSize
 
 	var result []int32
-	for dy := -1; dy <= 1; dy++ {
-		for dx := -1; dx <= 1; dx++ {
+	for dy := -r; dy <= r; dy++ {
+		for dx := -r; dx <= r; dx++ {
 			sy := cy + dy
 			sx := cx + dx
 			if sy < 0 || sx < 0 || sy >= len(m.Sectors) || sx >= len(m.Sectors[0]) {

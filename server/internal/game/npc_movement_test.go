@@ -139,3 +139,35 @@ func TestWandererBehindWallPicksNewDestination(t *testing.T) {
 		}
 	}
 }
+
+// NPC events reach every player within npcViewRange (40 tiles), the same range
+// NPCs are shown in. They used to go to the 3x3 sectors round the NPC only (as
+// little as 20 tiles), so an NPC 20-40 tiles off froze on screen, then flew to
+// wherever it had walked once it came back in range.
+func TestNpcEventsReachPlayersInViewRange(t *testing.T) {
+	e := makeTestEngine()
+	gm := makeTestGameMap(200, 200)
+	e.maps["test"] = gm
+	p := makeFullTestPlayer(1, "Watcher")
+	p.X, p.Y = 39, 50 // last column of sector 1
+	addPlayerToEngine(e, p)
+	gm.AddPlayerToSector(p.X, p.Y, p.ObjectID)
+
+	has := func(x, y int) bool {
+		for _, v := range e.npcViewers(gm, x, y) {
+			if v == p {
+				return true
+			}
+		}
+		return false
+	}
+	if !has(61, 50) { // 22 tiles away, sector 3: outside the old 3x3 sectors
+		t.Error("a player 22 tiles from an NPC should get its events")
+	}
+	if !has(79, 90) { // 40 tiles on both axes
+		t.Error("a player exactly 40 tiles away should get its events")
+	}
+	if has(80, 50) {
+		t.Error("a player 41 tiles away is out of view range")
+	}
+}

@@ -200,7 +200,7 @@ func (e *Engine) castPolymorph(p *player.Player, spell *magic.SpellDef, targetID
 		}
 		n.PolymorphUntil = until
 		e.broadcastSpellEffect(p, spell, n.ObjectID, p.X, p.Y, n.X, n.Y, 0, 0, false, gm)
-		e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgNpcAppear, n.ToNpcAppear())
+		e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgNpcAppear, n.ToNpcAppear())
 		return
 	}
 	t := e.spellTargetPlayer(p, targetID)
@@ -282,7 +282,7 @@ func (e *Engine) castSummon(p *player.Player, spell *magic.SpellDef, tx, ty int,
 	gm.SetOwner(x, y, n.ObjectID)
 
 	e.broadcastSpellEffect(p, spell, n.ObjectID, p.X, p.Y, x, y, 0, 0, false, gm)
-	e.broadcastToNearby(gm, x, y, -1, network.MsgNpcAppear, n.ToNpcAppear())
+	e.broadcastAroundNPC(gm, x, y, -1, network.MsgNpcAppear, n.ToNpcAppear())
 	log.Printf("Player %s (level %d) summoned %s", p.Name, p.Level, name)
 }
 
@@ -290,7 +290,7 @@ func (e *Engine) castSummon(p *player.Player, spell *magic.SpellDef, tx, ty int,
 func (e *Engine) dismissSummon(n *npc.NPC, gm *mapdata.GameMap) {
 	gm.ClearOwner(n.X, n.Y)
 	e.npcs.Delete(n.ObjectID)
-	e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgNpcDisappear, &pb.NpcDisappear{ObjectId: n.ObjectID})
+	e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgNpcDisappear, &pb.NpcDisappear{ObjectId: n.ObjectID})
 }
 
 // processSummonTick runs a summoned creature's own AI: stay with the master, pick

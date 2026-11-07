@@ -475,7 +475,7 @@ func (e *Engine) spawnEntry(entry *SpawnEntry, broadcast bool) int {
 			gm.SetOwner(x, y, objectID)
 			created++
 			if broadcast {
-				e.broadcastToNearby(gm, x, y, -1, network.MsgNpcAppear, n.ToNpcAppear())
+				e.broadcastAroundNPC(gm, x, y, -1, network.MsgNpcAppear, n.ToNpcAppear())
 			} else {
 				log.Printf("Spawned NPC %s (ID: %d) at %s (%d,%d)", npcType.Name, objectID, entry.MapName, x, y)
 			}
@@ -557,7 +557,7 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 			}
 			// Broadcast NPC appear to nearby players
 			appear := n.ToNpcAppear()
-			e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgNpcAppear, appear)
+			e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgNpcAppear, appear)
 			log.Printf("NPC %s respawned at (%d,%d)", n.Type.Name, n.X, n.Y)
 		}
 		return
@@ -572,7 +572,7 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 
 	if !n.PolymorphUntil.IsZero() && !n.IsPolymorphed(now) {
 		n.PolymorphUntil = time.Time{}
-		e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgNpcAppear, n.ToNpcAppear())
+		e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgNpcAppear, n.ToNpcAppear())
 	}
 	if n.MasterID != 0 && e.processSummonTick(n, now, gm) {
 		return
@@ -747,7 +747,7 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 			Position:  &pb.Vec2{X: int32(n.X), Y: int32(n.Y)},
 			Name:      n.Type.Name,
 		}
-		e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgMotionEvent, attackMotion)
+		e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgMotionEvent, attackMotion)
 
 		// Send damage event
 		dmgEvent := &pb.DamageEvent{
@@ -760,7 +760,7 @@ func (e *Engine) processNPCTick(n *npc.NPC, now time.Time) {
 			TargetHp:    int32(target.HP),
 			TargetMaxHp: int32(target.MaxHP),
 		}
-		e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgDamageEvent, dmgEvent)
+		e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgDamageEvent, dmgEvent)
 
 		// Update player stats
 		e.sendStatUpdate(target)
@@ -817,12 +817,14 @@ func (e *Engine) moveNPC(n *npc.NPC, gm *mapdata.GameMap, newX, newY, dir int) {
 	if time.Now().Before(n.HeldUntil) {
 		return // Hold Person / Paralyze
 	}
+	oldX, oldY := n.X, n.Y
 	gm.ClearOwner(n.X, n.Y)
 	n.X = newX
 	n.Y = newY
 	n.Direction = dir
 	n.Action = 1
 	gm.SetOwner(n.X, n.Y, n.ObjectID)
+	e.npcCrossViewRange(gm, n, oldX, oldY)
 
 	// Broadcast NPC movement
 	motionEvent := &pb.NpcMotion{
@@ -834,7 +836,7 @@ func (e *Engine) moveNPC(n *npc.NPC, gm *mapdata.GameMap, newX, newY, dir int) {
 		Name:      n.Type.Name,
 		NpcType:   int32(n.ShownSpriteType()),
 	}
-	e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgNpcMotion, motionEvent)
+	e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgNpcMotion, motionEvent)
 }
 
 func (e *Engine) findNearestPlayer(n *npc.NPC, gm *mapdata.GameMap) (*player.Player, int) {
@@ -1678,6 +1680,7 @@ func (e *Engine) handleMotion(client *network.Client, req *pb.MotionRequest) {
 		// Update position
 		oldSectorX := p.X / mapdata.SectorSize
 		oldSectorY := p.Y / mapdata.SectorSize
+		stepX, stepY := p.X, p.Y
 
 		gm.ClearOwner(p.X, p.Y)
 		p.X = newX
@@ -1750,28 +1753,26 @@ func (e *Engine) handleMotion(client *network.Client, req *pb.MotionRequest) {
 				}
 			}
 
-			// Also send NPC appear/disappear for sector crossing
-			e.npcs.Range(func(key, value any) bool {
-				n := value.(*npc.NPC)
-				if n.MapName != gm.Name || !n.IsAlive() {
-					return true
-				}
-				oldDist := n.DistanceTo(oldX, oldY)
-				newDist := n.DistanceTo(p.X, p.Y)
-				if oldDist > 40 && newDist <= 40 {
-					// NPC now in range — send NpcAppear
-					npcAppear := n.ToNpcAppear()
-					npcData, _ := network.Encode(network.MsgNpcAppear, npcAppear)
-					p.Send(npcData)
-				} else if oldDist <= 40 && newDist > 40 {
-					// NPC now out of range — send NpcDisappear
-					npcDisappear := &pb.NpcDisappear{ObjectId: n.ObjectID}
-					npcData, _ := network.Encode(network.MsgNpcDisappear, npcDisappear)
-					p.Send(npcData)
-				}
-				return true
-			})
 		}
+
+		// NPCs this step brought into or took out of view range (every step, not
+		// just sector crossings: NPC events go to players within npcViewRange)
+		e.npcs.Range(func(key, value any) bool {
+			n := value.(*npc.NPC)
+			if n.MapName != gm.Name || !n.IsAlive() {
+				return true
+			}
+			oldDist := n.DistanceTo(stepX, stepY)
+			newDist := n.DistanceTo(p.X, p.Y)
+			if oldDist > npcViewRange && newDist <= npcViewRange {
+				npcData, _ := network.Encode(network.MsgNpcAppear, n.ToNpcAppear())
+				p.Send(npcData)
+			} else if oldDist <= npcViewRange && newDist > npcViewRange {
+				npcData, _ := network.Encode(network.MsgNpcDisappear, &pb.NpcDisappear{ObjectId: n.ObjectID})
+				p.Send(npcData)
+			}
+			return true
+		})
 
 		// Broadcast movement to nearby players
 		speed := int32(490)
@@ -2114,11 +2115,11 @@ func (e *Engine) handleNPCDeath(n *npc.NPC, killer *player.Player, gm *mapdata.G
 		KillerName: killer.Name,
 		Position:   &pb.Vec2{X: int32(n.X), Y: int32(n.Y)},
 	}
-	e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgDeathEvent, deathEvt)
+	e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgDeathEvent, deathEvt)
 
 	// Broadcast NPC disappear
 	disappear := &pb.NpcDisappear{ObjectId: n.ObjectID}
-	e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgNpcDisappear, disappear)
+	e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgNpcDisappear, disappear)
 
 	if n.MasterID != 0 {
 		return // a summoned creature: no reward, as in the original
@@ -2244,6 +2245,67 @@ func (e *Engine) sendMotionCorrection(p *player.Player, gm *mapdata.GameMap) {
 	}
 	data, _ := network.Encode(network.MsgMotionEvent, motionEvent)
 	p.Send(data)
+}
+
+// npcViewRange is how far (in tiles, either axis) a player is told about NPCs:
+// they appear within it and get every move, attack and death until they leave
+// it. Wider than a big screen, so NPCs don't pop in or freeze in view. (NPC
+// events used to go to the 3x3 sectors round the NPC, as little as 20 tiles,
+// while NPCs were shown up to 40 away: one 20-40 tiles off stood still on the
+// client, then flew to wherever it had got to once it came back in range.)
+const npcViewRange = 40
+
+// npcViewers are the players within npcViewRange of (x, y). Sectors are
+// SectorSize (20) tiles, so 2 sectors either side cover 40 tiles from anywhere.
+func (e *Engine) npcViewers(gm *mapdata.GameMap, x, y int) []*player.Player {
+	var out []*player.Player
+	for _, id := range gm.GetPlayerIDsInSectors(x, y, 2) {
+		if val, ok := e.players.Load(id); ok {
+			p := val.(*player.Player)
+			if p.MapName == gm.Name && max(abs(p.X-x), abs(p.Y-y)) <= npcViewRange {
+				out = append(out, p)
+			}
+		}
+	}
+	return out
+}
+
+// broadcastAroundNPC sends an NPC's event (motion, attack, damage, death,
+// appear/disappear) to every player within npcViewRange of (x, y).
+func (e *Engine) broadcastAroundNPC(gm *mapdata.GameMap, x, y int, excludeID int32, msgType byte, msg proto.Message) {
+	data, err := network.Encode(msgType, msg)
+	if err != nil {
+		return
+	}
+	for _, p := range e.npcViewers(gm, x, y) {
+		if p.ObjectID != excludeID {
+			e.sendTo(p, msg, data)
+		}
+	}
+}
+
+// npcCrossViewRange tells players an NPC that just stepped from (oldX, oldY)
+// came into their view range (NpcAppear) or left it (NpcDisappear). The step
+// itself goes to everyone in range afterwards.
+func (e *Engine) npcCrossViewRange(gm *mapdata.GameMap, n *npc.NPC, oldX, oldY int) {
+	in := func(p *player.Player, x, y int) bool { return max(abs(p.X-x), abs(p.Y-y)) <= npcViewRange }
+	var appearData, goneData []byte
+	for _, p := range e.npcViewers(gm, n.X, n.Y) {
+		if !in(p, oldX, oldY) {
+			if appearData == nil {
+				appearData, _ = network.Encode(network.MsgNpcAppear, n.ToNpcAppear())
+			}
+			p.Send(appearData)
+		}
+	}
+	for _, p := range e.npcViewers(gm, oldX, oldY) {
+		if !in(p, n.X, n.Y) {
+			if goneData == nil {
+				goneData, _ = network.Encode(network.MsgNpcDisappear, &pb.NpcDisappear{ObjectId: n.ObjectID})
+			}
+			p.Send(goneData)
+		}
+	}
 }
 
 func (e *Engine) broadcastToNearby(gm *mapdata.GameMap, x, y int, excludeID int32, msgType byte, msg proto.Message) {
@@ -2373,7 +2435,7 @@ func (e *Engine) getNearbyNPCInfos(gm *mapdata.GameMap, x, y int) []*pb.EntityIn
 		}
 		alive++
 		dist := n.DistanceTo(x, y)
-		if dist <= 40 { // visibility range
+		if dist <= npcViewRange {
 			infos = append(infos, n.ToEntityInfo())
 		}
 		return true

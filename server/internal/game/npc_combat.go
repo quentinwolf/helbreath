@@ -18,7 +18,7 @@ func (e *Engine) npcStopMoving(n *npc.NPC, gm *mapdata.GameMap) {
 		return
 	}
 	n.Action = 0
-	e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgNpcMotion, &pb.NpcMotion{
+	e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgNpcMotion, &pb.NpcMotion{
 		ObjectId:  n.ObjectID,
 		Action:    0,
 		Direction: int32(n.Direction),
@@ -92,7 +92,7 @@ func (e *Engine) npcCastSpell(n *npc.NPC, spell *magic.SpellDef, gm *mapdata.Gam
 	n.Mana -= spell.ManaCost
 	n.Direction = n.DirectionTo(tx, ty)
 
-	e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgMotionEvent, &pb.MotionEvent{
+	e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgMotionEvent, &pb.MotionEvent{
 		ObjectId:  n.ObjectID,
 		OwnerType: 2,
 		Action:    3, // attack animation (monster sprites have no cast pose)
@@ -100,7 +100,7 @@ func (e *Engine) npcCastSpell(n *npc.NPC, spell *magic.SpellDef, gm *mapdata.Gam
 		Position:  &pb.Vec2{X: int32(n.X), Y: int32(n.Y)},
 		Name:      n.Type.Name,
 	})
-	e.broadcastToNearby(gm, n.X, n.Y, -1, network.MsgSpellEffect, &pb.SpellEffectEvent{
+	e.broadcastAroundNPC(gm, n.X, n.Y, -1, network.MsgSpellEffect, &pb.SpellEffectEvent{
 		CasterId:       n.ObjectID,
 		SpellId:        int32(spell.ID),
 		TargetId:       n.TargetID,
@@ -117,7 +117,7 @@ func (e *Engine) npcCastSpell(n *npc.NPC, spell *magic.SpellDef, gm *mapdata.Gam
 		victim := val.(*npc.NPC)
 		dmg = max(1, dmg-min(victim.Type.Defense/2, dmg*60/100))
 		killed := victim.TakeDamage(dmg)
-		e.broadcastToNearby(gm, victim.X, victim.Y, -1, network.MsgDamageEvent, &pb.DamageEvent{
+		e.broadcastAroundNPC(gm, victim.X, victim.Y, -1, network.MsgDamageEvent, &pb.DamageEvent{
 			AttackerId: n.ObjectID, TargetId: victim.ObjectID, TargetType: 2,
 			Damage: int32(dmg), TargetHp: int32(victim.HP), TargetMaxHp: int32(victim.MaxHP),
 		})
@@ -251,7 +251,7 @@ func (e *Engine) npcTargetPosition(n *npc.NPC) (x, y int, ok bool) {
 // fields as NPC attacks on players.
 func (e *Engine) npcAttackNPC(attacker, victim *npc.NPC, gm *mapdata.GameMap) {
 	attacker.Direction = attacker.DirectionTo(victim.X, victim.Y)
-	e.broadcastToNearby(gm, attacker.X, attacker.Y, -1, network.MsgMotionEvent, &pb.MotionEvent{
+	e.broadcastAroundNPC(gm, attacker.X, attacker.Y, -1, network.MsgMotionEvent, &pb.MotionEvent{
 		ObjectId:  attacker.ObjectID,
 		OwnerType: 2,
 		Action:    3, // attack
@@ -282,7 +282,7 @@ func (e *Engine) npcAttackNPC(attacker, victim *npc.NPC, gm *mapdata.GameMap) {
 	if !miss {
 		killed = victim.TakeDamage(dmg)
 	}
-	e.broadcastToNearby(gm, victim.X, victim.Y, -1, network.MsgDamageEvent, &pb.DamageEvent{
+	e.broadcastAroundNPC(gm, victim.X, victim.Y, -1, network.MsgDamageEvent, &pb.DamageEvent{
 		AttackerId:  attacker.ObjectID,
 		TargetId:    victim.ObjectID,
 		TargetType:  2,
@@ -307,14 +307,14 @@ func (e *Engine) npcAttackNPC(attacker, victim *npc.NPC, gm *mapdata.GameMap) {
 // the normal tick.
 func (e *Engine) handleNPCKilledByNPC(victim, killer *npc.NPC, gm *mapdata.GameMap) {
 	gm.ClearOwner(victim.X, victim.Y)
-	e.broadcastToNearby(gm, victim.X, victim.Y, -1, network.MsgDeathEvent, &pb.DeathEvent{
+	e.broadcastAroundNPC(gm, victim.X, victim.Y, -1, network.MsgDeathEvent, &pb.DeathEvent{
 		ObjectId:   victim.ObjectID,
 		ObjectType: 2, // NPC
 		KillerId:   killer.ObjectID,
 		KillerName: killer.Type.Name,
 		Position:   &pb.Vec2{X: int32(victim.X), Y: int32(victim.Y)},
 	})
-	e.broadcastToNearby(gm, victim.X, victim.Y, -1, network.MsgNpcDisappear, &pb.NpcDisappear{ObjectId: victim.ObjectID})
+	e.broadcastAroundNPC(gm, victim.X, victim.Y, -1, network.MsgNpcDisappear, &pb.NpcDisappear{ObjectId: victim.ObjectID})
 	if killer.TargetID == victim.ObjectID {
 		e.npcDropTarget(killer, gm)
 	}
