@@ -15,9 +15,6 @@ teleport-loc       =    50     36     elvine              228    153   4
 teleport-loc       =    49     37     elvine              228    153   4
 teleport-loc       =    50     37     elvine              228    153   4
 teleport-loc       =    51     37     elvine              228    153   4
-teleport-loc     =     49     30     gshop_2             60     37     0
-teleport-loc     =     58     34     gshop_2             47     31     0
-teleport-loc     =     59     34     gshop_2             47     31     0
 
 //-WayPoint-Set---------Num-----X-----Y----;
 waypoint          =     1      60    43

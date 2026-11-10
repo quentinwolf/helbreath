@@ -5,6 +5,8 @@
 [MAP-INFO]
 
 map-location  = dglv2
+// Port setting: doors work on exactly the tiles listed (set by the map editor)
+exact-doors = 1
 initial-point = 1  384 143
 level-limit   = 40
 
@@ -36,27 +38,12 @@ teleport-loc     =     271    225     dglv2               263    258   5
 teleport-loc     =     272    225     dglv2               263    258   5
 teleport-loc     =     273    225     dglv2               263    258   5
 
-teleport-loc     =     157    85      dglv2               41     34    5
-teleport-loc     =     157    86      dglv2               41     34    5
-teleport-loc     =     157    87      dglv2               41     34    5
-teleport-loc     =     157    88      dglv2               41     34    5
-teleport-loc     =     157    89      dglv2               41     34    5
 
-teleport-loc     =     80     198     dglv2               56     212   5
-teleport-loc     =     80     197     dglv2               56     212   5
-teleport-loc     =     80     196     dglv2               56     212   5
-teleport-loc     =     81     196     dglv2               56     212   5
-teleport-loc     =     81     195     dglv2               56     212   5
 
 teleport-loc     =     210    108     dglv2               40     175   5
 teleport-loc     =     211    108     dglv2               40     175   5
 teleport-loc     =     211    109     dglv2               40     175   5
 
-teleport-loc     =     122    190     dglv2               83     179   5
-teleport-loc     =     122    191     dglv2               83     179   5
-teleport-loc     =     122    192     dglv2               83     179   5
-teleport-loc     =     122    193     dglv2               83     179   5
-teleport-loc     =     122    194     dglv2               83     179   5
 
 teleport-loc     =     37     173     dglv2               208    110   5
 teleport-loc     =     38     173     dglv2               208    110   5
@@ -67,18 +54,7 @@ teleport-loc     =     180    39      dglv2               212    469   5
 teleport-loc     =     181    39      dglv2               212    469   5
 teleport-loc     =     181    38      dglv2               212    469   5
 
-teleport-loc     =     364    253     dglv2               437    339   5
-teleport-loc     =     365    253     dglv2               437    339   5
-teleport-loc     =     366    253     dglv2               437    339   5
-teleport-loc     =     367    253     dglv2               437    339   5
-teleport-loc     =     368    253     dglv2               437    339   5
-teleport-loc     =     369    253     dglv2               437    339   5
-teleport-loc     =     370    253     dglv2               437    339   5
-teleport-loc     =     371    253     dglv2               437    339   5
 
-teleport-loc     =     438    342     dglv2               359    267   5
-teleport-loc     =     439    342     dglv2               359    267   5
-teleport-loc     =     438    343     dglv2               359    267   5
 
 teleport-loc     =     234    399     dglv2               392    418   5
 teleport-loc     =     234    398     dglv2               392    418   5
